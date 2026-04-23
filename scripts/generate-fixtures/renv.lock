@@ -1,0 +1,17 @@
+{
+  "R": {
+    "Version": "4.4.0",
+    "Repositories": [
+      {"Name": "CRAN", "URL": "https://cloud.r-project.org"},
+      {"Name": "inla", "URL": "https://inla.r-inla-download.org/R/stable"}
+    ]
+  },
+  "Packages": {
+    "_comment": "Placeholder. Populate with `renv::snapshot()` after the first successful fixture regen on each maintainer's machine. Until then, the canonical R-INLA version used for committed fixtures is recorded in the commit message that produced them.",
+    "INLA":     { "Package": "INLA",     "Version": "TBD", "Source": "inla" },
+    "Matrix":   { "Package": "Matrix",   "Version": "TBD", "Source": "Repository", "Repository": "CRAN" },
+    "jsonlite": { "Package": "jsonlite", "Version": "TBD", "Source": "Repository", "Repository": "CRAN" },
+    "SpatialEpi":{"Package": "SpatialEpi","Version": "TBD", "Source": "Repository", "Repository": "CRAN" },
+    "spdep":    { "Package": "spdep",    "Version": "TBD", "Source": "Repository", "Repository": "CRAN" }
+  }
+}

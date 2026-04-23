@@ -15,4 +15,7 @@ using GMRFs
         include("regression/test_marginals.jl")
         include("regression/test_factorization.jl")
     end
+    @testset "Oracle (R-INLA)" begin
+        include("oracle/test_qinv_rw2.jl")
+    end
 end

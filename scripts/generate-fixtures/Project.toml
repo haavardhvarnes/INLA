@@ -1,0 +1,9 @@
+name = "GenerateFixtures"
+uuid = "4b3d5f01-7c42-4f2b-9a55-8f2c9e1a0b01"
+authors = ["INLA contributors"]
+version = "0.0.0"
+
+[deps]
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"

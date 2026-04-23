@@ -16,6 +16,8 @@ using Random
 using Statistics
 
 using Distributions: Distributions
+using FastGaussQuadrature: FastGaussQuadrature
+using FiniteDiff: FiniteDiff
 using GMRFs
 using GMRFs: AbstractGMRFGraph, GMRFGraph, AbstractGMRF, NoConstraint,
              LinearConstraint, FactorCache
@@ -26,6 +28,7 @@ using LogDensityProblems: LogDensityProblems
 # --- hyperpriors (loaded first; likelihoods reference them) -----------
 include("priors/abstract.jl")
 include("priors/pc.jl")
+include("priors/bym2_phi.jl")
 
 # --- link functions + likelihoods -------------------------------------
 include("likelihoods/links.jl")
@@ -41,12 +44,15 @@ include("components/iid.jl")
 include("components/rw.jl")
 include("components/ar1.jl")
 include("components/besag.jl")
+include("components/bym2.jl")
 
 # --- model + inference ------------------------------------------------
 include("model.jl")
 include("inference/abstract.jl")
 include("inference/laplace.jl")
 include("inference/empirical_bayes.jl")
+include("inference/integration.jl")
+include("inference/inla.jl")
 
 # Link functions
 export AbstractLinkFunction, IdentityLink, LogLink, LogitLink,
@@ -61,11 +67,12 @@ export log_density, ∇_η_log_density, ∇²_η_log_density, link
 # Hyperpriors
 export AbstractHyperPrior
 export PCPrecision, GammaPrecision, LogNormalPrecision, WeakPrior
+export PCBYM2Phi
 export log_prior_density, user_scale, prior_name
 
 # Components
 export AbstractLatentComponent
-export Intercept, FixedEffects, IID, RW1, RW2, AR1, Besag
+export Intercept, FixedEffects, IID, RW1, RW2, AR1, Besag, BYM2
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean
 
@@ -73,8 +80,10 @@ export precision_matrix, initial_hyperparameters, nhyperparameters,
 export LatentGaussianModel, n_latent, n_hyperparameters
 export joint_precision
 export AbstractInferenceStrategy, AbstractInferenceResult
+export AbstractIntegrationScheme, Grid, GaussHermite, CCD
 export Laplace, LaplaceResult, laplace_mode
 export EmpiricalBayes, EmpiricalBayesResult
-export fit, empirical_bayes, laplace
+export INLA, INLAResult
+export fit, empirical_bayes, laplace, inla
 
 end # module
