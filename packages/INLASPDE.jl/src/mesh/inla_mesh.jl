@@ -21,6 +21,7 @@ struct INLAMesh{T <: Real, TRI}
     triangles::Matrix{Int}
     boundary::Vector{Int}
     triangulation::TRI
+    dt_to_mesh::Dict{Int, Int}
 end
 
 Base.show(io::IO, mesh::INLAMesh) = print(
@@ -243,7 +244,7 @@ function _build_inla_mesh(tri)
     bnd_loop = _extract_boundary_loop(bnd_raw)
     boundary = [idxmap[v] for v in bnd_loop]
 
-    return INLAMesh(points, triangles, boundary, tri)
+    return INLAMesh(points, triangles, boundary, tri, idxmap)
 end
 
 # Strip the outer nesting of boundary_nodes down to the first curve's

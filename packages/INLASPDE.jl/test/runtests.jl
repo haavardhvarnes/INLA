@@ -28,6 +28,10 @@ using INLASPDE
         include("regression/test_mesh_quality.jl")
     end
 
+    @testset "M4 — Projector" begin
+        include("regression/test_projector.jl")
+    end
+
     # --- future milestone testsets ---------------------------------------
     # @testset "M4 — Projector" begin
     #     include("regression/test_projector.jl")

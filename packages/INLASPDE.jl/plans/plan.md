@@ -117,11 +117,22 @@ Julia mesh must satisfy, versus the `fmesher` baseline fixture:
 Failure on any boundary triggers the `INLASPDEFmesher.jl` fallback per
 ADR-007.
 
-### M4 — Projector (1 week)
+### M4 — Projector (1 week) — DONE
 
-- [ ] `MeshProjector(mesh, locations)` — sparse barycentric matrix.
-- [ ] `SciMLOperators.AbstractSciMLOperator` wrapper for lazy application.
-- [ ] Integration with `LatentGaussianModel.projector` field.
+- [x] `MeshProjector(mesh, locations)` — `n_obs × n_vertices` sparse
+      barycentric matrix. Enclosing-triangle lookup delegates to
+      `DelaunayTriangulation.find_triangle`; barycentric coordinates
+      computed in double precision and stored as the row weights.
+- [x] `outside = :error | :zero` policy for locations outside the mesh
+      domain, with optional `atol` for near-boundary roundoff.
+- [x] `SciMLOperators.MatrixOperator` wrapper via `scimloperator(P)`.
+- [x] Interop with `LatentGaussianModel(likelihood, component, A)` —
+      `P.A` / `sparse(P)` plug straight into the model's projector
+      slot.
+- [x] Regression tests: row-sum = 1 partition of unity, ≤ 3 nonzeros
+      per row, exact reproduction of linear fields, identity-like rows
+      at mesh-vertex queries, outside-policy behaviour, `scimloperator`
+      agreement, and `LatentGaussianModel` end-to-end wiring.
 
 ### M5 — Meuse vignette (1 week)
 

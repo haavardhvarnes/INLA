@@ -56,6 +56,8 @@ export convex_hull_polygon, expand_polygon, cutoff_dedup
 export INLAMesh, inla_mesh_2d, num_vertices, num_triangles
 
 # M4 — Projector
-# include("projector.jl")
+include("projector.jl")
+
+export MeshProjector, scimloperator
 
 end # module
