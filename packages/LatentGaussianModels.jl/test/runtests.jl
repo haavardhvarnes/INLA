@@ -33,6 +33,9 @@ using GMRFs
     @testset "INLA — Marginals + Accessors" begin
         include("regression/test_inla_marginals.jl")
     end
+    @testset "INLA — Poisson + BYM2 (synthetic)" begin
+        include("regression/test_inla_poisson_bym2.jl")
+    end
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_scotland_bym2.jl")
     end

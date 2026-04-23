@@ -21,7 +21,13 @@ precision `Q`.
 """
 function marginal_variances(Q::AbstractSparseMatrix; method::Symbol = :selinv)
     if method === :selinv
-        return selinv_diag(SparseMatrixCSC(Q))
+        # Route through `cholesky(Symmetric(Q))` so CHOLMOD never sees the
+        # raw SparseMatrixCSC (which it inspects with `issymmetric` — this
+        # fails at floating-point-level asymmetry from assembly order).
+        F = cholesky(Symmetric(SparseMatrixCSC(Q)))
+        Z, p = selinv(F; depermute = false)
+        d = diag(Z)
+        return d[invperm(p)]
     elseif method === :dense
         return diag(inv(Symmetric(Matrix(Q))))
     else

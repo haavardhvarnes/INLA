@@ -202,17 +202,16 @@ inla(m::LatentGaussianModel, y; kwargs...) = fit(m, y, INLA(; kwargs...))
 # ---------------------------------------------------------------------
 
 function _safe_inverse_hessian(H::AbstractMatrix)
-    try
-        return Matrix(inv(Symmetric(H)))
-    catch err
-        if err isa LinearAlgebra.SingularException || err isa LinearAlgebra.PosDefException
-            n = size(H, 1)
-            Hr = Symmetric(H + 1.0e-6 * I(n))
-            return Matrix(inv(Hr))
-        else
-            rethrow(err)
-        end
+    Hs = Symmetric(Matrix(H))
+    if isposdef(Hs)
+        return Matrix(inv(Hs))
     end
+    # H has non-positive eigenvalues (saddle point or flat direction at
+    # the optimum — common for small-n BYM2 fits). Floor the eigenvalues
+    # at a small positive number before inverting so Σθ remains PD.
+    ev = eigen(Hs)
+    λ = max.(ev.values, 1.0e-6)
+    return Matrix(Symmetric(ev.vectors * Diagonal(1 ./ λ) * ev.vectors'))
 end
 
 function _logsumexp(x::AbstractVector{<:Real})
