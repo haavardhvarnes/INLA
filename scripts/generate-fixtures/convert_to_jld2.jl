@@ -103,8 +103,40 @@ function convert_fixture(doc)
         out["meta"] = _materialize(doc["meta"])
     end
 
+    # Input data (for fixtures that append the original observations so
+    # the Julia-side oracle test can re-fit the same model without
+    # needing R-side packages at test time).
+    if haskey(doc, "input")
+        out["input"] = _convert_input(doc["input"])
+    end
+
     return out
 end
+
+"""
+    _convert_input(d) -> Dict{String, Any}
+
+Materialize an input-data subdict. Sparse triplet entries are
+reconstructed into `SparseMatrixCSC`; arrays are collected; scalars
+pass through.
+"""
+function _convert_input(d)
+    out = Dict{String, Any}()
+    for (k, v) in pairs(d)
+        out[String(k)] = _convert_input_value(v)
+    end
+    return out
+end
+
+_convert_input_value(v::JSON3.Array) = collect(v)
+function _convert_input_value(v::JSON3.Object)
+    # A triplet has keys {i, j, v, nrow, ncol}; otherwise keep as dict.
+    if all(k -> haskey(v, k), ("i", "j", "v", "nrow", "ncol"))
+        return triplet_to_sparse(v)
+    end
+    return Dict{String, Any}(String(k) => _convert_input_value(vv) for (k, vv) in pairs(v))
+end
+_convert_input_value(v) = v
 
 function main(args)
     length(args) == 2 || error("usage: convert_to_jld2.jl <input.json> <output.jld2>")

@@ -82,4 +82,19 @@ write_inla_fixture(
     )
 )
 
+# Append input data so the Julia-side oracle test can re-run the same
+# fit without SpatialEpi / spdep dependencies. Re-read the JSON, add
+# `input` fields, write back.
+fixture <- jsonlite::fromJSON(out_path, simplifyVector = FALSE)
+fixture$input <- list(
+    cases    = as.integer(dat$cases),
+    expected = as.numeric(dat$expected),
+    x        = as.numeric(dat$x),
+    W        = sparse_to_triplet(Matrix::Matrix(W, sparse = TRUE))
+)
+jsonlite::write_json(
+    fixture, out_path,
+    auto_unbox = TRUE, digits = 16, pretty = FALSE, na = "null"
+)
+
 cat("wrote ", out_path, "\n")
