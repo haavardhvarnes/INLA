@@ -20,6 +20,7 @@ import Graphs: adjacency_matrix, laplacian_matrix
 using Distributions: Distributions
 import Distributions: logpdf
 using LinearSolve: LinearSolve
+using SelectedInversion: selinv, selinv_diag
 
 # Public abstract types — load first so concrete types can subtype them.
 include("graph.jl")

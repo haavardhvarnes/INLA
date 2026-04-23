@@ -34,6 +34,7 @@ ChainRules AD rules for Zygote/Enzyme users).
 | Distributions | Priors as first-class distribution objects | standard |
 | Statistics | Statistical summaries | stdlib |
 | ChainRulesCore | AD rules (promoted from weakdep — near-zero mass, high convenience for Zygote/Enzyme users) | standard |
+| SelectedInversion | `diag(Q⁻¹)` on the sparse Cholesky pattern; default `marginal_variances` path | see ADR-012 |
 
 Weakdeps (extensions):
 

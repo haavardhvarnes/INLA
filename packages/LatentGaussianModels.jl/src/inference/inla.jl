@@ -173,9 +173,8 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
         lp = laplaces[k]
         x_mean .+= w[k] .* lp.mode
         # E[x²] at θ_k: mode² + conditional variance (diag of (Q+A'DA)⁻¹).
-        # v0.1 uses a dense inversion — selected inversion via the sparse
-        # Cholesky factor is the production path (plan M5).
-        cond_var = _laplace_marginal_variances(lp.precision)
+        # Takahashi / selected inversion via GMRFs.marginal_variances (ADR-012).
+        cond_var = GMRFs.marginal_variances(lp.precision)
         x_m2 .+= w[k] .* (lp.mode .^ 2 .+ cond_var)
     end
     x_var = x_m2 .- x_mean .^ 2
@@ -222,13 +221,3 @@ function _logsumexp(x::AbstractVector{<:Real})
     return m + log(sum(xi -> exp(xi - m), x))
 end
 
-# Dense marginal variances from a posterior precision. The precision
-# H = Q + A' D A is proper (PD) because the observation term contributes
-# positive mass to any null direction of Q that couples to y, so we can
-# take a straight inverse. Still dense — production replaces this with
-# Takahashi on the sparse Cholesky in M5.
-function _laplace_marginal_variances(H::AbstractSparseMatrix)
-    Hd = Matrix(H)
-    Σ = inv(Symmetric(Hd))
-    return diag(Σ)
-end

@@ -420,6 +420,65 @@ Likewise:
 
 ---
 
+## ADR-012: Adopt `SelectedInversion.jl` for sparse selected inverse
+
+Status: Accepted
+Date: 2026-04-23
+
+### Context
+
+ADR-004 named selected inversion (Takahashi recursion for
+`diag(Q⁻¹)` on the sparsity pattern of the Cholesky factor) as the
+single biggest Phase-3 numerical risk: R-INLA uses a specialized C
+implementation, Julia options were (a) `SelectedInversion.jl` (young),
+(b) CHOLMOD's `sparseinv` (not exposed cleanly), or (c) native
+Takahashi on the sparse Cholesky factor.
+
+At Phase 3 entry the GMRFs.jl `marginal_variances` reference impl
+densifies `Q` and is gated on `n < 1000`. The INLA outer loop's
+posterior-variance computation uses the same densification per design
+point — a hard wall for any realistic problem.
+
+Empirical evaluation of `SelectedInversion.jl` v0.2:
+- API: `selinv(Q::SparseMatrixCSC; depermute = true)` returns a
+  NamedTuple `(Z::SparseMatrixCSC, p::Vector{Int})`. `diag(Z)` gives
+  the marginal variances directly.
+- Correctness: matches `diag(inv(Matrix(Q)))` to ~1e-16 on band,
+  random-SPD, and RW-style Laplacian matrices.
+- Dependencies: SparseArrays + LinearAlgebra + SuiteSparse (all
+  already transitive via LinearSolve) — no new heavy deps.
+- Failure mode: throws `PosDefException` on non-PD input; standard
+  LinearAlgebra behavior.
+
+### Decision
+
+Adopt `SelectedInversion.jl` as a **core `[deps]` of `GMRFs.jl`** (not
+LGM — per ADR-001 layering, selected inversion is numerical core).
+Route LGM's posterior marginal-variance path through
+`GMRFs.marginal_variances`. The reference dense impl is kept as a
+correctness oracle for small `n`, reachable via `method = :dense`.
+
+### Consequences
+
+- **Good:** unblocks any `n > ~1000` problem; no native Takahashi
+  implementation needed, saving the 1–2 months of schedule budget
+  named in ADR-004.
+- **Good:** fixture tests can now compare directly against R-INLA's
+  `inla.qinv` output at scales matching real spatial-epidemiology
+  problems.
+- **Cost:** one more direct dep; maintenance risk if
+  `SelectedInversion.jl` goes stale. Mitigation: pin compat bounds,
+  keep the dense reference path for fallback.
+- **Cost:** does not solve `logdet(Q)` for intrinsic GMRFs —
+  generalised log-determinant on the non-null subspace is a separate
+  problem, tracked in `plans/defaults-parity.md`.
+
+### References
+- ADR-004 — Selected inversion named risk.
+- `plans/dependencies.md` — updated core deps table for GMRFs.jl.
+
+---
+
 ## ADR template for future entries
 
 ```

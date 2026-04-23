@@ -1,44 +1,74 @@
 # Marginal variances interface.
 #
-# v0.1 ships only the interface and a correctness-only dense reference
-# implementation (see plans/plan.md M4 and ADR-004). The production
-# sparse (Takahashi / selected inversion) implementation lives in
-# LatentGaussianModels.jl Phase 3 where it is actually needed.
+# The default sparse path is Takahashi / selected inversion via
+# SelectedInversion.jl (ADR-012), resolving the ADR-004 risk. A dense
+# reference path is kept behind `method = :dense` as a small-n correctness
+# oracle and for rank-deficient (intrinsic) GMRFs where we augment Q with
+# the null-space basis — augmentation defeats sparsity, so dense is the
+# right call there.
 
 """
-    marginal_variances(g::AbstractGMRF; n_dense_limit = 1000) -> Vector{Float64}
+    marginal_variances(Q::AbstractSparseMatrix; method = :selinv) -> Vector{Float64}
 
-Return the vector of marginal variances `diag(Q⁻¹)` for a proper GMRF,
-or `diag(Q⁺)` on the non-null subspace for an intrinsic one. This
-reference implementation uses dense matrix inversion and is *slow by
-design* — it exists for correctness tests, not production.
+Return `diag(Q⁻¹)` for a proper, symmetric positive-definite sparse
+precision `Q`.
 
-Throws a `DomainError` when `num_nodes(g) ≥ n_dense_limit` with a
-pointer to the production path:
-
-    LatentGaussianModels.marginal_variances (Phase 3 — selected inversion)
-
-The production implementation performs Takahashi recursion on the
-sparse Cholesky factor.
+`method`:
+- `:selinv` (default) — Takahashi recursion on the sparse Cholesky
+  factor via `SelectedInversion.selinv_diag`. Scales to large sparse `Q`.
+- `:dense` — densify `Q` and take a straight inverse. Correctness oracle
+  only; slow.
 """
-function marginal_variances(g::AbstractGMRF; n_dense_limit::Integer = 1000)
-    n = num_nodes(g)
-    if n ≥ n_dense_limit
-        throw(DomainError(n,
-            "marginal_variances: this GMRFs.jl v0.1 reference " *
-            "implementation densifies Q and only supports n < $n_dense_limit. " *
-            "For production use, call LatentGaussianModels.marginal_variances, " *
-            "which uses Takahashi recursion on the sparse Cholesky factor " *
-            "(see plans/defaults-parity.md, ADR-004)."))
-    end
-    r = rankdef(g)
-    Q = Matrix(precision_matrix(g))
-    if r == 0
-        return diag(inv(Q))
+function marginal_variances(Q::AbstractSparseMatrix; method::Symbol = :selinv)
+    if method === :selinv
+        return selinv_diag(SparseMatrixCSC(Q))
+    elseif method === :dense
+        return diag(inv(Symmetric(Matrix(Q))))
     else
-        V = null_space_basis(g)
-        # Generalised inverse on non-null subspace.
-        Σ = inv(Q + V * V') - V * V'
-        return diag(Σ)
+        throw(ArgumentError("marginal_variances: unknown method :$method; " *
+                            "use :selinv or :dense"))
+    end
+end
+
+"""
+    marginal_variances(g::AbstractGMRF; method = :auto) -> Vector{Float64}
+
+Return the vector of marginal variances for a GMRF. For a proper GMRF
+this is `diag(Q⁻¹)`; for an intrinsic (rank-deficient) GMRF it is the
+generalised-inverse diagonal on the non-null subspace,
+`diag(Q⁺) = diag(inv(Q + V V') - V V')`.
+
+`method`:
+- `:auto` (default) — `:selinv` for proper GMRFs, `:dense` for intrinsic.
+  The intrinsic path augments `Q` with the null-space basis, which
+  defeats sparsity, so dense is the honest default there.
+- `:selinv` — force the sparse Takahashi path. Errors on intrinsic GMRFs
+  (Q is singular).
+- `:dense` — densify. Correctness oracle only.
+"""
+function marginal_variances(g::AbstractGMRF; method::Symbol = :auto)
+    r = rankdef(g)
+    Q = precision_matrix(g)
+    if method === :auto
+        method = r == 0 ? :selinv : :dense
+    end
+    if method === :selinv
+        r == 0 || throw(ArgumentError(
+            "marginal_variances(g; method = :selinv): GMRF is rank-deficient " *
+            "(r = $r); selinv requires a PD precision. Use :auto or :dense, or " *
+            "augment with the null-space basis explicitly."))
+        return marginal_variances(Q; method = :selinv)
+    elseif method === :dense
+        Qd = Matrix(Q)
+        if r == 0
+            return diag(inv(Symmetric(Qd)))
+        else
+            V = null_space_basis(g)
+            Σ = inv(Symmetric(Qd + V * V')) - V * V'
+            return diag(Σ)
+        end
+    else
+        throw(ArgumentError("marginal_variances: unknown method :$method; " *
+                            "use :auto, :selinv, or :dense"))
     end
 end

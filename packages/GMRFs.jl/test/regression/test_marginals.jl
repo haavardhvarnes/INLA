@@ -43,8 +43,36 @@ end
     @test exp(mean(log.(v))) ≈ 1.0 rtol = 1e-8
 end
 
-@testset "marginal_variances: size guard" begin
-    # IIDGMRF doesn't go dense by path, but the guard trips on n ≥ limit.
-    g = IIDGMRF(1500; τ = 1.0)
-    @test_throws DomainError marginal_variances(g; n_dense_limit = 1000)
+@testset "marginal_variances: selinv scales past the old dense guard" begin
+    # Post ADR-012: default :selinv path handles large n. On IIDGMRF, Q = τI,
+    # so diag(Q⁻¹) = 1/τ constant regardless of dimension.
+    g = IIDGMRF(1500; τ = 2.5)
+    v = marginal_variances(g)
+    @test length(v) == 1500
+    @test v ≈ fill(1 / 2.5, 1500) rtol = 1e-10
+end
+
+@testset "marginal_variances: :selinv vs :dense agree on proper GMRF" begin
+    n = 8
+    ρ = 0.3
+    τ = 1.5
+    g = AR1GMRF(n; ρ = ρ, τ = τ)
+    v_selinv = marginal_variances(g; method = :selinv)
+    v_dense = marginal_variances(g; method = :dense)
+    @test v_selinv ≈ v_dense rtol = 1e-10
+end
+
+@testset "marginal_variances: :selinv errors on intrinsic GMRF" begin
+    g = RW1GMRF(5; τ = 1.0)
+    @test_throws ArgumentError marginal_variances(g; method = :selinv)
+end
+
+@testset "marginal_variances(Q::AbstractSparseMatrix)" begin
+    # Proper sparse PD matrix — the Laplace-posterior shape.
+    n = 6
+    Q = sparse(2.0I, n, n) + spdiagm(-1 => -0.3 * ones(n - 1),
+                                      1 => -0.3 * ones(n - 1))
+    v_selinv = marginal_variances(Q)
+    v_dense = marginal_variances(Q; method = :dense)
+    @test v_selinv ≈ v_dense rtol = 1e-10
 end
