@@ -479,6 +479,65 @@ correctness oracle for small `n`, reachable via `method = :dense`.
 
 ---
 
+## ADR-013: SPDE2 v0.1 supports α ∈ {1, 2}; internal hyperparameters are `(log τ, log κ)`
+
+Status: Accepted
+Date: 2026-04-23
+
+### Context
+
+The Lindgren-Rue-Lindström 2011 SPDE-Matérn link yields a closed-form
+sparse precision `Q(τ, κ)` only for integer `α`. R-INLA's
+`inla.spde2.matern` defaults to `α = 2` (which corresponds to Matérn
+smoothness `ν = α - d/2 = 1` in 2D). Fractional `α` via Bolin-Kirchner
+rational approximations is deferred to v0.3 per
+`packages/INLASPDE.jl/plans/plan.md`.
+
+Two open parameterisation questions:
+
+1. **User-scale vs internal scale.** PC priors are most naturally stated
+   on the user-scale pair `(range ρ, marginal σ)` per Fuglstad et al.
+   2019. The Laplace inner loop works on unconstrained real coordinates.
+2. **α surface.** Expose `α` as a compile-time type parameter
+   (`SPDE2{1}`, `SPDE2{2}`) or a runtime field.
+
+### Decision
+
+- SPDE2 v0.1 supports `α ∈ {1, 2}`. `α = 2` is the default, matching
+  R-INLA. `α` is a **type parameter** (`SPDE2{α}`) so the assembly
+  path branches at compile time and the precision-matrix method is
+  fully type-stable.
+- Internal hyperparameters on the Laplace scale are `θ = [log τ, log κ]`.
+  PC-Matérn priors are authored on `(ρ, σ)` and transformed to
+  `(log τ, log κ)` via the closed-form Jacobian (cf. Fuglstad et al.
+  2019 eqs. 7-8). Users never see `(log τ, log κ)` directly; posterior
+  summaries are reported on `(ρ, σ)` via `user_scale`.
+- `log_hyperprior(spde, θ)` evaluates the PC density on user scale and
+  adds the Jacobian term so that the Laplace-scale posterior is
+  normalised consistently with R-INLA's.
+
+### Consequences
+
+- **Good:** type-stable `precision_matrix(::SPDE2{α}, θ)` for both
+  α values; no run-time dispatch in the inner Newton loop.
+- **Good:** user-facing priors are on the domain statisticians think
+  in (range/sd), matching R-INLA's defaults — lowers the parity risk
+  in tier-2 oracle tests.
+- **Cost:** the Jacobian from `(ρ, σ)` to `(log τ, log κ)` must be
+  implemented carefully and regression-tested against R-INLA's
+  `inla.pc.prior.matern` — a known source of sign/factor bugs.
+- **Escape hatch for fractional α:** v0.3 will add a separate
+  `SPDEFractional` concrete type; the type parameter on `SPDE2` does
+  not preclude this.
+
+### References
+- `packages/INLASPDE.jl/plans/plan.md` M2 and M4.
+- Lindgren, Rue, Lindström 2011. SPDE.
+- Fuglstad, Simpson, Lindgren, Rue 2019. PC priors for Gaussian random
+  fields.
+
+---
+
 ## ADR template for future entries
 
 ```

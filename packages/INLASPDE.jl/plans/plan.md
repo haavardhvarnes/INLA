@@ -70,6 +70,16 @@ test/
 - [ ] Compare mesh statistics against `fmesher` on identical input
       boundary.
 
+Quantitative exit criterion (the ADR-007 quality gate): on each of three
+reference boundaries — unit square, L-shape, NC-coastline subset — the
+Julia mesh must satisfy, versus the `fmesher` baseline fixture:
+- `|n_vertices_J - n_vertices_R| / n_vertices_R ≤ 0.05`
+- minimum triangle angle ≥ `max(20°, 0.95 · fmesher_min_angle)`
+- maximum edge length ≤ `1.05 · fmesher_max_edge`
+
+Failure on any boundary triggers the `INLASPDEFmesher.jl` fallback per
+ADR-007.
+
 ### M3 — SPDE component (2 weeks)
 
 - [ ] `SPDE2` struct implementing `AbstractLatentComponent`.
