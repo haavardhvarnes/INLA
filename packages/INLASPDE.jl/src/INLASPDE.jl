@@ -49,10 +49,12 @@ export PCMatern, pc_matern_log_density
 export SPDE2, spde_user_scale, spde_internal_scale
 
 # M3 — Mesh generation
-# include("mesh/boundary.jl")
-# include("mesh/refinement.jl")
-# include("mesh/inla_mesh.jl")
-#
+include("mesh/boundary.jl")
+include("mesh/inla_mesh.jl")
+
+export convex_hull_polygon, expand_polygon, cutoff_dedup
+export INLAMesh, inla_mesh_2d, num_vertices, num_triangles
+
 # M4 — Projector
 # include("projector.jl")
 

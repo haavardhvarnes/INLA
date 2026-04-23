@@ -81,15 +81,31 @@ can be validated on hand-made meshes before `inla_mesh_2d` lands.
       probabilities, closed-form density, round-trip user ↔ internal,
       precision agreement with FEM, SPD on a fine mesh.
 
-### M3 — Mesh generation (3 weeks)
+### M3 — Mesh generation (3 weeks) — v0.1 core DONE, fmesher parity deferred
 
-- [ ] `inla_mesh_2d(points; max_edge, cutoff, extend)` using
-      DelaunayTriangulation.jl.
-- [ ] Convex / nonconvex hull helpers.
-- [ ] Boundary refinement.
-- [ ] Optional extension buffer (matches R-INLA's `offset` argument).
+v0.1 core (this commit):
+
+- [x] `inla_mesh_2d(loc; max_edge, offset, cutoff, min_angle)` and
+      `inla_mesh_2d(; boundary, ...)` using DelaunayTriangulation.jl.
+- [x] Convex-hull helper `convex_hull_polygon`.
+- [x] Convex-polygon outward expansion `expand_polygon` (R-INLA `offset`).
+- [x] Point-cloud `cutoff_dedup` for near-duplicate collapse.
+- [x] `INLAMesh` wrapper (points / triangles matrices + DT object).
+- [x] `FEMMatrices(mesh)` and `SPDE2(mesh; …)` convenience constructors.
+- [x] Regression tests: hull orientation, polygon offset correctness on
+      square / triangle, cutoff behaviour, argument validation,
+      post-refinement min-angle guarantee, mesh domain extension under
+      `offset`, and end-to-end SPDE2 assembly on a refined mesh.
+
+Deferred (for a later M3.x):
+
+- [ ] Nonconvex hull helpers (alpha shape / α-concave).
+- [ ] Pre-subdivision of boundary edges to enforce a strict `max_edge`
+      bound rather than the current area-based soft bound.
+- [ ] Two-region mesh with separate inner/outer `max_edge` (R-INLA's
+      `max.edge = c(inner, outer)`).
 - [ ] Compare mesh statistics against `fmesher` on identical input
-      boundary.
+      boundary (requires fixture infrastructure).
 
 Quantitative exit criterion (the ADR-007 quality gate): on each of three
 reference boundaries — unit square, L-shape, NC-coastline subset — the
