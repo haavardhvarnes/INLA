@@ -1,0 +1,44 @@
+name: Documentation
+
+on:
+  push:
+    branches: [main]
+    tags: ['*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build & deploy docs
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v2
+      - name: Check for docs project
+        id: check
+        run: |
+          if [ -f docs/Project.toml ]; then
+            echo "has_docs=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_docs=false" >> $GITHUB_OUTPUT
+            echo "No docs/Project.toml yet — skipping doc build."
+          fi
+      - name: Build docs
+        if: steps.check.outputs.has_docs == 'true'
+        shell: julia --color=yes --project=docs {0}
+        run: |
+          using Pkg
+          local_pkgs = filter(isdir, readdir("packages", join=true))
+          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          Pkg.instantiate()
+          include("docs/make.jl")
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}

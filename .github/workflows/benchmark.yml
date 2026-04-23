@@ -1,0 +1,51 @@
+name: Benchmarks (tracking only)
+
+# Per the policy in plans/plan.md (GMRFs.jl), benchmark deltas are
+# tracking information, not release-gating. This workflow runs on PRs
+# that touch hot-path code and posts a comment; it never fails the
+# build.
+on:
+  pull_request:
+    paths:
+      - 'packages/GMRFs.jl/src/**'
+      - 'packages/LatentGaussianModels.jl/src/**'
+      - 'packages/INLASPDE.jl/src/**'
+      - 'benchmarks/**'
+  workflow_dispatch:
+
+jobs:
+  bench:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+      - uses: julia-actions/cache@v2
+      - name: Check for benchmark project
+        id: check
+        run: |
+          if [ -f benchmarks/Project.toml ] && [ -f benchmarks/benchmarks.jl ]; then
+            echo "has_bench=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_bench=false" >> $GITHUB_OUTPUT
+            echo "No benchmarks/benchmarks.jl yet — skipping."
+          fi
+      - name: Run benchmarks
+        if: steps.check.outputs.has_bench == 'true'
+        shell: julia --color=yes --project=benchmarks {0}
+        run: |
+          using Pkg
+          local_pkgs = filter(isdir, readdir("packages", join=true))
+          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          Pkg.instantiate()
+          include("benchmarks/benchmarks.jl")
+      - name: Upload result artifact
+        if: steps.check.outputs.has_bench == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bench-results-${{ github.event.pull_request.number }}
+          path: benchmarks/results/

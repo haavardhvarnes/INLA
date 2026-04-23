@@ -1,0 +1,30 @@
+# Normalize line endings
+* text=auto eol=lf
+
+# Julia / config — text
+*.jl      text eol=lf diff
+*.toml    text eol=lf
+*.md      text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+*.R       text eol=lf
+*.r       text eol=lf
+
+# Known binary fixture formats — keep out of diffs; store via Artifacts.toml.
+# Listing them here so accidental commits at least don't corrupt or
+# pollute diff output. Large binaries should be rejected at review.
+*.jld2    binary
+*.h5      binary
+*.hdf5    binary
+*.nc      binary
+*.tif     binary
+*.tiff    binary
+*.rds     binary
+*.Rdata   binary
+*.mat     binary
+*.parquet binary
+*.arrow   binary
+
+# GitHub linguist — don't count fixtures as source
+test/oracle/fixtures/** linguist-generated=true
+benchmarks/results/**   linguist-generated=true

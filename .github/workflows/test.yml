@@ -1,0 +1,125 @@
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
+
+jobs:
+  test:
+    name: ${{ matrix.package }} / Julia ${{ matrix.julia-version }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - GMRFs.jl
+          - LatentGaussianModels.jl
+          - INLASPDE.jl
+          - LGMFormula.jl
+          - LGMTuring.jl
+          - GMRFsPardiso.jl
+          - INLASPDERasters.jl
+        julia-version:
+          - '1.10'   # LTS
+          - '1'      # current stable
+        os:
+          - ubuntu-latest
+        include:
+          # Mac and Windows only on LTS, only for core three
+          - package: GMRFs.jl
+            julia-version: '1.10'
+            os: macos-latest
+          - package: GMRFs.jl
+            julia-version: '1.10'
+            os: windows-latest
+          - package: LatentGaussianModels.jl
+            julia-version: '1.10'
+            os: macos-latest
+          - package: LatentGaussianModels.jl
+            julia-version: '1.10'
+            os: windows-latest
+          - package: INLASPDE.jl
+            julia-version: '1.10'
+            os: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+      - uses: julia-actions/cache@v2
+      - name: Dev-link intra-ecosystem deps
+        shell: julia --color=yes --project=packages/${{ matrix.package }} {0}
+        run: |
+          using Pkg
+          # Develop all local packages so intra-ecosystem deps resolve to the
+          # checkout, not the General registry (which may not have them yet).
+          local_pkgs = filter(isdir, readdir("packages", join=true))
+          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          Pkg.instantiate()
+      - uses: julia-actions/julia-runtest@v1
+        with:
+          project: packages/${{ matrix.package }}
+      - uses: julia-actions/julia-processcoverage@v1
+        with:
+          directories: packages/${{ matrix.package }}/src
+      - uses: codecov/codecov-action@v4
+        with:
+          files: lcov.info
+          flags: ${{ matrix.package }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+        continue-on-error: true
+
+  nightly:
+    name: ${{ matrix.package }} / Julia nightly (allowed-to-fail)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        package: [GMRFs.jl, LatentGaussianModels.jl, INLASPDE.jl]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: 'nightly'
+      - uses: julia-actions/cache@v2
+      - shell: julia --color=yes --project=packages/${{ matrix.package }} {0}
+        run: |
+          using Pkg
+          local_pkgs = filter(isdir, readdir("packages", join=true))
+          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          Pkg.instantiate()
+      - uses: julia-actions/julia-runtest@v1
+        with:
+          project: packages/${{ matrix.package }}
+
+  format-check:
+    name: Formatting (SciML style)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: '1'
+      - uses: julia-actions/cache@v2
+      - name: Install JuliaFormatter
+        shell: julia --color=yes {0}
+        run: |
+          using Pkg
+          Pkg.add(Pkg.PackageSpec(name="JuliaFormatter", version="1"))
+      - name: Check formatting
+        shell: julia --color=yes {0}
+        run: |
+          using JuliaFormatter
+          ok = format(".", verbose=true, overwrite=false)
+          if !ok
+              @error "Formatter would change files. Run `julia -e 'using JuliaFormatter; format(\".\")'` locally."
+              exit(1)
+          end

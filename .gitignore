@@ -1,0 +1,47 @@
+# Julia
+*.jl.cov
+*.jl.*.cov
+*.jl.mem
+Manifest.toml
+!docs/Manifest.toml
+deps/deps.jl
+deps/build.log
+deps/downloads/
+deps/usr/
+deps/src/
+
+# Docs build output
+docs/build/
+docs/site/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Python scratch (occasionally used for oracle-fixture gen)
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# R scratch (oracle fixtures)
+.Rhistory
+.RData
+.Rproj.user/
+
+# Benchmark output
+benchmarks/results/
+benchmarks/tune.json
+
+# Local test artifacts
+test/tmp/
+**/test/tmp/
+coverage/
+lcov.info
+
+# Claude / tooling
+.claude/
