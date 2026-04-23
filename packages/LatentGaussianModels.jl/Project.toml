@@ -1,12 +1,13 @@
 name = "LatentGaussianModels"
 uuid = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
-authors = ["TBD"]
 version = "0.1.0-DEV"
+authors = ["TBD"]
 
 [deps]
 ADTypes = "47edcb42-4c32-4615-8424-f2b9edc5f35b"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 FastGaussQuadrature = "442a2c76-b920-505d-bb47-c5924d526838"
+FiniteDiff = "6a86dc24-6348-571c-b903-95158fe2bd41"
 GMRFs = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 LogDensityProblems = "6fdf6af0-433a-55f7-b3ed-c6c6e0b8df7c"
@@ -36,6 +37,7 @@ LGMMakieExt = "MakieCore"
 ADTypes = "1"
 Distributions = "0.25"
 FastGaussQuadrature = "1"
+FiniteDiff = "2.30.0"
 GMRFs = "0.1"
 HCubature = "1"
 Integrals = "3, 4"
