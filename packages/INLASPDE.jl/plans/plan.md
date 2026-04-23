@@ -134,11 +134,25 @@ ADR-007.
       at mesh-vertex queries, outside-policy behaviour, `scimloperator`
       agreement, and `LatentGaussianModel` end-to-end wiring.
 
-### M5 — Meuse vignette (1 week)
+### M5 — End-to-end SPDE fit (1 week) — v0.1 core DONE, oracle + vignette deferred
 
-- [ ] End-to-end: Meuse zinc data → mesh → SPDE → inla fit → prediction.
-- [ ] Oracle test: posterior summaries within tolerance of R-INLA.
-- [ ] Docs: first SPDE vignette in Documenter site.
+v0.1 core (this commit):
+
+- [x] Synthetic Matérn-recovery integration test: mesh → `SPDE2` at a
+      known `(ρ, σ)` → sample true field → Gaussian observations via
+      `MeshProjector` → `LatentGaussianModel(GaussianLikelihood(), spde,
+      P.A)` → `empirical_bayes(model, y)`.
+- [x] Asserts end-to-end convergence, factor-of-two recovery on `(ρ,
+      σ, σ_noise)`, and posterior latent mean correlated with truth.
+
+Deferred (M6 and the real Meuse vignette):
+
+- [ ] End-to-end: vendored Meuse zinc data → mesh → SPDE → inla fit →
+      prediction on a raster grid.
+- [ ] Oracle test: posterior summaries within tolerance of R-INLA
+      (requires a fixture-generation script under a pinned R/R-INLA
+      environment).
+- [ ] Docs: first SPDE vignette in the Documenter site.
 
 ### M6 — Extensions (2 weeks)
 

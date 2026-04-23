@@ -32,10 +32,11 @@ using INLASPDE
         include("regression/test_projector.jl")
     end
 
+    @testset "M5 — SPDE end-to-end (synthetic)" begin
+        include("integration/test_spde_synthetic.jl")
+    end
+
     # --- future milestone testsets ---------------------------------------
-    # @testset "M4 — Projector" begin
-    #     include("regression/test_projector.jl")
-    # end
     # @testset "M5 — Meuse oracle" begin
     #     include("oracle/test_meuse_spde.jl")
     # end
