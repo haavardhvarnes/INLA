@@ -49,6 +49,41 @@ Diagonal of the Hessian of `log p(y | η, θ)` w.r.t. `η`. Length equals
 function ∇²_η_log_density end
 
 """
+    ∇³_η_log_density(ℓ::AbstractLikelihood, y, η, θ) -> AbstractVector
+
+Diagonal of the third derivative tensor of `log p(y | η, θ)` w.r.t.
+`η`. Length equals `length(y)`. The likelihood factorises across
+observations, so only the diagonal entry `∂³ log p(y_i|η_i) / ∂η_i^3`
+is non-zero.
+
+Needed for Rue-Martino-Chopin (2009) simplified Laplace / skew
+correction of posterior marginals `π(x_i | y)`. Concrete likelihoods
+should override with closed forms; the default falls back on a
+central finite-difference of `∇²_η_log_density` per coordinate.
+"""
+function ∇³_η_log_density(ℓ::AbstractLikelihood, y, η, θ)
+    T = promote_type(eltype(η), Float64)
+    n = length(y)
+    out = Vector{T}(undef, n)
+    # Per-coordinate central difference because the likelihood factorises —
+    # each observation's third derivative only depends on its own η_i.
+    h = cbrt(eps(T))
+    η_p = copy(η)
+    η_m = copy(η)
+    @inbounds for i in 1:n
+        step = max(h * abs(η[i]), h)
+        η_p[i] = η[i] + step
+        η_m[i] = η[i] - step
+        h²p = ∇²_η_log_density(ℓ, y, η_p, θ)[i]
+        h²m = ∇²_η_log_density(ℓ, y, η_m, θ)[i]
+        out[i] = (h²p - h²m) / (2 * step)
+        η_p[i] = η[i]
+        η_m[i] = η[i]
+    end
+    return out
+end
+
+"""
     link(ℓ::AbstractLikelihood) -> AbstractLinkFunction
 
 The link function attached to this likelihood instance.

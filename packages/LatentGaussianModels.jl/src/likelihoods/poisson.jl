@@ -56,6 +56,16 @@ function ∇²_η_log_density(ℓ::PoissonLikelihood{LogLink}, y, η, θ)
     return out
 end
 
+function ∇³_η_log_density(ℓ::PoissonLikelihood{LogLink}, y, η, θ)
+    # log p = y η - E exp(η); ∂³/∂η³ = -E exp(η).
+    out = similar(η, promote_type(eltype(η), Float64))
+    @inbounds for i in eachindex(y)
+        E = _exposure(ℓ.E, i)
+        out[i] = -E * exp(η[i])
+    end
+    return out
+end
+
 # --- generic link via chain rule --------------------------------------
 # log p(y|λ) = y log λ - λ - log Γ(y+1),   λ = E · g⁻¹(η)
 # d/dη:   y (λ'/λ) - λ'

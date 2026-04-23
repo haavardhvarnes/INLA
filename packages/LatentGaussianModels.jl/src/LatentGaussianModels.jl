@@ -67,7 +67,7 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 # Likelihoods
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        BinomialLikelihood
-export log_density, ∇_η_log_density, ∇²_η_log_density, link
+export log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density, link
 export pointwise_log_density, pointwise_cdf
 
 # Hyperpriors

@@ -48,6 +48,12 @@ function ∇²_η_log_density(ℓ::GaussianLikelihood{IdentityLink}, y, η, θ)
     return fill(-τ, length(y))
 end
 
+function ∇³_η_log_density(ℓ::GaussianLikelihood{IdentityLink}, y, η, θ)
+    # log p(y|η) is quadratic in η under identity link — third derivative is zero.
+    T = promote_type(eltype(η), eltype(y), Float64)
+    return zeros(T, length(y))
+end
+
 # --- generic link: chain through ∂μ/∂η --------------------------------
 
 function log_density(ℓ::GaussianLikelihood, y, η, θ)

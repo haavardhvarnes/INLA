@@ -60,6 +60,17 @@ function ∇²_η_log_density(ℓ::BinomialLikelihood{LogitLink}, y, η, θ)
     return out
 end
 
+function ∇³_η_log_density(ℓ::BinomialLikelihood{LogitLink}, y, η, θ)
+    # d/dη [-n p(1-p)] = -n · p(1-p)(1-2p). Independent of y.
+    out = similar(η, promote_type(eltype(η), Float64))
+    @inbounds for i in eachindex(y)
+        n = ℓ.n_trials[i]
+        p = inverse_link(LogitLink(), η[i])
+        out[i] = -n * p * (1 - p) * (1 - 2p)
+    end
+    return out
+end
+
 # --- generic link via chain rule --------------------------------------
 # log p(y|p) = log C(n,y) + y log p + (n-y) log(1-p),  p = g⁻¹(η)
 # ∂/∂η log p(y|p) = y (p'/p) - (n-y) (p'/(1-p))

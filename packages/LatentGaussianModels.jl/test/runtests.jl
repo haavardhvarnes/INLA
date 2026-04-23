@@ -42,6 +42,9 @@ using GMRFs
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
     end
+    @testset "Simplified Laplace — skew correction" begin
+        include("regression/test_simplified_laplace.jl")
+    end
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_scotland_bym2.jl")
     end
