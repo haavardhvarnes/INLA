@@ -49,16 +49,17 @@ test/
 
 ## Milestones
 
-### M1 — FEM assembly (3 weeks)
+### M1 — FEM assembly (3 weeks) — DONE
 
-- [ ] Per-element mass `C` and stiffness `G₁` assembly.
-- [ ] Diagonal lumping of `C` for α = 2.
-- [ ] `G₂ = G₁ C̃⁻¹ G₁` construction.
-- [ ] Precision `Q(τ, κ)` for α ∈ {1, 2}:
+- [x] Per-element mass `C` and stiffness `G₁` assembly.
+- [x] Diagonal lumping of `C` for α = 2.
+- [x] `G₂ = G₁ C̃⁻¹ G₁` construction.
+- [x] Precision `Q(τ, κ)` for α ∈ {1, 2}:
     - α=1: `Q = τ² (κ² C + G₁)`
-    - α=2: `Q = τ² (κ⁴ C + 2κ² G₁ + G₂)`
-- [ ] Regression tests against hand-computed matrices on small meshes.
-- [ ] Matérn covariance reproduction test on fine mesh.
+    - α=2: `Q = τ² (κ⁴ C̃ + 2κ² G₁ + G₂)` (R-INLA-style, lumped C̃
+      in the κ⁴ term for sparsity — Lindgren–Rue–Lindström 2011, App. C).
+- [x] Regression tests against hand-computed matrices on small meshes.
+- [x] Matérn covariance reproduction test on fine mesh.
 
 ### M2 — Mesh generation (3 weeks)
 

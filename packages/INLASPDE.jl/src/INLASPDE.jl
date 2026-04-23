@@ -33,10 +33,13 @@ using SciMLOperators: SciMLOperators
 
 # --- milestone includes (uncomment as each milestone lands) -----------
 # M1 — FEM assembly
-# include("assembly/fem.jl")
-# include("assembly/lumping.jl")
-# include("assembly/precision.jl")
-#
+include("assembly/fem.jl")
+include("assembly/lumping.jl")
+include("assembly/precision.jl")
+
+export assemble_fem_matrices, lumped_mass, stiffness_squared
+export FEMMatrices, spde_precision
+
 # M2 — SPDE2 component + PC-Matérn prior
 # include("priors/pc_matern.jl")
 # include("components/spde2.jl")
