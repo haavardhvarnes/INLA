@@ -86,3 +86,31 @@ function ∇²_η_log_density(ℓ::GaussianLikelihood, y, η, θ)
     end
     return out
 end
+
+# --- pointwise log-density + CDF for diagnostics ----------------------
+
+function pointwise_log_density(ℓ::GaussianLikelihood, y, η, θ)
+    τ = exp(θ[1])
+    g = ℓ.link
+    T = promote_type(eltype(η), eltype(y), Float64)
+    out = Vector{T}(undef, length(y))
+    half_log_2π_τ = 0.5 * (log(τ) - log(2π))
+    @inbounds for i in eachindex(y)
+        μi = inverse_link(g, η[i])
+        out[i] = half_log_2π_τ - 0.5 * τ * (y[i] - μi)^2
+    end
+    return out
+end
+
+function pointwise_cdf(ℓ::GaussianLikelihood, y, η, θ)
+    τ = exp(θ[1])
+    σ = 1 / sqrt(τ)
+    g = ℓ.link
+    T = promote_type(eltype(η), eltype(y), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        μi = inverse_link(g, η[i])
+        out[i] = Distributions.cdf(Distributions.Normal(μi, σ), y[i])
+    end
+    return out
+end

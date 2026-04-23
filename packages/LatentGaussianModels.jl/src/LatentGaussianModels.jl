@@ -11,6 +11,7 @@ See `CLAUDE.md` and `plans/plan.md` for the design document.
 module LatentGaussianModels
 
 using LinearAlgebra
+using Printf: @sprintf
 using SparseArrays
 using Random
 using Statistics
@@ -56,6 +57,7 @@ include("inference/integration.jl")
 include("inference/inla.jl")
 include("inference/marginals.jl")
 include("inference/accessors.jl")
+include("inference/diagnostics.jl")
 
 # Link functions
 export AbstractLinkFunction, IdentityLink, LogLink, LogitLink,
@@ -66,6 +68,7 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        BinomialLikelihood
 export log_density, ∇_η_log_density, ∇²_η_log_density, link
+export pointwise_log_density, pointwise_cdf
 
 # Hyperpriors
 export AbstractHyperPrior
@@ -91,5 +94,7 @@ export fit, empirical_bayes, laplace, inla
 export posterior_marginal_x, posterior_marginal_θ
 export fixed_effects, random_effects, hyperparameters
 export log_marginal_likelihood, component_range
+export posterior_samples_η, dic, waic, cpo, pit
+export inla_summary
 
 end # module

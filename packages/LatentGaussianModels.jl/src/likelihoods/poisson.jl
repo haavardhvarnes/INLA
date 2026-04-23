@@ -104,3 +104,41 @@ end
 # SpecialFunctions.loggamma. Keep it local to avoid pulling in
 # SpecialFunctions.jl as a dep; Distributions re-exports what we need.
 _loggamma_int(n::Integer) = Distributions.loggamma(n)
+
+# --- pointwise log-density + CDF for diagnostics ----------------------
+
+function pointwise_log_density(ℓ::PoissonLikelihood{LogLink}, y, η, θ)
+    T = promote_type(eltype(η), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        E = _exposure(ℓ.E, i)
+        out[i] = y[i] * (log(E) + η[i]) - E * exp(η[i]) - _loggamma_int(y[i] + 1)
+    end
+    return out
+end
+
+function pointwise_log_density(ℓ::PoissonLikelihood, y, η, θ)
+    g = ℓ.link
+    T = promote_type(eltype(η), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        E = _exposure(ℓ.E, i)
+        μi = inverse_link(g, η[i])
+        λ = E * μi
+        out[i] = λ > 0 ? y[i] * log(λ) - λ - _loggamma_int(y[i] + 1) : T(-Inf)
+    end
+    return out
+end
+
+function pointwise_cdf(ℓ::PoissonLikelihood, y, η, θ)
+    g = ℓ.link
+    T = promote_type(eltype(η), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        E = _exposure(ℓ.E, i)
+        μi = inverse_link(g, η[i])
+        λ = E * μi
+        out[i] = Distributions.cdf(Distributions.Poisson(λ), y[i])
+    end
+    return out
+end

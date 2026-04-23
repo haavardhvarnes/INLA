@@ -109,3 +109,48 @@ function ∇²_η_log_density(ℓ::BinomialLikelihood, y, η, θ)
     end
     return out
 end
+
+# --- pointwise log-density + CDF for diagnostics ----------------------
+
+function pointwise_log_density(ℓ::BinomialLikelihood{LogitLink}, y, η, θ)
+    T = promote_type(eltype(η), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        n = ℓ.n_trials[i]
+        lse = η[i] > 0 ? η[i] + log1p(exp(-η[i])) : log1p(exp(η[i]))
+        out[i] = Distributions.loggamma(n + 1) - Distributions.loggamma(y[i] + 1) -
+                 Distributions.loggamma(n - y[i] + 1) +
+                 y[i] * η[i] - n * lse
+    end
+    return out
+end
+
+function pointwise_log_density(ℓ::BinomialLikelihood, y, η, θ)
+    g = ℓ.link
+    T = promote_type(eltype(η), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        n = ℓ.n_trials[i]
+        p = inverse_link(g, η[i])
+        if !(0 < p < 1)
+            out[i] = T(-Inf)
+        else
+            out[i] = Distributions.loggamma(n + 1) - Distributions.loggamma(y[i] + 1) -
+                     Distributions.loggamma(n - y[i] + 1) +
+                     y[i] * log(p) + (n - y[i]) * log(1 - p)
+        end
+    end
+    return out
+end
+
+function pointwise_cdf(ℓ::BinomialLikelihood, y, η, θ)
+    g = ℓ.link
+    T = promote_type(eltype(η), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        n = ℓ.n_trials[i]
+        p = inverse_link(g, η[i])
+        out[i] = Distributions.cdf(Distributions.Binomial(n, p), y[i])
+    end
+    return out
+end

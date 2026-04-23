@@ -79,3 +79,37 @@ Log-prior density for the likelihood's hyperparameters, evaluated on
 the internal scale. Zero when `nhyperparameters(ℓ) == 0`.
 """
 log_hyperprior(::AbstractLikelihood, θ) = zero(eltype(θ))
+
+"""
+    pointwise_log_density(ℓ, y, η, θ) -> AbstractVector{<:Real}
+
+Per-observation log-density `log p(y_i | η_i, θ)`, length `length(y)`.
+Likelihoods factorise across observations, so the sum of this vector
+equals `log_density(ℓ, y, η, θ)`.
+
+Needed by WAIC, CPO, DIC, and PIT diagnostics. Default implementation
+falls back on `log_density` evaluated on singletons — correct but
+inefficient; concrete likelihoods should override with a vectorised
+form.
+"""
+function pointwise_log_density(ℓ::AbstractLikelihood, y, η, θ)
+    T = promote_type(eltype(η), Float64)
+    out = Vector{T}(undef, length(y))
+    @inbounds for i in eachindex(y)
+        out[i] = log_density(ℓ, @view(y[i:i]), @view(η[i:i]), θ)
+    end
+    return out
+end
+
+"""
+    pointwise_cdf(ℓ, y, η, θ) -> AbstractVector{<:Real}
+
+Per-observation CDF `F(y_i | η_i, θ) = P(Y_i ≤ y_i | η_i, θ)`, length
+`length(y)`. Needed for PIT diagnostics. Not all likelihoods have a
+closed-form CDF — the default raises, and concrete likelihoods that
+support PIT implement this method.
+"""
+function pointwise_cdf(ℓ::AbstractLikelihood, y, η, θ)
+    throw(ArgumentError("pointwise_cdf not implemented for $(typeof(ℓ)); " *
+                        "needed for PIT diagnostics"))
+end

@@ -112,6 +112,104 @@ function Base.show(io::IO, ::MIME"text/plain", res::INLAResult)
               "posterior_marginal_x, posterior_marginal_θ.")
 end
 
+"""
+    inla_summary([io], model, res; level = 0.95) -> Nothing
+
+Print an R-INLA-shaped summary of a fitted `INLAResult`: fixed effects,
+random effects (one block per vector-valued component), hyperparameters
+on the internal scale, and the marginal log-likelihood. `io` defaults
+to `stdout`.
+
+This mirrors the layout of `summary.inla()` without the parts (DIC /
+WAIC / CPO) that require diagnostics — those are computed on demand by
+[`dic`](@ref), [`waic`](@ref), [`cpo`](@ref), [`pit`](@ref).
+"""
+function inla_summary(io::IO, m::LatentGaussianModel, res::INLAResult;
+                      level::Real = 0.95)
+    pct_lo = Int(round(100 * (1 - level) / 2))
+    pct_hi = 100 - pct_lo
+
+    println(io, "INLA fit ────────────────────────────────────────────")
+    println(io, "  latent dim  = ", length(res.x_mean))
+    println(io, "  θ dim       = ", length(res.θ̂))
+    println(io, "  design pts  = ", length(res.θ_points))
+    println(io, "  log p(y)    = ", _round6(res.log_marginal))
+
+    fe = fixed_effects(m, res; level = level)
+    if !isempty(fe)
+        println(io)
+        println(io, "Fixed effects:")
+        _print_rows(io, fe, ("name", "mean", "sd", "$(pct_lo)%", "$(pct_hi)%"),
+                    (:name, :mean, :sd, :lower, :upper))
+    end
+
+    re = random_effects(m, res; level = level)
+    if !isempty(re)
+        println(io)
+        println(io, "Random effects (posterior summaries per component):")
+        for (name, v) in pairs(re)
+            n = length(v.mean)
+            mmean = Statistics.mean(v.mean)
+            msd = Statistics.mean(v.sd)
+            println(io, "  ", rpad(name, 24),
+                        "  n=", lpad(string(n), 4),
+                        "  mean(μ)=", _round6(mmean),
+                        "  mean(sd)=", _round6(msd))
+        end
+    end
+
+    hp = hyperparameters(m, res; level = level)
+    if !isempty(hp)
+        println(io)
+        println(io, "Hyperparameters (internal scale):")
+        _print_rows(io, hp, ("name", "mean", "sd", "$(pct_lo)%", "$(pct_hi)%"),
+                    (:name, :mean, :sd, :lower, :upper))
+    end
+    return nothing
+end
+
+inla_summary(m::LatentGaussianModel, res::INLAResult; kwargs...) =
+    inla_summary(stdout, m, res; kwargs...)
+
+# Table helpers for inla_summary. Kept deliberately small and
+# dependency-free so the summary renders in any IO context.
+function _print_rows(io::IO, rows, headers::Tuple, fields::Tuple)
+    # Compute column widths.
+    widths = [max(length(h), 10) for h in headers]
+    for r in rows
+        for (j, f) in enumerate(fields)
+            v = getproperty(r, f)
+            s = v isa AbstractString ? v : _round6(v)
+            widths[j] = max(widths[j], length(s))
+        end
+    end
+    # Header row.
+    print(io, "  ")
+    for (j, h) in enumerate(headers)
+        print(io, rpad(h, widths[j] + 2))
+    end
+    println(io)
+    # Divider.
+    print(io, "  ", "─" ^ (sum(widths) + 2 * length(widths)))
+    println(io)
+    # Rows.
+    for r in rows
+        print(io, "  ")
+        for (j, f) in enumerate(fields)
+            v = getproperty(r, f)
+            s = v isa AbstractString ? v : _round6(v)
+            print(io, rpad(s, widths[j] + 2))
+        end
+        println(io)
+    end
+    return nothing
+end
+
+# Fixed-width numeric formatting with 6 significant digits, stable
+# width so columns align.
+_round6(x::Real) = isfinite(x) ? @sprintf("%.6g", x) : string(x)
+_round6(x) = string(x)
+
 # ---------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------
