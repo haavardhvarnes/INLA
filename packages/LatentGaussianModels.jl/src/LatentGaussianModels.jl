@@ -53,6 +53,8 @@ include("inference/laplace.jl")
 include("inference/empirical_bayes.jl")
 include("inference/integration.jl")
 include("inference/inla.jl")
+include("inference/marginals.jl")
+include("inference/accessors.jl")
 
 # Link functions
 export AbstractLinkFunction, IdentityLink, LogLink, LogitLink,
@@ -85,5 +87,8 @@ export Laplace, LaplaceResult, laplace_mode
 export EmpiricalBayes, EmpiricalBayesResult
 export INLA, INLAResult
 export fit, empirical_bayes, laplace, inla
+export posterior_marginal_x, posterior_marginal_θ
+export fixed_effects, random_effects, hyperparameters
+export log_marginal_likelihood, component_range
 
 end # module

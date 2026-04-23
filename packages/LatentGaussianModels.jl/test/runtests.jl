@@ -30,6 +30,9 @@ using GMRFs
     @testset "INLA — Gaussian" begin
         include("regression/test_inla_gaussian.jl")
     end
+    @testset "INLA — Marginals + Accessors" begin
+        include("regression/test_inla_marginals.jl")
+    end
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_scotland_bym2.jl")
     end
