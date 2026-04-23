@@ -1,0 +1,23 @@
+name = "GMRFsPardiso"
+uuid = "c65b2bd0-1746-4e9d-a49b-5db08748b8b1"
+authors = ["TBD"]
+version = "0.1.0-DEV"
+
+[deps]
+GMRFs = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
+LinearSolve = "7ed4a6bd-45f5-4d41-b270-4a48e9bafcae"
+Pardiso = "46dd5b70-b6fb-5a00-ae2d-e8fea33afaf2"
+
+[compat]
+GMRFs = "0.1"
+LinearSolve = "2, 3"
+Pardiso = "0.5"
+julia = "1.10"
+
+[extras]
+Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"
+BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Aqua", "BenchmarkTools", "Test"]
