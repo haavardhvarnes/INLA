@@ -172,9 +172,12 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     for k in eachindex(points)
         lp = laplaces[k]
         x_mean .+= w[k] .* lp.mode
-        # E[x²] at θ_k: mode² + conditional variance (diag of (Q+A'DA)⁻¹).
-        # Takahashi / selected inversion via GMRFs.marginal_variances (ADR-012).
-        cond_var = GMRFs.marginal_variances(lp.precision)
+        # E[x²] at θ_k: mode² + conditional variance (diag of posterior
+        # precision inverse, with constraint correction if present).
+        # Takahashi / selected inversion via GMRFs.marginal_variances (ADR-012);
+        # kriging correction applied downstream in
+        # `_constrained_marginal_variances` per Rue & Held (2005) §2.3.
+        cond_var = _constrained_marginal_variances(lp.precision, lp.constraint)
         x_m2 .+= w[k] .* (lp.mode .^ 2 .+ cond_var)
     end
     x_var = x_m2 .- x_mean .^ 2

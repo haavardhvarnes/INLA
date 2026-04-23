@@ -49,6 +49,7 @@ include("components/bym2.jl")
 # --- model + inference ------------------------------------------------
 include("model.jl")
 include("inference/abstract.jl")
+include("inference/constraints.jl")
 include("inference/laplace.jl")
 include("inference/empirical_bayes.jl")
 include("inference/integration.jl")

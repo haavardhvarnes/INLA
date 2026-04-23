@@ -7,8 +7,12 @@ Laplace approximation to `p(x | θ, y)` at a given `θ`. Finds the mode
 the convention that `∇²_η log p` is negative semi-definite so that `H`
 is positive definite whenever `Q` is PD on the non-null subspace.
 
-Linear constraints on the latent field are currently ignored — a hard
-correction will be wired through in the integration milestone.
+Hard linear constraints declared by components via
+`GMRFs.constraints(c)` are stacked into a model-level constraint `C x = e`
+and enforced via the Rue & Held (2005) §2.3 kriging correction — the
+rank-deficient prior is regularised along null(Q) with `V V^T`
+(`V = C^T (C C^T)^{-1/2}`), Newton is run on the PD regularised
+posterior, and the final `x̂` is projected back to `{x : C x = e}`.
 """
 Base.@kwdef struct Laplace <: AbstractInferenceStrategy
     maxiter::Int = 50
@@ -20,13 +24,20 @@ end
 
 The output of a Laplace fit at fixed `θ`.
 
-- `mode::Vector{Float64}` — `x̂`.
-- `precision::SparseMatrixCSC{Float64,Int}` — posterior precision at `x̂`.
+- `mode::Vector{Float64}` — `x̂`, on the constrained surface `C x̂ = e`.
+- `precision::SparseMatrixCSC{Float64,Int}` — posterior precision at
+  `x̂` on the non-null subspace, regularised with the null-space bump
+  `V V^T` so that it is PD and has the same quadratic form as the
+  original `H = Q + A'DA` on `null(C)`.
 - `factor::FactorCache` — cached sparse Cholesky of `precision`.
 - `θ::Vector{Float64}` — internal-scale hyperparameters used.
 - `log_joint::Float64` — `log p(x̂, y | θ)`.
 - `log_marginal::Float64` — Laplace log marginal `log p(y | θ)`.
 - `iterations::Int`, `converged::Bool`.
+- `constraint::Union{Nothing, NamedTuple}` — if constrained, the triple
+  `(C, U, W_fact)` where `U = H_reg^{-1} C^T` and `W_fact` is the
+  Cholesky of `C U`. Used downstream to subtract the kriging correction
+  from conditional marginal variances.
 """
 struct LaplaceResult <: AbstractInferenceResult
     mode::Vector{Float64}
@@ -37,6 +48,7 @@ struct LaplaceResult <: AbstractInferenceResult
     log_marginal::Float64
     iterations::Int
     converged::Bool
+    constraint::Union{Nothing, NamedTuple}
 end
 
 """
@@ -54,13 +66,27 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     n_ℓ = nhyperparameters(ℓ)
     θ_ℓ = θ[1:n_ℓ]
 
+    # --- constraint bookkeeping ---------------------------------------
+    constraint = model_constraints(m)
+    has_constr = !(constraint isa GMRFs.NoConstraint)
+    if has_constr
+        C = GMRFs.constraint_matrix(constraint)
+        e_c = GMRFs.constraint_rhs(constraint)
+        bump = _null_bump(C)
+        Q_reg = Q + bump
+    else
+        C = zeros(Float64, 0, m.n_x)
+        e_c = Float64[]
+        Q_reg = Q
+    end
+
     x = x0 === nothing ? zeros(Float64, m.n_x) : Vector{Float64}(x0)
 
-    # Build initial posterior precision and factor cache.
+    # Build initial posterior precision and factor cache on Q_reg.
     η = A * x
     ∇²η = ∇²_η_log_density(ℓ, y, η, θ_ℓ)
-    D = Diagonal(-∇²η)           # -∇²_η = D ≥ 0 (non-neg since Hessian ≤ 0)
-    H = Q + (A' * D * A)
+    D = Diagonal(-∇²η)
+    H = Q_reg + (A' * D * A)
     H = _symmetrize!(H)
     cache = GMRFs.FactorCache(H)
 
@@ -72,16 +98,31 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         ∇η = ∇_η_log_density(ℓ, y, η, θ_ℓ)
         ∇²η = ∇²_η_log_density(ℓ, y, η, θ_ℓ)
         D = Diagonal(-∇²η)
-        H = Q + (A' * D * A)
+        H = Q_reg + (A' * D * A)
         H = _symmetrize!(H)
         GMRFs.update!(cache, H)
 
-        # Gradient of log joint w.r.t. x:
+        # Gradient of log joint w.r.t. x uses the *original* Q (not Q_reg):
         #   g = A' ∇_η log p - Q x
-        g = A' * ∇η - Q * x
+        # The bump `V V^T x` contributes to H_reg on null(Q) only — it keeps
+        # Newton out of the null direction without biasing the mode on the
+        # constraint surface (where C x = 0 ⟹ V^T x = 0 so V V^T x = 0).
+        # But we start (and project after each step) at C x = e so the bump
+        # does not bias: V V^T x = C^T (CC^T)^{-1} (C x) = C^T (CC^T)^{-1} e,
+        # a fixed offset. Include it in the RHS to keep the Newton target
+        # consistent with the regularised quadratic.
+        if has_constr
+            g = A' * ∇η - Q_reg * x
+        else
+            g = A' * ∇η - Q * x
+        end
 
-        # Newton step: H Δx = g
         Δx = cache \ g
+        if has_constr
+            # Project Δx onto null(C) so that C(x + Δx) stays at e.
+            U_step, W_step = _kriging_correction(cache, C)
+            Δx .-= U_step * (W_step \ (C * Δx))
+        end
         step = norm(Δx, Inf)
         x .+= Δx
 
@@ -95,48 +136,64 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     η = A * x
     ∇²η = ∇²_η_log_density(ℓ, y, η, θ_ℓ)
     D = Diagonal(-∇²η)
-    H = Q + (A' * D * A)
+    H = Q_reg + (A' * D * A)
     H = _symmetrize!(H)
     GMRFs.update!(cache, H)
 
+    # Final kriging correction: ensure C x̂ = e exactly at the returned
+    # mode (accumulated drift from per-step projection is bounded by tol,
+    # but downstream code assumes exact satisfaction).
+    if has_constr
+        U_final, W_final = _kriging_correction(cache, C)
+        _project_to_constraint!(x, C, e_c, U_final, W_final)
+        η = A * x
+        constraint_data = (C = C, e = e_c, U = U_final, W_fact = W_final)
+    else
+        constraint_data = nothing
+    end
+
+    # log p(x̂, y | θ) — uses the *original* Q for the latent quadratic.
     log_joint = log_density(ℓ, y, η, θ_ℓ) - 0.5 * dot(x, Q * x)
 
-    # Laplace log marginal (for proper Q):
-    #   log p(y | θ) ≈ log p(x̂, y | θ) + ½ log|2π H⁻¹|
-    #              = log p(x̂, y | θ) + (n_x/2) log(2π) - ½ log|H|
-    # Add ½ log|Q| so that x̂ term prints normalized.
-    # Here we return the common form: Laplace log marginal given θ.
-    log_det_H = logdet(cache)
-    log_det_Q = _logdet_Q(Q)
-    n_x = m.n_x
+    # Laplace log marginal (Rue & Held 2005 §2.3 for constrained case):
+    #   log p(y | θ) ≈ log p(y | x̂) - ½ x̂' Q x̂
+    #                + ½ log|Q|_+  - ½ log|H|_+  (- ½ log|C C'|  for constrained)
+    # where |·|_+ is the pseudo-determinant on null(C)⊥. With V orthonormal
+    # and range(V) = null(Q), log|Q|_+ = logdet(Q + V V^T) = logdet(Q_reg).
+    # Likewise for H under the assumption null(H) ⊆ range(C^T).
+    log_det_H = logdet(cache)                 # = logdet(H_reg); equals log|H|_+
+    log_det_Q = _logdet_Q_reg(Q_reg, has_constr)
+    if has_constr
+        log_det_CCt = logdet(Symmetric(C * C'))
+    else
+        log_det_CCt = 0.0
+    end
     log_marginal = log_density(ℓ, y, η, θ_ℓ) - 0.5 * dot(x, Q * x) +
-                   0.5 * log_det_Q - 0.5 * log_det_H
+                   0.5 * log_det_Q - 0.5 * log_det_H - 0.5 * log_det_CCt
 
-    return LaplaceResult(x, H, cache, collect(θ), log_joint, log_marginal, iter, converged)
+    return LaplaceResult(x, H, cache, collect(θ), log_joint, log_marginal,
+                         iter, converged, constraint_data)
 end
 
-# Symmetrize a sparse matrix in place (Q + A'DA can accumulate asymmetry
+# Symmetrise a sparse matrix in place (Q + A'DA can accumulate asymmetry
 # at floating-point level through multiplication order).
 function _symmetrize!(H::AbstractSparseMatrix)
     return (H + H') ./ 2
 end
 
-# log|Q| for a (possibly rank-deficient) sparse PSD Q.
-# For proper GMRFs this is the usual log-det; for intrinsic ones a
-# pseudo-log-det on the non-null subspace is what Laplace-on-θ needs,
-# but we currently punt and just compute the log-det of the provided
-# block. The intrinsic case is routed through constrained Laplace in a
-# later milestone; this helper is adequate for proper components.
-function _logdet_Q(Q::AbstractSparseMatrix)
+# log|Q|_+ = logdet(Q_reg) when has_constr and Q_reg = Q + V V^T is PD.
+# For proper (unconstrained) Q, Q_reg ≡ Q and this is the ordinary log-det.
+# A safety ridge is applied if the cholesky still fails — indicates a
+# constraint/precision mismatch that should be surfaced in later work
+# rather than silently breaking the θ-mode search.
+function _logdet_Q_reg(Q_reg::AbstractSparseMatrix, has_constr::Bool)
     try
-        F = cholesky(Symmetric(Q))
+        F = cholesky(Symmetric(Q_reg))
         return logdet(F)
     catch err
         if err isa LinearAlgebra.PosDefException
-            # Small ridge to recover a pseudo-log-det until intrinsic
-            # constraint handling is wired through.
-            n = size(Q, 1)
-            F = cholesky(Symmetric(Q + 1.0e-8 * I(n)))
+            n = size(Q_reg, 1)
+            F = cholesky(Symmetric(Q_reg + 1.0e-8 * I(n)))
             return logdet(F)
         else
             rethrow(err)

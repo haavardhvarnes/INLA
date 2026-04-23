@@ -41,9 +41,10 @@ function posterior_marginal_x(res::INLAResult, i::Integer;
     σ = sqrt(max(res.x_var[i], 0.0))
     xs = grid === nothing ? _default_grid(μ, σ, grid_size, span) : collect(Float64, grid)
 
-    # Per-θ conditional mean and variance.
+    # Per-θ conditional mean and variance (constraint-corrected).
     m_k = [lp.mode[i] for lp in res.laplaces]
-    v_k = [GMRFs.marginal_variances(lp.precision)[i] for lp in res.laplaces]
+    v_k = [_constrained_marginal_variances(lp.precision, lp.constraint)[i]
+           for lp in res.laplaces]
 
     pdf = zeros(Float64, length(xs))
     @inbounds for k in eachindex(res.laplaces)

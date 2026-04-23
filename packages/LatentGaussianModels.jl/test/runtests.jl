@@ -24,6 +24,9 @@ using GMRFs
     @testset "Laplace — Gaussian identity" begin
         include("regression/test_laplace_gaussian.jl")
     end
+    @testset "Laplace — Hard constraint" begin
+        include("regression/test_laplace_constrained.jl")
+    end
     @testset "Empirical Bayes — Gaussian" begin
         include("regression/test_eb_gaussian.jl")
     end
