@@ -29,6 +29,8 @@ include("nullspace.jl")
 include("sampling.jl")
 include("logdensity.jl")
 include("constraints.jl")
+include("marginals.jl")
+include("factorization.jl")
 
 # Graph + precision
 export AbstractGMRFGraph, GMRFGraph
@@ -56,5 +58,9 @@ export logpdf
 export AbstractConstraint, NoConstraint, LinearConstraint
 export constraints, constraint_matrix, constraint_rhs, nconstraints
 export sum_to_zero_constraints
+
+# Marginals + factorisation
+export marginal_variances
+export FactorCache, update!, factor
 
 end # module

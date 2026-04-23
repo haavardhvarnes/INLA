@@ -12,5 +12,7 @@ using GMRFs
         include("regression/test_constraints.jl")
         include("regression/test_sampling_covariance.jl")
         include("regression/test_logdet_dense.jl")
+        include("regression/test_marginals.jl")
+        include("regression/test_factorization.jl")
     end
 end
