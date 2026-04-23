@@ -41,9 +41,13 @@ export assemble_fem_matrices, lumped_mass, stiffness_squared
 export FEMMatrices, spde_precision
 
 # M2 — SPDE2 component + PC-Matérn prior
-# include("priors/pc_matern.jl")
-# include("components/spde2.jl")
-#
+using GMRFs: GMRFs
+include("priors/pc_matern.jl")
+include("components/spde2.jl")
+
+export PCMatern, pc_matern_log_density
+export SPDE2, spde_user_scale, spde_internal_scale
+
 # M3 — Mesh generation
 # include("mesh/boundary.jl")
 # include("mesh/refinement.jl")

@@ -18,11 +18,12 @@ using INLASPDE
         include("regression/test_matern_reproduction.jl")
     end
 
+    @testset "M2 — SPDE2 + PC-Matérn" begin
+        include("regression/test_pc_matern_prior.jl")
+        include("regression/test_spde2_component.jl")
+    end
+
     # --- future milestone testsets ---------------------------------------
-    # @testset "M2 — SPDE2 + PC-Matérn" begin
-    #     include("regression/test_spde2_component.jl")
-    #     include("regression/test_pc_matern_prior.jl")
-    # end
     # @testset "M3 — Mesh generation" begin
     #     include("regression/test_mesh_quality.jl")
     # end

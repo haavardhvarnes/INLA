@@ -61,7 +61,27 @@ test/
 - [x] Regression tests against hand-computed matrices on small meshes.
 - [x] Matérn covariance reproduction test on fine mesh.
 
-### M2 — Mesh generation (3 weeks)
+### M2 — SPDE component + PC-Matérn prior (2 weeks) — DONE
+
+Implementation reordered ahead of mesh generation so the component contract
+can be validated on hand-made meshes before `inla_mesh_2d` lands.
+
+- [x] `SPDE2` struct implementing `AbstractLatentComponent`.
+- [x] Mesh topology exposed as `GMRFs.GMRFGraph` (field `spde.graph`,
+      derived from off-diagonal pattern of `C`).
+- [x] `precision_matrix(spde, θ)` — Q from stored FEM matrices.
+- [x] Internal parameterization `θ = (log τ, log κ)` per ADR-013.
+- [x] `(log τ, log κ) ↔ (ρ, σ)` user-scale mapping (α = 2, d = 2).
+- [x] `PCMatern` prior struct + `pc_matern_log_density` evaluator with
+      change-of-variables Jacobian onto `(log ρ, log σ)`.
+- [x] `log_hyperprior(spde, θ)` compositing the PC prior through the
+      internal-to-user-scale map (Jacobian determinant 1, ADR-013).
+- [x] `GMRFs.constraints(::SPDE2) = NoConstraint()`.
+- [x] Regression tests: rate derivation, argument validation, tail
+      probabilities, closed-form density, round-trip user ↔ internal,
+      precision agreement with FEM, SPD on a fine mesh.
+
+### M3 — Mesh generation (3 weeks)
 
 - [ ] `inla_mesh_2d(points; max_edge, cutoff, extend)` using
       DelaunayTriangulation.jl.
@@ -81,19 +101,10 @@ Julia mesh must satisfy, versus the `fmesher` baseline fixture:
 Failure on any boundary triggers the `INLASPDEFmesher.jl` fallback per
 ADR-007.
 
-### M3 — SPDE component (2 weeks)
-
-- [ ] `SPDE2` struct implementing `AbstractLatentComponent`.
-- [ ] `graph(spde)` — mesh topology as `GMRFGraph`.
-- [ ] `precision_matrix(spde, θ)` — Q from stored C, G₁, G₂.
-- [ ] Internal parameterization `θ = (log τ, log κ)`.
-- [ ] `log_hyperprior(spde, θ)` with PC prior.
-
-### M4 — Projector + PC priors (2 weeks)
+### M4 — Projector (1 week)
 
 - [ ] `MeshProjector(mesh, locations)` — sparse barycentric matrix.
 - [ ] `SciMLOperators.AbstractSciMLOperator` wrapper for lazy application.
-- [ ] `PCMatern(range_prior, sigma_prior)` per Fuglstad et al. 2019.
 - [ ] Integration with `LatentGaussianModel.projector` field.
 
 ### M5 — Meuse vignette (1 week)
