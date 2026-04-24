@@ -49,6 +49,7 @@ export PCMatern, pc_matern_log_density
 export SPDE2, spde_user_scale, spde_internal_scale
 
 # M3 — Mesh generation
+include("coercion.jl")
 include("mesh/boundary.jl")
 include("mesh/inla_mesh.jl")
 

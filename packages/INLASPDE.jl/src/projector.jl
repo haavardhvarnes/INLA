@@ -55,21 +55,24 @@ Build a sparse barycentric projector from `mesh` to the points in
 """
 function MeshProjector(
         mesh::INLAMesh,
-        locations::AbstractMatrix{<:Real};
+        locations;
         outside::Symbol = :error,
         atol::Real = 0.0,
     )
-    size(locations, 2) == 2 ||
-        throw(ArgumentError("locations must be n × 2; got size $(size(locations))"))
+    loc_m = _as_location_matrix(locations)
+    loc_m === nothing &&
+        throw(ArgumentError("locations is required; got nothing"))
+    size(loc_m, 2) == 2 ||
+        throw(ArgumentError("locations must be n × 2; got size $(size(loc_m))"))
     outside in (:error, :zero) ||
         throw(ArgumentError("outside must be :error or :zero; got $outside"))
     atol >= 0 ||
         throw(ArgumentError("atol must be non-negative; got $atol"))
 
-    T = promote_type(eltype(mesh.points), float(eltype(locations)))
-    n_obs = size(locations, 1)
+    T = promote_type(eltype(mesh.points), float(eltype(loc_m)))
+    n_obs = size(loc_m, 1)
     n_v = size(mesh.points, 1)
-    locs = Matrix{T}(locations)
+    locs = Matrix{T}(loc_m)
 
     Is = Int[]; Js = Int[]; Vs = T[]
     sizehint!(Is, 3 * n_obs)

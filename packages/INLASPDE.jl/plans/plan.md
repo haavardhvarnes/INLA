@@ -180,12 +180,19 @@ Deferred (M6 and the real Meuse vignette):
 - [ ] Prediction on a raster grid.
 - [ ] Docs: first SPDE vignette in the Documenter site.
 
-### M6 — Extensions (2 weeks)
+### M6 — Extensions (2 weeks) — v0.1 partial (GeoInterface DONE)
 
-- [ ] `INLASPDERastersExt`: covariate extraction from rasters to mesh
-      vertices, prediction returned as `Raster`.
-- [ ] `INLASPDEGeoInterfaceExt`: accept any GeoInterface geometry for
-      boundary / observation points.
+- [ ] Rasters support lives in `packages/INLASPDERasters.jl/` per
+      CLAUDE.md (heavy transitive closure — own sub-package, not a
+      weakdep here). Covariate extraction to mesh vertices and
+      prediction returned as `Raster`.
+- [x] `INLASPDEGeoInterfaceExt`: `inla_mesh_2d(boundary=…)` accepts
+      `PolygonTrait` / `LineStringTrait` / `LinearRingTrait`;
+      `MeshProjector(mesh, locations)` accepts `MultiPointTrait`,
+      `PointTrait`, and `AbstractVector` of `PointTrait`. Matrix
+      inputs remain the canonical form; geometry inputs route through
+      `INLASPDE._as_boundary_matrix` / `_as_location_matrix`
+      coercion hooks that the ext overrides.
 - [ ] `INLASPDEMakieExt`: mesh plot, posterior field with uncertainty.
 
 ## Deferred to v0.3+

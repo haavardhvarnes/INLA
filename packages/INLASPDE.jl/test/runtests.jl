@@ -32,6 +32,10 @@ using INLASPDE
         include("regression/test_projector.jl")
     end
 
+    @testset "M6 — Extensions (GeoInterface)" begin
+        include("regression/test_geointerface_ext.jl")
+    end
+
     @testset "M5 — SPDE end-to-end (synthetic)" begin
         include("integration/test_spde_synthetic.jl")
     end

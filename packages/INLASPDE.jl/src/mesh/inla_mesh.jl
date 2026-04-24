@@ -81,8 +81,8 @@ spde = SPDE2(mesh)
 ```
 """
 function inla_mesh_2d(
-        loc::Union{Nothing, AbstractMatrix{<:Real}} = nothing;
-        boundary::Union{Nothing, AbstractMatrix{<:Real}} = nothing,
+        loc = nothing;
+        boundary = nothing,
         max_edge::Real,
         offset::Real = 0.0,
         cutoff::Real = 0.0,
@@ -102,7 +102,10 @@ function inla_mesh_2d(
     loc === nothing && boundary === nothing &&
         throw(ArgumentError("inla_mesh_2d requires either `loc` or `boundary`"))
 
-    bnd_poly, interior_pts = _mesh_domain(loc, boundary, offset, cutoff)
+    loc_m = _as_location_matrix(loc)
+    bnd_m = _as_boundary_matrix(boundary)
+
+    bnd_poly, interior_pts = _mesh_domain(loc_m, bnd_m, offset, cutoff)
 
     n_b = size(bnd_poly, 1)
     n_i = size(interior_pts, 1)

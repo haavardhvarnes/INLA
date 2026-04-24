@@ -76,8 +76,13 @@ end
 
     P = MeshProjector(mesh, bad; outside = :zero)
     @test size(P) == (3, num_vertices(mesh))
-    # Inside row has nonzero weights; outside rows are empty.
-    @test count(!iszero, @view P.A[1, :]) == 3
+    # Inside row has nonzero weights; outside rows are empty. The
+    # interior point `(0.5, 0.5)` can land exactly on an edge of the
+    # refined Delaunay triangulation, in which case one of the three
+    # barycentric weights is zero — so accept 2 or 3 nonzeros, and
+    # require the row to sum to 1.
+    @test count(!iszero, @view P.A[1, :]) ∈ (2, 3)
+    @test sum(@view P.A[1, :]) ≈ 1.0
     @test iszero(@view P.A[2, :])
     @test iszero(@view P.A[3, :])
 end
