@@ -65,6 +65,7 @@ include("inference/inla.jl")
 include("inference/marginals.jl")
 include("inference/accessors.jl")
 include("inference/diagnostics.jl")
+include("inference/log_density.jl")
 
 # Link functions
 export AbstractLinkFunction, IdentityLink, LogLink, LogitLink,
@@ -104,5 +105,6 @@ export fixed_effects, random_effects, hyperparameters
 export log_marginal_likelihood, component_range
 export posterior_samples_η, dic, waic, cpo, pit
 export inla_summary
+export INLALogDensity, sample_conditional
 
 end # module

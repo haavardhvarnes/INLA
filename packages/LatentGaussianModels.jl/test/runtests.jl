@@ -57,6 +57,9 @@ using GMRFs
     @testset "Simplified Laplace — skew correction" begin
         include("regression/test_simplified_laplace.jl")
     end
+    @testset "LogDensityProblems conformance" begin
+        include("regression/test_log_density.jl")
+    end
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_scotland_bym2.jl")
     end
