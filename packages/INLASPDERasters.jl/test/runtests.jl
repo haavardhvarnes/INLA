@@ -10,4 +10,12 @@ using INLASPDERasters
     @testset "M1 — extraction" begin
         include("regression/test_extract_synthetic.jl")
     end
+
+    @testset "M2 — prediction" begin
+        include("regression/test_predict_synthetic.jl")
+    end
+
+    @testset "M3 — uncertainty surfaces" begin
+        include("regression/test_quantile_rasters.jl")
+    end
 end

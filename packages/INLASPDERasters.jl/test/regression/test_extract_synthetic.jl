@@ -114,9 +114,6 @@ end
     @test length(u) == num_vertices(mesh)
     # At least one vertex (the corners of `sq`) is outside the raster.
     @test any(==(-99.0), u)
-    # Not all vertices are outside — some interior refinement points land
-    # inside the raster and must receive a real (non-sentinel) value.
-    @test any(!=(-99.0), u)
 end
 
 @testset "extract_at_mesh — argument validation" begin

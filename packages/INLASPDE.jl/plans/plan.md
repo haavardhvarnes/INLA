@@ -193,7 +193,13 @@ Deferred (M6 and the real Meuse vignette):
       inputs remain the canonical form; geometry inputs route through
       `INLASPDE._as_boundary_matrix` / `_as_location_matrix`
       coercion hooks that the ext overrides.
-- [ ] `INLASPDEMakieExt`: mesh plot, posterior field with uncertainty.
+- [x] `INLASPDEMakieExt`: minimal `MakieCore.convert_arguments`
+      surface for `Scatter`, `LineSegments`, `Mesh`, and `Wireframe`
+      primitives. `scatter(mesh)` plots vertices, `linesegments(mesh)`
+      gives a wireframe, `mesh(mesh; color = field)` gives the filled
+      posterior surface. Recipes live at the primitive level so
+      per-call Makie attributes (`color`, `linewidth`, `colormap`, …)
+      flow through unchanged.
 
 ## Deferred to v0.3+
 

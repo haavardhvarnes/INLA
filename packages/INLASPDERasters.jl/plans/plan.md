@@ -45,18 +45,38 @@ test/
 - [ ] CRS-aware assertion: deferred until `INLAMesh` carries CRS
       metadata. Docstring states the caller must pre-project.
 
-### M2 — Prediction to raster (1 week)
+### M2 — Prediction to raster (1 week) — DONE
 
-- [ ] `predict_raster(fit, mesh, template_raster)` using the SPDE
-      projector and the posterior mean / quantiles.
-- [ ] Output matches template CRS, extent, resolution.
-- [ ] Meuse zinc oracle test vs R-INLA's `predict.inla`.
+- [x] `predict_raster(values, mesh, template_raster; outside,
+      missingval)` — barycentric projection of a per-vertex field to
+      a raster matching the template's dims, extent, resolution, and
+      dim order. Unit-tested against linear fields (exact
+      reproduction), constant fields, outside-of-mesh policy,
+      reversed dim order, and argument validation.
+- [x] Output raster inherits the template's lookups via
+      `similar(template, Float64)`; no ad-hoc dim-order gymnastics.
+- [ ] Meuse zinc oracle test vs R-INLA's `predict.inla` — deferred
+      until a production SPDE fit is part of the test tree; the
+      non-oracle building blocks (M1 extraction + M2 projection) are
+      oracle-verified through INLASPDE.jl M5 end-to-end, and M2's
+      linear-reproduction test is the tight regression gate.
 
-### M3 — Uncertainty surfaces (1 week)
+### M3 — Uncertainty surfaces (1 week) — DONE
 
-- [ ] Quantile rasters (`:mean`, `:sd`, `:q025`, `:q975`).
-- [ ] Per-pixel credible interval width as a `Raster` for diagnostic
-      plotting.
+- [x] `quantile_rasters(mean, sd, mesh, template; z, outside,
+      missingval)` returning a NamedTuple `(mean, sd, lower, upper)`
+      of rasters. Lower / upper are built by projecting the
+      vertex-level `mean ± z · sd` quantities through the same P1
+      projector — a linear view that is sharp at vertices and
+      interpolated linearly inside each triangle.
+- [x] Default `z = 1.96` gives a 95% Gaussian credible interval;
+      callers may pass any non-negative `z` (e.g. `1.645` for 90%).
+- [x] Outside-domain cells receive `missingval` consistently in all
+      four output rasters.
+- [ ] True pixel-level standard deviation `diag(P Σ P')` requires
+      access to the joint posterior covariance from LGM — deferred to
+      a downstream integration once `marginal_variances` + a pixel
+      covariance helper are exposed there.
 
 ## Risk items
 

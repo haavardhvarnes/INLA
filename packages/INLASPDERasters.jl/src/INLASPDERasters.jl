@@ -12,11 +12,12 @@ model.
 """
 module INLASPDERasters
 
-using INLASPDE: INLAMesh, num_vertices
+using INLASPDE: INLASPDE, INLAMesh, num_vertices
 using Rasters: Rasters, Raster, X, Y
 
 include("extract.jl")
+include("predict.jl")
 
-export extract_at_mesh
+export extract_at_mesh, predict_raster, quantile_rasters
 
 end # module

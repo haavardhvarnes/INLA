@@ -5,6 +5,7 @@
 # identical meshes / projectors.
 
 using GeoInterface
+using Random: Random
 const GI = GeoInterface
 
 @testset "INLASPDEGeoInterfaceExt" begin
@@ -35,7 +36,12 @@ const GI = GeoInterface
     end
 
     @testset "inla_mesh_2d — polygon boundary equivalent to matrix" begin
+        # DelaunayTriangulation uses the default RNG for point-insertion
+        # ordering; seed before each call so the two meshes are
+        # byte-identical rather than just equivalent.
+        Random.seed!(42)
         mesh_from_poly = inla_mesh_2d(; boundary = square_poly, max_edge = 0.3)
+        Random.seed!(42)
         mesh_from_mat  = inla_mesh_2d(; boundary = square_mat,  max_edge = 0.3)
         @test num_vertices(mesh_from_poly) == num_vertices(mesh_from_mat)
         @test num_triangles(mesh_from_poly) == num_triangles(mesh_from_mat)
