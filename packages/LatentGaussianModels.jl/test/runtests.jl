@@ -60,6 +60,12 @@ using GMRFs
     @testset "LogDensityProblems conformance" begin
         include("regression/test_log_density.jl")
     end
+    @testset "Integration schemes" begin
+        include("regression/test_integration_schemes.jl")
+    end
+    @testset "Summary layout vs R-INLA" begin
+        include("regression/test_summary_layout.jl")
+    end
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_scotland_bym2.jl")
     end
