@@ -1,16 +1,28 @@
 name = "INLASPDERasters"
 uuid = "28708ac2-a765-4cf9-a54c-708b26c5e9a3"
-authors = ["TBD"]
 version = "0.1.0-DEV"
+authors = ["TBD"]
 
 [deps]
+# INLASPDE is the only semantic direct dep here; GMRFs and
+# LatentGaussianModels are pulled in so Julia's resolver can find
+# path-linked sources for transitive deps (see `[sources]`). We do not
+# `using` GMRFs or LatentGaussianModels in this package.
+GMRFs = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
 INLASPDE = "2835c710-3f40-4945-979f-d21c9e20d425"
+LatentGaussianModels = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
 Rasters = "a3a2b9e3-a471-40c9-b274-f788e487c689"
+
+# Path overrides for unregistered sibling packages.
+[sources]
+INLASPDE = {path = "../INLASPDE.jl"}
+GMRFs = {path = "../GMRFs.jl"}
+LatentGaussianModels = {path = "../LatentGaussianModels.jl"}
 
 [compat]
 INLASPDE = "0.1"
-Rasters = "0.11, 0.12"
-julia = "1.10"
+Rasters = "0.14"
+julia = "1.11"
 
 [extras]
 Aqua = "4c88cf16-eb10-579e-8560-4a9242c79595"

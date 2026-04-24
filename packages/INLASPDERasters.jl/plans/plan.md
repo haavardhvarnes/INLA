@@ -28,12 +28,22 @@ test/
 
 ## Milestones
 
-### M1 — Extraction (1 week, after INLASPDE.jl M5)
+### M1 — Extraction (1 week, after INLASPDE.jl M5) — DONE
 
-- [ ] `extract_at_mesh(raster, mesh)` with bilinear interp, respecting
-      CRS.
-- [ ] CRS mismatch assertion / explicit conversion.
-- [ ] Test on synthetic raster where analytic values are known.
+- [x] `extract_at_mesh(raster, mesh; method = :bilinear | :nearest,
+      outside = :error | :missing, missingval)` sampling a 2D `Raster`
+      at `INLAMesh` vertex coordinates.
+- [x] Ascending- and descending-coordinate raster axes both supported
+      via `_bracket(xs, x)` linear scan returning `(i, t)` bracketing
+      index + interpolation fraction.
+- [x] Outside-extent policy: `:error` throws `ArgumentError`;
+      `:missing` substitutes a user-supplied sentinel.
+- [x] Regression tests: bilinear reproduces affine fields exactly to
+      machine precision; exact at cell corners; nearest snaps to the
+      closest cell; descending Y handled; outside policy enforced;
+      argument validation.
+- [ ] CRS-aware assertion: deferred until `INLAMesh` carries CRS
+      metadata. Docstring states the caller must pre-project.
 
 ### M2 — Prediction to raster (1 week)
 
