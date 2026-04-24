@@ -45,7 +45,7 @@ export SymmetricQ, tabulated_precision
 
 # GMRFs
 export AbstractGMRF
-export IIDGMRF, RW1GMRF, RW2GMRF, AR1GMRF, BesagGMRF, Generic0GMRF
+export IIDGMRF, RW1GMRF, RW2GMRF, AR1GMRF, SeasonalGMRF, BesagGMRF, Generic0GMRF
 export precision_matrix, prior_mean, rankdef, null_space_basis
 export scale_model, scale_factor, is_scaled
 

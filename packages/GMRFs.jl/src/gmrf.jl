@@ -231,6 +231,61 @@ function precision_matrix(g::AR1GMRF{T}) where {T}
 end
 
 # ============================================================
+# Seasonal — intrinsic seasonal-variation precision
+# ============================================================
+
+"""
+    SeasonalGMRF{T}(n; period, τ = 1.0)
+
+Intrinsic seasonal-variation model of length `n` and period `s =
+period`. Precision
+
+    Q = τ · B' B,     B ∈ ℝ^{(n-s+1) × n},
+    B_{t,j} = 1 if j ∈ [t, t+s-1] else 0,
+
+so that each `s`-consecutive sum of the field is penalised:
+
+    π(x | τ) ∝ exp(-½ τ Σ_{t=1}^{n-s+1} (x_t + ⋯ + x_{t+s-1})²).
+
+The null space has dimension `s - 1`: it is spanned by all `s`-periodic
+sequences summing to zero within one period. Equivalently, a basis is
+`ε_k = e_k - e_s` (repeated with period `s`) for `k = 1, …, s-1`, where
+`e_k` is the `k`-th canonical basis vector of ℝ^s; so `rankdef = s-1`.
+
+Matches Rue & Held (2005, §3.4.3) and R-INLA's `model = "seasonal"`.
+"""
+struct SeasonalGMRF{T <: Real} <: AbstractGMRF
+    n::Int
+    period::Int
+    τ::T
+end
+function SeasonalGMRF(n::Integer; period::Integer, τ::Real = 1.0)
+    n > period ||
+        throw(ArgumentError("SeasonalGMRF requires n > period, got n=$n, period=$period"))
+    period ≥ 2 ||
+        throw(ArgumentError("SeasonalGMRF requires period ≥ 2, got period=$period"))
+    return SeasonalGMRF{typeof(float(τ))}(Int(n), Int(period), float(τ))
+end
+
+num_nodes(g::SeasonalGMRF) = g.n
+rankdef(g::SeasonalGMRF) = g.period - 1
+
+function precision_matrix(g::SeasonalGMRF{T}) where {T}
+    n = g.n
+    s = g.period
+    # Build B as (n - s + 1) × n with 1s on each row's s-consecutive
+    # window, then form R = B' B.
+    nr = n - s + 1
+    Ib = Int[]; Jb = Int[]; Vb = T[]
+    for t in 1:nr, j in t:(t + s - 1)
+        push!(Ib, t); push!(Jb, j); push!(Vb, one(T))
+    end
+    B = sparse(Ib, Jb, Vb, nr, n)
+    R = B' * B
+    return g.τ .* SparseMatrixCSC{T, Int}(R)
+end
+
+# ============================================================
 # Besag — intrinsic conditional autoregressive on a graph
 # ============================================================
 
