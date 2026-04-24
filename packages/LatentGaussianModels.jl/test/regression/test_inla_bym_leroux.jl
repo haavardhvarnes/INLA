@@ -8,7 +8,7 @@ using LinearAlgebra: I
 using Random
 
 # Same rook-adjacency grid as the BYM2 test.
-function _grid_adjacency(nr::Int, nc::Int)
+function _bym_leroux_grid_adjacency(nr::Int, nc::Int)
     n = nr * nc
     W = zeros(Int, n, n)
     idx = (i, j) -> (i - 1) * nc + j
@@ -30,7 +30,7 @@ end
     # BYM = iid + besag, latent layout [v; u] of length 2n. The linear
     # predictor uses v + u, so A stacks [1_n | I_n | I_n] to emit α + v + u.
     rng = Random.Xoshiro(20260424)
-    g = GMRFGraph(_grid_adjacency(8, 8))
+    g = GMRFGraph(_bym_leroux_grid_adjacency(8, 8))
     n = num_nodes(g)
 
     α_true = 0.3
@@ -75,7 +75,7 @@ end
 
 @testset "INLA — Poisson + Leroux (synthetic recovery, 8×8 grid)" begin
     rng = Random.Xoshiro(20260424)
-    g = GMRFGraph(_grid_adjacency(8, 8))
+    g = GMRFGraph(_bym_leroux_grid_adjacency(8, 8))
     n = num_nodes(g)
 
     α_true = 0.2

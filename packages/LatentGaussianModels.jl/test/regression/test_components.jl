@@ -1,9 +1,11 @@
-using LatentGaussianModels: Intercept, FixedEffects, IID, RW1, RW2, AR1, Besag,
+using LatentGaussianModels: Intercept, FixedEffects, IID, RW1, RW2, AR1,
+    Seasonal, Besag,
     BYM, Leroux, Generic0, Generic1,
     PCPrecision, LogitBeta,
     precision_matrix, log_hyperprior, nhyperparameters,
     initial_hyperparameters
-using GMRFs: GMRFs, GMRFGraph, RW1GMRF, RW2GMRF, IIDGMRF, AR1GMRF, BesagGMRF,
+using GMRFs: GMRFs, GMRFGraph, RW1GMRF, RW2GMRF, IIDGMRF, AR1GMRF,
+    SeasonalGMRF, BesagGMRF,
     Generic0GMRF, num_nodes, LinearConstraint, constraint_matrix,
     constraint_rhs, nconnected_components
 using Distributions: Distributions
@@ -141,6 +143,29 @@ end
 @testset "Generic1 — rejects negative λ_max" begin
     R_neg = sparse([-1.0 0.0; 0.0 -2.0])
     @test_throws ArgumentError Generic1(R_neg)
+end
+
+@testset "Seasonal component" begin
+    n = 12
+    s = 4
+    c = Seasonal(n; period = s)
+    @test length(c) == n
+    @test nhyperparameters(c) == 1
+    @test initial_hyperparameters(c) == [0.0]
+
+    # Precision agreement with direct SeasonalGMRF.
+    Q = precision_matrix(c, [log(2.5)])
+    Qref = GMRFs.precision_matrix(SeasonalGMRF(n; period = s, τ = 2.5))
+    @test Matrix(Q) ≈ Matrix(Qref)
+
+    # Constraint delegation.
+    kc = GMRFs.constraints(c)
+    @test kc isa LinearConstraint
+    @test size(constraint_matrix(kc)) == (s - 1, n)
+    @test constraint_matrix(kc) ==
+          constraint_matrix(GMRFs.constraints(SeasonalGMRF(n; period = s)))
+
+    @test isfinite(log_hyperprior(c, [0.0]))
 end
 
 @testset "BYM component" begin

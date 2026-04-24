@@ -48,6 +48,9 @@ using GMRFs
     @testset "INLA — BYM + Leroux (synthetic)" begin
         include("regression/test_inla_bym_leroux.jl")
     end
+    @testset "INLA — Seasonal (synthetic)" begin
+        include("regression/test_inla_seasonal.jl")
+    end
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
     end
