@@ -538,6 +538,98 @@ Two open parameterisation questions:
 
 ---
 
+## ADR-014: `main` is fast-forwarded to `claude/hungry-pascal`; main becomes the integration branch going forward
+
+Status: Accepted
+Date: 2026-04-24
+
+### Context
+
+Between 2026-04-23 13:46 and 2026-04-24 11:15, 17 feature commits
+landed on branch `claude/hungry-pascal` while `main` remained at
+`9c2f69d`. A status audit on 2026-04-24 discovered the gap:
+
+- `git merge-base main claude/hungry-pascal` resolves to `main`'s
+  HEAD — the branches share a linear history, no divergence.
+- Every commit on `hungry-pascal` is by the same author as on `main`.
+- No pull request, review, or CI gate was configured; the branch was
+  simply the workspace where work continued after `main` stopped
+  being advanced.
+- Roadmap progress actually landed on `hungry-pascal`: MVP go/no-go
+  (Scotland BYM2, ADR-006 scope, ADR-012, ADR-013), much of Phase 3
+  (simplified-Laplace correction, DIC/WAIC/CPO/PIT, posterior
+  marginals, linear constraints in Laplace), and Phase 4 M1–M6-A
+  (FEM assembly, SPDE2, mesh generation, MeshProjector, Meuse
+  oracle, GeoInterface ext, rasters predict/quantile, MakieExt).
+
+Reading the roadmap against `main` gave a misleadingly pessimistic
+picture (late Phase 1). The true state is through Phase 4 M6-A.
+
+### Decision
+
+1. **Fast-forward `main` to `claude/hungry-pascal`.** The update is
+   `git checkout main && git merge --ff-only claude/hungry-pascal`.
+   No cherry-picking, no squash — the 17 commits are individually
+   scoped (Conventional Commits, per-feature) and bisect-able as-is.
+2. **Delete `claude/hungry-pascal`** after the fast-forward. It has
+   no independent meaning.
+3. **Adopt a no-stale-main rule going forward.** Either (a) work
+   directly on `main` until branch protection lands, or (b) once
+   branch protection and CI are enabled per
+   `plans/initial-commits.md`, open a PR per feature branch and
+   require merge before starting the next unrelated piece of work.
+   Leaving a work branch more than one working day ahead of `main`
+   without a PR is the concrete anti-pattern this ADR names.
+4. **Record roadmap drift explicitly.** After the merge,
+   `ROADMAP.md` is updated to reflect the new baseline, and a
+   replan document lands in `plans/replan-2026-04.md` covering
+   Phase B–E per the status review.
+
+### Consequences
+
+- **Good:** a single canonical branch; external readers (and Claude
+  Code sessions) evaluating project status will not be misled by a
+  stale `main`.
+- **Good:** all prior review benefits are still available — the
+  commit granularity on `hungry-pascal` is already per-feature, so
+  `git log` on the merged `main` reads the same way a review would
+  have produced.
+- **Cost:** the ADR numbering on this branch (which only sees through
+  ADR-011) must be reconciled at merge time. `hungry-pascal` adds
+  ADR-012 and ADR-013; this branch adds ADR-014. The textual merge
+  is trivial — no ADR is renumbered, only concatenated in order —
+  but the merge commit must verify the sequence 012, 013, 014 is
+  monotonic with no gaps before the fast-forward is accepted.
+- **Cost:** one-off effort to backfill branch protection rules on
+  GitHub (per `plans/initial-commits.md` §"Branch protection
+  rules"). This is independent of the merge itself but should land
+  in the same working session to prevent recurrence.
+
+### Follow-up items flagged by this ADR (tracked but not resolved here)
+
+- **ADR-006 divergence.** `85db314` landed a simplified-Laplace
+  skew correction, which ADR-006 explicitly deferred to v0.3.
+  Either amend ADR-006 with a superseding note or revert the
+  feature. Decide before v0.1 tag.
+- **Fixture generation pipeline.** Phase 4 M5 introduced JLD2
+  fixtures under `packages/INLASPDE.jl/test/oracle/fixtures/` but
+  the R generation scripts in `scripts/generate-fixtures/spde/`
+  are not exercised by CI. This is the single largest untracked
+  correctness risk identified by the status review.
+- **Missing Phase 2 components.** `Leroux`, `BYM` (non-reparameterised
+  form), `Seasonal`, and `Generic0/1` at the LGM component layer
+  have plan entries but no source — the merge does not close these
+  items; they are Phase B in the replan.
+
+### References
+
+- `ROADMAP.md` — phase numbering to be revised after merge.
+- `plans/initial-commits.md` — branch protection rules §.
+- ADR-006 — simplified Laplace deferral, now in tension with
+  `85db314`.
+
+---
+
 ## ADR template for future entries
 
 ```
