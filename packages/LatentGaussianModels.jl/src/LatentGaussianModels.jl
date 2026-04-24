@@ -37,6 +37,8 @@ include("likelihoods/abstract.jl")
 include("likelihoods/gaussian.jl")
 include("likelihoods/poisson.jl")
 include("likelihoods/binomial.jl")
+include("likelihoods/negative_binomial.jl")
+include("likelihoods/gamma.jl")
 
 # --- components -------------------------------------------------------
 include("components/abstract.jl")
@@ -66,7 +68,7 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 
 # Likelihoods
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
-       BinomialLikelihood
+       BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood
 export log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density, link
 export pointwise_log_density, pointwise_cdf
 
