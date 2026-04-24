@@ -91,6 +91,73 @@ write_inla_fixture <- function(fit, path, name,
 }
 
 # ------------------------------------------------------------------
+# Mesh: serialise an fmesher/inla mesh into a JSON-friendly list.
+# ------------------------------------------------------------------
+
+mesh_to_list <- function(mesh) {
+    # fmesher loc is n × 3 (x, y, z = 0 for planar meshes); keep 2D.
+    loc <- as.matrix(mesh$loc[, 1:2, drop = FALSE])
+    tv <- as.matrix(mesh$graph$tv)   # n_tri × 3, 1-based indices
+    # Min triangle angle (degrees) and max edge length, computed on
+    # the mesh we're about to ship. Both sides of the parity test
+    # compare Julia-side recomputations to these numbers, so keep the
+    # formula explicit here.
+    P1 <- loc[tv[, 1], , drop = FALSE]
+    P2 <- loc[tv[, 2], , drop = FALSE]
+    P3 <- loc[tv[, 3], , drop = FALSE]
+    e12 <- sqrt(rowSums((P2 - P1)^2))
+    e23 <- sqrt(rowSums((P3 - P2)^2))
+    e31 <- sqrt(rowSums((P1 - P3)^2))
+    # Law of cosines for the three triangle angles.
+    ang <- function(a, b, c) {
+        acos(pmin(pmax((b^2 + c^2 - a^2) / (2 * b * c), -1), 1))
+    }
+    a1 <- ang(e23, e31, e12)
+    a2 <- ang(e31, e12, e23)
+    a3 <- ang(e12, e23, e31)
+    min_angle_deg <- (180 / pi) * min(a1, a2, a3)
+    max_edge <- max(e12, e23, e31)
+    list(
+        loc = lapply(seq_len(nrow(loc)), function(i) as.numeric(loc[i, ])),
+        tv  = lapply(seq_len(nrow(tv)),  function(i) as.integer(tv[i, ])),
+        n_vertices = as.integer(nrow(loc)),
+        n_triangles = as.integer(nrow(tv)),
+        min_angle_deg = as.numeric(min_angle_deg),
+        max_edge = as.numeric(max_edge)
+    )
+}
+
+# Serialise a boundary polygon (rectangular matrix or two-column frame)
+# as a list of 2-vectors, mirroring the shape used in INLASPDE.jl.
+boundary_to_list <- function(poly) {
+    poly <- as.matrix(poly[, 1:2, drop = FALSE])
+    lapply(seq_len(nrow(poly)), function(i) as.numeric(poly[i, ]))
+}
+
+# ------------------------------------------------------------------
+# fmesher parity: boundary + params + fmesher output stats/mesh.
+# ------------------------------------------------------------------
+
+write_fmesher_fixture <- function(path, name, boundary, params, mesh,
+                                  meta = list()) {
+    fixture <- list(
+        name = name,
+        inla_version = as.character(packageVersion("INLA")),
+        fmesher_version = as.character(packageVersion("fmesher")),
+        boundary = boundary_to_list(boundary),
+        params = params,
+        mesh = mesh_to_list(mesh),
+        meta = meta
+    )
+    dir.create(dirname(path), recursive = TRUE, showWarnings = FALSE)
+    write_json(
+        fixture, path,
+        auto_unbox = TRUE, digits = 16, pretty = FALSE, na = "null"
+    )
+    invisible(fixture)
+}
+
+# ------------------------------------------------------------------
 # For GMRFs.jl: write Q, log-determinant, and qinv diagonal for a
 # known graph. No full INLA fit required — just numerical references.
 # ------------------------------------------------------------------

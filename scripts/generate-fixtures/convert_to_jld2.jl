@@ -110,7 +110,72 @@ function convert_fixture(doc)
         out["input"] = _convert_input(doc["input"])
     end
 
+    # SPDE fmesher/mesh fields. `mesh` comes from `mesh_to_list` in
+    # _helpers.R; `boundary` is a list of 2-vectors; `params` is a
+    # flat dict of Floats; `A_field` is a sparse triplet.
+    if haskey(doc, "mesh")
+        out["mesh"] = _convert_mesh(doc["mesh"])
+    end
+    if haskey(doc, "boundary")
+        out["boundary"] = _rows_to_matrix(doc["boundary"])
+    end
+    if haskey(doc, "params")
+        out["params"] = Dict{String, Any}(
+            String(k) => Float64(v) for (k, v) in pairs(doc["params"])
+        )
+    end
+    if haskey(doc, "A_field")
+        out["A_field"] = triplet_to_sparse(doc["A_field"])
+    end
+    if haskey(doc, "fmesher_version")
+        out["fmesher_version"] = String(doc["fmesher_version"])
+    end
+
     return out
+end
+
+"""
+    _rows_to_matrix(rows) -> Matrix{Float64}
+
+Deserialise a list of equal-length numeric vectors (as emitted by
+`boundary_to_list` and `mesh_to_list` in `_helpers.R`) into a dense
+matrix whose rows are the vectors.
+"""
+function _rows_to_matrix(rows)
+    n = length(rows)
+    n == 0 && return Matrix{Float64}(undef, 0, 0)
+    first_row = Float64.(collect(rows[1]))
+    d = length(first_row)
+    M = Matrix{Float64}(undef, n, d)
+    M[1, :] = first_row
+    for i in 2:n
+        M[i, :] = Float64.(collect(rows[i]))
+    end
+    return M
+end
+
+function _rows_to_int_matrix(rows)
+    n = length(rows)
+    n == 0 && return Matrix{Int}(undef, 0, 0)
+    first_row = Int.(collect(rows[1]))
+    d = length(first_row)
+    M = Matrix{Int}(undef, n, d)
+    M[1, :] = first_row
+    for i in 2:n
+        M[i, :] = Int.(collect(rows[i]))
+    end
+    return M
+end
+
+function _convert_mesh(m)
+    return Dict{String, Any}(
+        "loc" => _rows_to_matrix(m["loc"]),
+        "tv" => _rows_to_int_matrix(m["tv"]),
+        "n_vertices" => Int(m["n_vertices"]),
+        "n_triangles" => Int(m["n_triangles"]),
+        "min_angle_deg" => Float64(m["min_angle_deg"]),
+        "max_edge" => Float64(m["max_edge"]),
+    )
 end
 
 """
@@ -128,7 +193,18 @@ function _convert_input(d)
     return out
 end
 
-_convert_input_value(v::JSON3.Array) = collect(v)
+function _convert_input_value(v::JSON3.Array)
+    # Detect a list-of-equal-length-numeric-vectors (e.g. locations =
+    # lapply(..., as.numeric) on the R side) and pack into a Matrix.
+    if !isempty(v) && all(x -> x isa JSON3.Array, v)
+        first_len = length(v[1])
+        if all(x -> length(x) == first_len, v) &&
+           all(x -> all(e -> e isa Real, x), v)
+            return _rows_to_matrix(v)
+        end
+    end
+    return collect(v)
+end
 function _convert_input_value(v::JSON3.Object)
     # A triplet has keys {i, j, v, nrow, ncol}; otherwise keep as dict.
     if all(k -> haskey(v, k), ("i", "j", "v", "nrow", "ncol"))
