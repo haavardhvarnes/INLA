@@ -61,9 +61,7 @@ fit <- INLA::inla(
     control.compute = list(return.marginals = TRUE)
 )
 
-out_path <- file.path(here, "..", "..", "..",
-                      "packages", "LatentGaussianModels.jl", "test", "oracle",
-                      "fixtures", "scotland_bym2.json")
+out_path <- file.path(here, "..", "fixtures", "lgm", "scotland_bym2.json")
 
 write_inla_fixture(
     fit = fit,

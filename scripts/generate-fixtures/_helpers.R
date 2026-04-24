@@ -18,6 +18,11 @@ suppressPackageStartupMessages({
 # ------------------------------------------------------------------
 
 sparse_to_triplet <- function(M) {
+    # Force general (non-symmetric-storage) form before triplet
+    # conversion. Matrix::Matrix on a symmetric dense matrix can pick
+    # dsCMatrix, which stores only one triangle; downstream consumers
+    # (e.g. Julia `sparse`) expect both halves to be explicit.
+    M <- as(M, "generalMatrix")
     M <- as(M, "TsparseMatrix")
     list(
         i = as.integer(M@i) + 1L,   # 1-based

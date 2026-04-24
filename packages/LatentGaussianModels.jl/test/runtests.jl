@@ -68,5 +68,6 @@ using GMRFs
     end
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_scotland_bym2.jl")
+        include("oracle/test_pennsylvania_bym2.jl")
     end
 end
