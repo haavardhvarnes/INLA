@@ -1,5 +1,11 @@
 # Roadmap
 
+> **Superseded as of 2026-04-24 by [`plans/replan-2026-04.md`](plans/replan-2026-04.md).**
+> This document is retained for v0.0 historical context — the original
+> phase numbering (Phase 0–6) is referenced by early ADRs and commit
+> messages. Current-state work and phase gates (B–E) live in the replan.
+> See [ADR-014](plans/decisions.md) for why.
+
 Phased delivery. Each phase ends with runnable, tested output. Phase 0 can
 run concurrently with scaffolding in Phases 1 and 2, but substantive Phase 2
 content (areal components) depends on Phase 1 M1–M3 (graph + concrete GMRFs
