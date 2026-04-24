@@ -42,6 +42,9 @@ using GMRFs
     @testset "INLA — NegBin + Gamma (synthetic)" begin
         include("regression/test_inla_negbin_gamma.jl")
     end
+    @testset "INLA — Disconnected Besag (Sardinia pattern)" begin
+        include("regression/test_inla_besag_disconnected.jl")
+    end
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
     end
