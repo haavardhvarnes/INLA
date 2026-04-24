@@ -189,6 +189,46 @@ when we have tier-2 confidence in the full Laplace path.
 - Rue, Martino, Chopin (2009), §3.2.
 - `plans/defaults-parity.md` "Default Laplace strategy" section.
 
+### Amendment 2026-04-24 — marginal-reconstruction scope split
+
+The original ADR conflated two distinct things that R-INLA also
+calls `strategy`:
+
+1. **Top-level inference strategy** — the Laplace step used inside
+   the INLA outer loop (Gaussian / simplified Laplace / full Laplace
+   per marginal). This is what the original decision governed.
+2. **Posterior marginal reconstruction** — how `p(x_i | y)` is
+   reassembled from the θ-grid of per-θ Laplaces. R-INLA also
+   exposes `:gaussian`, `:simplified_laplace`, `:laplace` on this
+   step (post-processing, not inference-time).
+
+Commit `85db314` added a `strategy` **kwarg on
+`posterior_marginal_x`** covering case (2) only — opt-in, default
+remains `:gaussian`. Likelihood contract extended with closed-form
+`∇³_η_log_density` for Gaussian / Poisson / Binomial plus a
+central-difference fallback. Collapses to Gaussian on
+quadratic-in-η likelihoods; verified in
+[test_simplified_laplace.jl](packages/LatentGaussianModels.jl/test/regression/test_simplified_laplace.jl).
+
+This does **not** reverse the v0.3 deferral. The following items
+remain Phase-3-late / v0.3 scope:
+
+- Flipping the *default* on `posterior_marginal_x` from
+  `:gaussian` to `:simplified_laplace` — blocked on the
+  Pennsylvania Poisson oracle in the replan's Phase C.
+- Adding an analogous kwarg to the inference-time Laplace strategy
+  (case 1 above). The top-level default is and remains full
+  Laplace per this ADR.
+- The full Rue-Martino per-marginal `:laplace` strategy (the
+  expensive per-marginal re-Laplace).
+
+Rationale for keeping the landed work rather than reverting: the
+cubic-derivative closed forms are real correctness infrastructure
+needed in Phase C regardless of when the default flips; losing them
+incurs the same re-implementation cost later with no payoff now.
+
+Status of this ADR: Accepted, amended 2026-04-24.
+
 ---
 
 ## ADR-007: DelaunayTriangulation.jl for mesh generation; fmesher wrap as fallback sub-package
