@@ -144,14 +144,43 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     logdetΣ = logdet(Symmetric(Σθ))
     Σinv = inv(Symmetric(Σθ))
 
+    # Per-point Laplace can fail in tail regions of the integration design
+    # (H = Q + A'DA numerically singular for extreme θ). Mirror the mode
+    # search wrapper at `_neg_log_posterior_θ`: catch the failure, drop
+    # the point, and let the remaining points carry the IS sum.
+    keep_mask = trues(length(points))
     @inbounds for k in eachindex(points)
         θ_k = points[k]
-        res = laplace_mode(m, y, θ_k; strategy = strategy.laplace)
+        local res
+        try
+            res = laplace_mode(m, y, θ_k; strategy = strategy.laplace)
+        catch
+            keep_mask[k] = false
+            continue
+        end
+        if !isfinite(res.log_marginal)
+            keep_mask[k] = false
+            continue
+        end
         laplaces[k] = res
         log_π[k] = res.log_marginal + log_hyperprior(m, θ_k)
         δ = θ_k .- θ̂
         log_q[k] = -0.5 * mvec * log2π - 0.5 * logdetΣ -
                    0.5 * dot(δ, Σinv, δ)
+    end
+
+    if !all(keep_mask)
+        keep = findall(keep_mask)
+        isempty(keep) && error("INLA: Laplace failed at every integration " *
+                               "point; reduce span/n_per_dim or check the model")
+        n_dropped = length(points) - length(keep)
+        @warn "INLA: $(n_dropped) of $(length(points)) integration " *
+              "points discarded (Laplace failure or non-finite log-marginal)"
+        points = points[keep]
+        log_base_weights = log_base_weights[keep]
+        laplaces = laplaces[keep]
+        log_π = log_π[keep]
+        log_q = log_q[keep]
     end
 
     # Importance-sampling reweighting: unnormalised log-weight_k =

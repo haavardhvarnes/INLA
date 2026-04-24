@@ -33,6 +33,9 @@ using GMRFs
     @testset "INLA — Gaussian" begin
         include("regression/test_inla_gaussian.jl")
     end
+    @testset "INLA — Integration scheme robustness" begin
+        include("regression/test_integration_schemes.jl")
+    end
     @testset "INLA — Marginals + Accessors" begin
         include("regression/test_inla_marginals.jl")
     end
