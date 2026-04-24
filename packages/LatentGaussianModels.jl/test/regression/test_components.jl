@@ -1,9 +1,12 @@
 using LatentGaussianModels: Intercept, FixedEffects, IID, RW1, RW2, AR1, Besag,
-    Generic0, Generic1,
-    PCPrecision, precision_matrix, log_hyperprior, nhyperparameters,
+    BYM, Leroux, Generic0, Generic1,
+    PCPrecision, LogitBeta,
+    precision_matrix, log_hyperprior, nhyperparameters,
     initial_hyperparameters
-using GMRFs: GMRFGraph, RW1GMRF, RW2GMRF, IIDGMRF, AR1GMRF, BesagGMRF,
-    Generic0GMRF, num_nodes
+using GMRFs: GMRFs, GMRFGraph, RW1GMRF, RW2GMRF, IIDGMRF, AR1GMRF, BesagGMRF,
+    Generic0GMRF, num_nodes, LinearConstraint, constraint_matrix,
+    constraint_rhs, nconnected_components
+using Distributions: Distributions
 
 @testset "Intercept" begin
     c = Intercept()
@@ -138,4 +141,100 @@ end
 @testset "Generic1 — rejects negative λ_max" begin
     R_neg = sparse([-1.0 0.0; 0.0 -2.0])
     @test_throws ArgumentError Generic1(R_neg)
+end
+
+@testset "BYM component" begin
+    # Classical BYM = iid + besag. Latent layout [v; u] of length 2n.
+    W = [0 1 0 0;
+         1 0 1 0;
+         0 1 0 1;
+         0 0 1 0]
+    g = GMRFGraph(W)
+    n = num_nodes(g)
+
+    c = BYM(g; scale_model = false)
+    @test length(c) == 2n
+    @test nhyperparameters(c) == 2
+    @test initial_hyperparameters(c) == [0.0, 0.0]
+
+    # Q([log 2, log 3]) = blockdiag(2·I_n, 3·Q_besag).
+    Q = precision_matrix(c, [log(2.0), log(3.0)])
+    @test size(Q) == (2n, 2n)
+    Qv = Matrix(Q[1:n, 1:n])
+    Qu = Matrix(Q[(n + 1):(2n), (n + 1):(2n)])
+    Q_off = Matrix(Q[1:n, (n + 1):(2n)])
+    @test Qv ≈ 2.0 * I(n)
+    Q_besag_ref = Matrix(GMRFs.precision_matrix(BesagGMRF(g; τ = 3.0,
+                                                          scale_model = false)))
+    @test Qu ≈ Q_besag_ref
+    @test all(iszero, Q_off)                        # blocks are independent
+
+    # Per-component sum-to-zero only on the spatial block.
+    kc = GMRFs.constraints(c)
+    @test kc isa LinearConstraint
+    A = constraint_matrix(kc)
+    @test size(A) == (nconnected_components(g), 2n)
+    @test all(iszero, A[:, 1:n])                    # v block unconstrained
+    @test Matrix(A[:, (n + 1):(2n)]) ==
+          Matrix(constraint_matrix(GMRFs.sum_to_zero_constraints(g)))
+    @test constraint_rhs(kc) == zeros(size(A, 1))
+
+    @test isfinite(log_hyperprior(c, [0.0, 0.0]))
+end
+
+@testset "Leroux component" begin
+    W = [0 1 0 0;
+         1 0 1 0;
+         0 1 0 1;
+         0 0 1 0]
+    g = GMRFGraph(W)
+    n = num_nodes(g)
+    R_ref = Matrix(GMRFs.laplacian_matrix(g))
+
+    c = Leroux(g)
+    @test length(c) == n
+    @test nhyperparameters(c) == 2
+    @test initial_hyperparameters(c) == [0.0, 0.0]
+
+    # At (log τ, logit ρ) = (log 2, 0) ⟹ τ = 2, ρ = 0.5:
+    #   Q = 2 · (0.5·I + 0.5·R) = I + R.
+    Q = Matrix(precision_matrix(c, [log(2.0), 0.0]))
+    @test Q ≈ I(n) + R_ref
+
+    # ρ → 0 (logit → -∞ asymptotically): Q ≈ τ I. Use a finite logit
+    # that puts ρ ≈ 10⁻⁴ so numerically we can compare components.
+    θ_iid = [log(4.0), -10.0]
+    ρ_iid = inv(1 + exp(10.0))
+    Q_iid = Matrix(precision_matrix(c, θ_iid))
+    @test Q_iid ≈ 4.0 * ((1 - ρ_iid) .* Matrix(I, n, n) .+ ρ_iid .* R_ref)
+
+    # ρ = 0.8 explicit value.
+    θ2 = [0.0, log(0.8 / 0.2)]                      # logit(0.8)
+    Q2 = Matrix(precision_matrix(c, θ2))
+    @test Q2 ≈ 0.2 .* Matrix(I, n, n) .+ 0.8 .* R_ref
+
+    # Default Leroux has no sum-to-zero constraint (ρ strictly < 1 on
+    # the internal logit scale keeps Q positive-definite).
+    @test GMRFs.constraints(c) isa GMRFs.NoConstraint
+
+    @test isfinite(log_hyperprior(c, [0.0, 0.0]))
+end
+
+@testset "LogitBeta prior" begin
+    # Beta(1, 1) = Uniform on ρ; log density on θ is log ρ + log(1-ρ).
+    p = LogitBeta(1.0, 1.0)
+    for θ in (-2.0, -0.5, 0.0, 0.7, 3.0)
+        ρ = inv(1 + exp(-θ))
+        @test LatentGaussianModels.log_prior_density(p, θ) ≈
+              log(ρ) + log1p(-ρ)
+    end
+
+    # Beta(2, 5): check against manual computation.
+    p2 = LogitBeta(2.0, 5.0)
+    θ = 0.3
+    ρ = inv(1 + exp(-θ))
+    log_B = Distributions.loggamma(2.0) + Distributions.loggamma(5.0) -
+            Distributions.loggamma(7.0)
+    @test LatentGaussianModels.log_prior_density(p2, θ) ≈
+          2.0 * log(ρ) + 5.0 * log1p(-ρ) - log_B
 end
