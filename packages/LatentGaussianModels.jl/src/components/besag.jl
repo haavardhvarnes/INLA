@@ -35,3 +35,11 @@ end
 precision_matrix(c::Besag, θ) = GMRFs.precision_matrix(gmrf(c, θ))
 log_hyperprior(c::Besag, θ) = log_prior_density(c.hyperprior, θ[1])
 GMRFs.constraints(c::Besag) = GMRFs.sum_to_zero_constraints(c.graph)
+
+# Intrinsic CAR (rank `n - K` where K = # connected components).
+# Structural `½ log|R̃|_+` dropped per R-INLA convention.
+function log_normalizing_constant(c::Besag, θ)
+    n = GMRFs.num_nodes(c.graph)
+    K = GMRFs.nconnected_components(c.graph)
+    return 0.5 * (n - K) * θ[1]
+end

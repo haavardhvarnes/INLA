@@ -21,9 +21,6 @@ Roots = "f2b01f46-fcfa-551c-844a-d8ac1e96c665"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 
-# Formula sugar (@lgm), the Turing/NUTS bridge, and DataFrames convenience
-# do NOT live here. See packages/LGMFormula.jl/ and packages/LGMTuring.jl/,
-# and ADRs 008 / 009.
 [weakdeps]
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
 Integrals = "de52edbc-65ea-441a-8357-d3a637375a31"
@@ -42,6 +39,7 @@ FiniteDiff = "2.30.0"
 GMRFs = "0.1"
 HCubature = "1"
 Integrals = "3, 4"
+JLD2 = "0.6.4"
 LogDensityProblems = "2"
 MakieCore = "0.7, 0.8"
 NonlinearSolve = "3, 4"
@@ -57,10 +55,6 @@ BenchmarkTools = "6e4b80f9-dd63-53aa-95a3-0cdb28fa8baf"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-# RCall is intentionally absent. Oracle-tier tests load pre-baked JLD2
-# fixtures from scripts/generate-fixtures/ (a separate environment).
-# See plans/testing-strategy.md.
 
 [targets]
 test = ["Aqua", "BenchmarkTools", "JET", "JLD2", "Test"]

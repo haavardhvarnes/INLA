@@ -22,6 +22,11 @@ end
 
 log_hyperprior(::Intercept, θ) = zero(eltype(θ))
 
+# Proper N(0, prec⁻¹) prior on a scalar: log NC = -½ log(2π) + ½ log(prec).
+function log_normalizing_constant(c::Intercept, θ)
+    return -0.5 * log(2π) + 0.5 * log(float(c.prec))
+end
+
 """
     FixedEffects(p; prec = 1.0e-3)
 
@@ -47,3 +52,8 @@ function precision_matrix(c::FixedEffects, θ)
 end
 
 log_hyperprior(::FixedEffects, θ) = zero(eltype(θ))
+
+# Proper N(0, prec⁻¹) prior on each of `p` independent components.
+function log_normalizing_constant(c::FixedEffects, θ)
+    return -0.5 * c.p * log(2π) + 0.5 * c.p * log(float(c.prec))
+end

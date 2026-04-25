@@ -54,6 +54,15 @@ function log_hyperprior(c::BYM, θ)
            log_prior_density(c.hyperprior_besag, θ[2])
 end
 
+# Sum of an IID block (proper, dim n) and a Besag block (intrinsic,
+# rank n - K). The Besag block's structural `½ log|R̃|_+` is dropped
+# per R-INLA convention.
+function log_normalizing_constant(c::BYM, θ)
+    n = GMRFs.num_nodes(c.graph)
+    K = GMRFs.nconnected_components(c.graph)
+    return -0.5 * n * log(2π) + 0.5 * n * θ[1] + 0.5 * (n - K) * θ[2]
+end
+
 """
     GMRFs.constraints(c::BYM) -> LinearConstraint
 

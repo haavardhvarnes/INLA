@@ -36,6 +36,12 @@ end
 
 log_hyperprior(c::Seasonal, θ) = log_prior_density(c.hyperprior, θ[1])
 
+# Intrinsic; null space dim = period - 1, so rank = n - (period - 1).
+# Structural `½ log|R̃|_+` dropped per R-INLA convention.
+function log_normalizing_constant(c::Seasonal, θ)
+    return 0.5 * (c.n - c.period + 1) * θ[1]
+end
+
 function gmrf(c::Seasonal, θ)
     return GMRFs.SeasonalGMRF(c.n; period = c.period, τ = exp(θ[1]))
 end

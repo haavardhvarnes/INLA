@@ -42,6 +42,18 @@ initial_hyperparameters(::Generic0) = [0.0]
 precision_matrix(c::Generic0, θ) = exp(θ[1]) .* c.R
 log_hyperprior(c::Generic0, θ) = log_prior_density(c.hyperprior, θ[1])
 
+# `Q = τ R`. Drop the τ-independent `½ log|R̃|_+` (intrinsic-component
+# convention, applied uniformly so `Generic0` does not depend on a
+# Cholesky of `R` at construction). When `rankdef = 0` we further
+# include the `-½ n log(2π)` reference-measure term so the global
+# formula reduces to the standard proper-Gaussian Laplace identity.
+function log_normalizing_constant(c::Generic0, θ)
+    n = size(c.R, 1)
+    proper_dim = n - c.rankdef
+    base = 0.5 * proper_dim * θ[1]
+    return c.rankdef == 0 ? -0.5 * n * log(2π) + base : base
+end
+
 function gmrf(c::Generic0, θ)
     # scale_model = false since c.R is already in its post-scaling form.
     return GMRFs.Generic0GMRF(c.R; τ = exp(θ[1]), rankdef = c.rankdef,
@@ -94,6 +106,15 @@ initial_hyperparameters(::Generic1) = [0.0]
 
 precision_matrix(c::Generic1, θ) = exp(θ[1]) .* c.R
 log_hyperprior(c::Generic1, θ) = log_prior_density(c.hyperprior, θ[1])
+
+# Same convention as `Generic0`: drop `½ log|R̃|_+` (τ-independent), and
+# include `-½ n log(2π)` only for the proper case.
+function log_normalizing_constant(c::Generic1, θ)
+    n = size(c.R, 1)
+    proper_dim = n - c.rankdef
+    base = 0.5 * proper_dim * θ[1]
+    return c.rankdef == 0 ? -0.5 * n * log(2π) + base : base
+end
 
 function gmrf(c::Generic1, θ)
     return GMRFs.Generic0GMRF(c.R; τ = exp(θ[1]), rankdef = c.rankdef,

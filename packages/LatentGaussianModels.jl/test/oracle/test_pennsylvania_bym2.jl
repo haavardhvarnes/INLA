@@ -23,9 +23,11 @@ const FIXTURE = "pennsylvania_bym2"
 const FIXED_EFFECT_TOL = 0.05
 const TAU_REL_TOL      = 0.10
 const MLIK_REL_TOL     = 0.02
-# Known gap: shared with scotland_bym2 — Julia mlik sits ≈ 0.75 nats/obs
-# below R-INLA's integration estimate. The mlik assertion below uses
-# @test_broken so the suite flags a future fix automatically.
+# mlik now passes within 2% of R-INLA's integration estimate after the
+# R-INLA-style Laplace marginal restructure (per-component
+# `log_normalizing_constant` + Marriott-Van Loan constraint correction).
+# Scotland's K=4 connected components still leaves a residual gap there;
+# see `test_scotland_bym2.jl`.
 
 _rel(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -104,7 +106,7 @@ end
             # --- Marginal log-likelihood triangulation --------------------
             mlik_R = Float64(fx["mlik"][1])
             mlik_J = log_marginal_likelihood(res)
-            @test_broken _rel(mlik_J, mlik_R) < MLIK_REL_TOL
+            @test _rel(mlik_J, mlik_R) < MLIK_REL_TOL
         end
     end
 end

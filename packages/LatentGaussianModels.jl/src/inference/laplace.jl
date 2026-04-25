@@ -155,24 +155,55 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     # log p(x̂, y | θ) — uses the *original* Q for the latent quadratic.
     log_joint = log_density(ℓ, y, η, θ_ℓ) - 0.5 * dot(x, Q * x)
 
-    # Laplace log marginal (Rue & Held 2005 §2.3 for constrained case):
+    # R-INLA-style Laplace marginal:
     #   log p(y | θ) ≈ log p(y | x̂) - ½ x̂' Q x̂
-    #                + ½ log|Q|_+  - ½ log|H|_+  (- ½ log|C C'|  for constrained)
-    # where |·|_+ is the pseudo-determinant on null(C)⊥. With V orthonormal
-    # and range(V) = null(Q), log|Q|_+ = logdet(Q + V V^T) = logdet(Q_reg).
-    # Likewise for H under the assumption null(H) ⊆ range(C^T).
-    log_det_H = logdet(cache)                 # = logdet(H_reg); equals log|H|_+
-    log_det_Q = _logdet_Q_reg(Q_reg, has_constr)
-    if has_constr
-        log_det_CCt = logdet(Symmetric(C * C'))
-    else
-        log_det_CCt = 0.0
-    end
+    #                  + ½ n_x log(2π) - ½ log|H_C|
+    #                  + Σ_i log_normalizing_constant(c_i, θ_i)
+    # where log|H_C| = log|H| + log|C H⁻¹ C^T| - log|C C^T| is the
+    # constrained-Hessian log-determinant (Marriott-Van Loan), and the
+    # per-component `log_normalizing_constant` follows R-INLA's GMRFLib
+    # convention. The `½ n_x log(2π)` term uses the *full* latent
+    # dimension (not `n_x - r`), matching R-INLA's reference-measure
+    # convention for constrained intrinsic GMRFs; for unconstrained
+    # proper priors the two coincide. Each intrinsic component drops
+    # the structural `½ log|R̃|_+` from its `log_normalizing_constant`,
+    # absorbed into the global `log|H_C|` correction.
+    log_det_HC = _log_det_HC(cache, C, has_constr)
+    log_normc_total = _sum_log_normalizing_constants(m, θ)
     log_marginal = log_density(ℓ, y, η, θ_ℓ) - 0.5 * dot(x, Q * x) +
-                   0.5 * log_det_Q - 0.5 * log_det_H - 0.5 * log_det_CCt
+                   0.5 * m.n_x * log(2π) - 0.5 * log_det_HC +
+                   log_normc_total
 
     return LaplaceResult(x, H, cache, collect(θ), log_joint, log_marginal,
                          iter, converged, constraint_data)
+end
+
+# Constrained-Hessian log-determinant (Marriott-Van Loan):
+#   log|H_C| = log|H| + log|C H⁻¹ C^T| - log|C C^T|
+# `cache` factors the (possibly null-bumped) `H_reg = Q_reg + A' D A`.
+# For unconstrained components Q_reg ≡ Q so logdet(cache) = log|H|. In
+# the constrained case, the `V V^T` bump cancels: on null(C)⊥ it acts
+# as identity so logdet(H_reg) = logdet(H_true) + 0 to the precision
+# of the kriging projection, and the Marriott-Van Loan correction
+# matches GMRFLib's convention.
+function _log_det_HC(cache::GMRFs.FactorCache, C::AbstractMatrix, has_constr::Bool)
+    log_det_H = logdet(cache)
+    has_constr || return log_det_H
+    Ct = SparseMatrixCSC{Float64, Int}(C')
+    H_inv_Ct = cache \ Matrix(Ct)
+    log_det_CHinvCt = logdet(Symmetric(C * H_inv_Ct))
+    log_det_CCt = logdet(Symmetric(Matrix(C * C')))
+    return log_det_H + log_det_CHinvCt - log_det_CCt
+end
+
+# Sum of per-component R-INLA-style log normalizing constants at θ.
+function _sum_log_normalizing_constants(m::LatentGaussianModel, θ)
+    s = 0.0
+    for (i, c) in enumerate(m.components)
+        θ_i = θ[m.θ_ranges[i]]
+        s += log_normalizing_constant(c, θ_i)
+    end
+    return s
 end
 
 # Symmetrise a sparse matrix in place (Q + A'DA can accumulate asymmetry

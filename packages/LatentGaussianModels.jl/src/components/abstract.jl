@@ -69,3 +69,24 @@ Default hard linear constraint attached to the component. Intrinsic
 components override; proper ones inherit `NoConstraint`.
 """
 GMRFs.constraints(::AbstractLatentComponent) = NoConstraint()
+
+"""
+    log_normalizing_constant(c::AbstractLatentComponent, θ) -> Real
+
+Per-component log normalizing constant of the prior, in the R-INLA
+convention. Used by the Laplace marginal-likelihood formula
+
+    mlik ≈ log p(y|x*) - ½ x*'Q x* + ½ (n_x - r) log(2π)
+           - ½ log|H_C| + Σ_i log_normc_i(θ_i)
+
+where `log|H_C| = log|H| + log|C H⁻¹ C^T| - log|C C^T|` and the sum
+runs over components. The convention follows R-INLA's `GMRFLib`:
+each proper component contributes the full Gaussian log-NC
+`-½ d log(2π) + ½ log|Q_i|`, while intrinsic components drop the
+structural log-determinant `½ log|R̃|_+` (it is absorbed into the
+global `½ (n_x - r) log(2π)` and `log|H_C|` corrections).
+
+Default: zero. Components must override to participate correctly in
+the marginal likelihood.
+"""
+log_normalizing_constant(::AbstractLatentComponent, θ) = zero(eltype(θ))

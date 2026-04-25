@@ -60,3 +60,12 @@ function log_hyperprior(c::AR1, θ)
 end
 
 GMRFs.constraints(::AR1) = GMRFs.NoConstraint()
+
+# Proper, full-rank Q with `log|Q| = n log(τ) - (n-1) log(1 - ρ²)` for
+# the Rue-Held (2005, Eq. 1.39) parameterisation `Q = (τ/(1 - ρ²)) S`,
+# where the AR1 correlation matrix has determinant `(1 - ρ²)^(n-1)`.
+function log_normalizing_constant(c::AR1, θ)
+    ρ = tanh(θ[2])
+    return -0.5 * c.n * log(2π) +
+           0.5 * (c.n * θ[1] - (c.n - 1) * log1p(-ρ^2))
+end

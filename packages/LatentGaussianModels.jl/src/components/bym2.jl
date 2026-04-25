@@ -121,6 +121,20 @@ function log_hyperprior(c::BYM2, θ)
     return lp_τ + lp_φ
 end
 
+# R-INLA convention for BYM2: drop the structural log|R̃|_+ from the
+# component log NC; the global Marriott-Van Loan correction in
+# `laplace_mode` carries the constraint terms. Latent dimension is
+# `2n` and the prior has rank `2n - K` where K = nconnected_components.
+# After the (v,u) → (b,u) change of variables (Jacobian (τ/(1-φ))^{n/2}),
+# the b block contributes the n-dimensional log NC `-½ n log(2π) +
+# ½ n log(τ/(1-φ))`; the u block's structural `½ log|R̃|_+` is dropped
+# in the R-INLA convention.
+function log_normalizing_constant(c::BYM2, θ)
+    τ, φ = _bym2_params(θ)
+    n = GMRFs.num_nodes(c.graph)
+    return -0.5 * n * log(2π) + 0.5 * n * log(τ / (1 - φ))
+end
+
 """
     GMRFs.constraints(c::BYM2) -> LinearConstraint
 

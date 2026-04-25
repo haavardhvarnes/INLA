@@ -21,6 +21,7 @@ struct Leroux{Pτ <: AbstractHyperPrior, Pρ <: AbstractHyperPrior,
               G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
     graph::G
     R::SparseMatrixCSC{Float64, Int}      # combinatorial Laplacian D - W
+    eigvals_R::Vector{Float64}            # cached eigenvalues of R
     hyperprior_tau::Pτ
     hyperprior_rho::Pρ
 end
@@ -29,7 +30,8 @@ function Leroux(graph::GMRFs.AbstractGMRFGraph;
                 hyperprior_tau::AbstractHyperPrior = PCPrecision(),
                 hyperprior_rho::AbstractHyperPrior = LogitBeta(1.0, 1.0))
     R = SparseMatrixCSC{Float64, Int}(GMRFs.laplacian_matrix(graph))
-    return Leroux(graph, R, hyperprior_tau, hyperprior_rho)
+    eigvals_R = sort!(eigvals(Symmetric(Matrix{Float64}(R))))
+    return Leroux(graph, R, eigvals_R, hyperprior_tau, hyperprior_rho)
 end
 
 Leroux(W::AbstractMatrix; kwargs...) = Leroux(GMRFs.GMRFGraph(W); kwargs...)
@@ -50,4 +52,14 @@ end
 function log_hyperprior(c::Leroux, θ)
     return log_prior_density(c.hyperprior_tau, θ[1]) +
            log_prior_density(c.hyperprior_rho, θ[2])
+end
+
+# Proper for `ρ ∈ (0, 1)`: `Q = τ ((1-ρ) I + ρ R)`, with eigenvalues
+# `τ (1 - ρ + ρ λ_i)`. log|Q| = n log(τ) + Σ log(1 - ρ + ρ λ_i).
+function log_normalizing_constant(c::Leroux, θ)
+    τ_log = θ[1]
+    ρ = inv(one(eltype(θ)) + exp(-θ[2]))
+    n = size(c.R, 1)
+    log_det_inner = sum(log1p(ρ * (λ - one(λ))) for λ in c.eigvals_R)
+    return -0.5 * n * log(2π) + 0.5 * (n * τ_log + log_det_inner)
 end

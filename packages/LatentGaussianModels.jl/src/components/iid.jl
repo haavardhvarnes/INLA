@@ -28,6 +28,12 @@ end
 
 log_hyperprior(c::IID, θ) = log_prior_density(c.hyperprior, θ[1])
 
+# Proper N(0, τ⁻¹ I) prior on `n` independent components.
+# log NC = -½ n log(2π) + ½ n log(τ).
+function log_normalizing_constant(c::IID, θ)
+    return -0.5 * c.n * log(2π) + 0.5 * c.n * θ[1]
+end
+
 function gmrf(c::IID, θ)
     return GMRFs.IIDGMRF(c.n, exp(θ[1]))
 end

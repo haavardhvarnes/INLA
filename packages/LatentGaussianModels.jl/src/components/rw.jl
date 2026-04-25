@@ -33,6 +33,12 @@ precision_matrix(c::RW1, θ) = GMRFs.precision_matrix(gmrf(c, θ))
 log_hyperprior(c::RW1, θ) = log_prior_density(c.hyperprior, θ[1])
 GMRFs.constraints(c::RW1) = GMRFs.constraints(gmrf(c, [0.0]))
 
+# Intrinsic (rank `n - 1`); R-INLA convention drops the structural
+# `½ log|R̃|_+`. log NC = ½ (n - 1) log(τ).
+function log_normalizing_constant(c::RW1, θ)
+    return 0.5 * (c.n - 1) * θ[1]
+end
+
 """
     RW2(n; hyperprior = PCPrecision(), cyclic = false)
 
@@ -62,3 +68,10 @@ end
 precision_matrix(c::RW2, θ) = GMRFs.precision_matrix(gmrf(c, θ))
 log_hyperprior(c::RW2, θ) = log_prior_density(c.hyperprior, θ[1])
 GMRFs.constraints(c::RW2) = GMRFs.constraints(gmrf(c, [0.0]))
+
+# Intrinsic; rank `n - 1` (cyclic) or `n - 2` (open). Structural
+# `½ log|R̃|_+` dropped per R-INLA convention.
+function log_normalizing_constant(c::RW2, θ)
+    r = c.cyclic ? 1 : 2
+    return 0.5 * (c.n - r) * θ[1]
+end

@@ -235,14 +235,15 @@ inla(m::LatentGaussianModel, y; kwargs...) = fit(m, y, INLA(; kwargs...))
 
 function _safe_inverse_hessian(H::AbstractMatrix)
     Hs = Symmetric(Matrix(H))
-    if isposdef(Hs)
-        return Matrix(inv(Hs))
-    end
-    # H has non-positive eigenvalues (saddle point or flat direction at
-    # the optimum — common for small-n BYM2 fits). Floor the eigenvalues
-    # at a small positive number before inverting so Σθ remains PD.
+    # Always project to positive eigenvalues. A finite-difference Hessian
+    # at a flat ridge can have small negative eigenvalues from rounding;
+    # we bound the resulting variance to keep the integration grid from
+    # extending into wildly extrapolated regions. The floor 1/100 caps
+    # the per-axis variance at 100 (std 10 on log-precision scale), well
+    # beyond any plausible posterior width while preserving informative
+    # axes when the Hessian is well-conditioned.
     ev = eigen(Hs)
-    λ = max.(ev.values, 1.0e-6)
+    λ = max.(ev.values, 1.0e-2)
     return Matrix(Symmetric(ev.vectors * Diagonal(1 ./ λ) * ev.vectors'))
 end
 
