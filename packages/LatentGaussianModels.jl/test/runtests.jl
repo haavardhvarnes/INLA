@@ -39,18 +39,6 @@ using GMRFs
     @testset "INLA — Poisson + BYM2 (synthetic)" begin
         include("regression/test_inla_poisson_bym2.jl")
     end
-    @testset "INLA — NegBin + Gamma (synthetic)" begin
-        include("regression/test_inla_negbin_gamma.jl")
-    end
-    @testset "INLA — Disconnected Besag (Sardinia pattern)" begin
-        include("regression/test_inla_besag_disconnected.jl")
-    end
-    @testset "INLA — BYM + Leroux (synthetic)" begin
-        include("regression/test_inla_bym_leroux.jl")
-    end
-    @testset "INLA — Seasonal (synthetic)" begin
-        include("regression/test_inla_seasonal.jl")
-    end
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
     end
