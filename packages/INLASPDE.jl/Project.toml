@@ -1,6 +1,6 @@
 name = "INLASPDE"
 uuid = "2835c710-3f40-4945-979f-d21c9e20d425"
-version = "0.1.0-DEV"
+version = "0.1.0-rc1"
 authors = ["TBD"]
 
 [deps]

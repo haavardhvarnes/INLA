@@ -25,27 +25,47 @@ test/
 
 ## Milestones
 
-### M1 — LogDensityProblems consumption (1 week)
+### M1 — LogDensityProblems consumption — DONE (2026-04-26)
 
-- [ ] Wrap `LatentGaussianModel` into an `AbstractMCMC.LogDensityModel`.
-- [ ] Gradient path via `LogDensityProblemsAD` + ForwardDiff (default)
-      or ReverseDiff (for dim(θ) ≥ 20).
-- [ ] Test: `logdensity` and `logdensity_and_gradient` agree with
-      finite differences.
+- [x] `INLALogDensity` already conforms to `LogDensityOrder{1}()` upstream
+      in `LatentGaussianModels.jl/src/inference/log_density.jl`; this
+      package re-exports it (`inla_log_density`) so HMC users only need
+      one import.
+- [x] Gradient path: central finite differences inside core LGM.
+      `LogDensityProblemsAD` + ForwardDiff is *not* used in v0.1 because
+      ForwardDiff would have to differentiate through Optim's inner
+      Newton solver; FD is robust and cheap relative to the per-call
+      Laplace cost.
+- [x] Tests: dimension / capabilities / `logdensity` finite at
+      reasonable θ / `logdensity_and_gradient` consistency
+      (`test/regression/test_logdensity.jl`).
 
-### M2 — NUTS sampling wrapper (1 week)
+### M2 — NUTS sampling wrapper — DONE (2026-04-26)
 
-- [ ] `sample(lgm, ::NUTS, n; init_from_inla, rng, adtype, ...)`.
-- [ ] `init_from_inla::Union{Bool, INLAResult}` default `false`; when an
-      `INLAResult` is passed, use its hyperparameter posterior mode as
-      initial θ.
-- [ ] Output as `MCMCChains.Chains`.
+- [x] `nuts_sample(model, y, n_samples; n_adapts, init_θ,
+      init_from_inla, target_acceptance, rng, laplace, drop_warmup,
+      progress)`. `n_samples` is post-warmup (Stan convention).
+- [x] `init_from_inla::Union{Nothing, INLAResult}` accepts the result
+      object directly; cold start uses `initial_hyperparameters(model)`.
+- [x] Output as `MCMCChains.Chains` with `_hyperparameter_names(model)`
+      column names.
+- [x] Built on AdvancedHMC's lower-level kernel API
+      (`HMCKernel{Trajectory{MultinomialTS}}` + `GeneralisedNoUTurn` +
+      `StanHMCAdaptor`) — no Turing or AbstractMCMC dep in v0.1.
+- [x] Tests: 1-D θ recovery, 2-D θ with `init_from_inla`, dim-mismatch
+      and argument-validation errors
+      (`test/regression/test_nuts_sample.jl`).
 
-### M3 — `compare(inla_fit, nuts_chain)` (1 week)
+### M3 — `compare_posteriors(inla_fit, nuts_chain)` — DONE (2026-04-26)
 
-- [ ] Posterior-summary diff table: mean / sd / quantiles side by side.
-- [ ] Highlight entries outside a configurable tolerance.
-- [ ] Used by tier-3 triangulation tests.
+- [x] Posterior-summary diff: per-hyperparameter
+      `(name, inla_mean, nuts_mean, mean_abs_diff, inla_sd, nuts_sd,
+      sd_rel_diff, flagged)` rows.
+- [x] Mean threshold in units of `max(inla_sd, nuts_sd)`; SD threshold
+      relative; both configurable (`tol_mean`, `tol_sd`).
+- [x] Tests: passes with generous tolerance, flags with tight tolerance
+      (`test/regression/test_compare.jl`).
+- [x] Ready to wire into tier-3 triangulation gate (Phase D item 4).
 
 ### M4 — INLA-within-MCMC (2 weeks, later phase)
 
