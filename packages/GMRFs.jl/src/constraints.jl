@@ -99,6 +99,27 @@ function constraints(g::BesagGMRF)
     return sum_to_zero_constraints(g.g; T = eltype(g))
 end
 
+# Seasonal: s-1 constraints spanning the null space (period-s sequences
+# summing to zero within one period). Row k (k = 1..s-1) is the pattern
+# ε_k(i) = δ((i-1) mod s == k-1) - δ((i-1) mod s == s-1) repeated with
+# period s; so range(C^T) = null(Q) exactly, as required by the Laplace
+# contract.
+function constraints(g::SeasonalGMRF)
+    n = num_nodes(g)
+    s = g.period
+    T = eltype(g)
+    A = zeros(T, s - 1, n)
+    for i in 1:n
+        r = mod1(i, s)
+        if r < s
+            A[r, i] = one(T)
+        else
+            A[:, i] .= -one(T)
+        end
+    end
+    return LinearConstraint(A, zeros(T, s - 1))
+end
+
 """
     sum_to_zero_constraints(g::AbstractGMRFGraph; T = Float64) -> LinearConstraint
 

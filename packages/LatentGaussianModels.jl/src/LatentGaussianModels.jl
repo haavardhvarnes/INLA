@@ -46,6 +46,7 @@ include("components/intercept.jl")
 include("components/iid.jl")
 include("components/rw.jl")
 include("components/ar1.jl")
+include("components/seasonal.jl")
 include("components/besag.jl")
 include("components/bym.jl")
 include("components/bym2.jl")
@@ -84,7 +85,8 @@ export log_prior_density, user_scale, prior_name
 
 # Components
 export AbstractLatentComponent
-export Intercept, FixedEffects, IID, RW1, RW2, AR1, Besag, BYM, BYM2, Generic0, Generic1
+export Intercept, FixedEffects, IID, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
+       Generic0, Generic1
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean
 

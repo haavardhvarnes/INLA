@@ -30,6 +30,9 @@ using GMRFs
     @testset "Generic1" begin
         include("regression/test_generic1.jl")
     end
+    @testset "Seasonal" begin
+        include("regression/test_seasonal.jl")
+    end
     @testset "Laplace — Gaussian identity" begin
         include("regression/test_laplace_gaussian.jl")
     end
@@ -72,5 +75,6 @@ using GMRFs
         include("oracle/test_synthetic_disconnected_besag.jl")
         include("oracle/test_synthetic_generic0.jl")
         include("oracle/test_synthetic_generic1.jl")
+        include("oracle/test_synthetic_seasonal.jl")
     end
 end
