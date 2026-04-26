@@ -1,5 +1,10 @@
 # GMRFsPardiso.jl — package plan
 
+> **v0.1 status (2026-04-26):** *cut from v0.1, deferred to v0.2.* See
+> [ADR-015](../../../plans/decisions.md). The scaffold stays in the
+> repo; the M1 implementation is gated on a comparative-benchmark study
+> and on Pardiso.jl upstream stability.
+
 ## Goal
 
 Pardiso factorization backend for `GMRFs.jl`. Not a standalone package;

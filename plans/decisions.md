@@ -708,6 +708,73 @@ picture (late Phase 1). The true state is through Phase 4 M6-A.
 
 ---
 
+## ADR-015: `LGMFormula.jl` and `GMRFsPardiso.jl` both cut from v0.1; deferred to v0.2
+
+Status: Accepted
+Date: 2026-04-26
+
+### Context
+
+Phase E3 of the v0.1 replan ([`replan-2026-04.md`](replan-2026-04.md))
+flagged both sub-packages as cuttable, with explicit cut criteria:
+
+- `LGMFormula.jl`: cut if a usable migration doc exists for users
+  coming from R-INLA's `f(...)` syntax.
+- `GMRFsPardiso.jl`: cut if comparative benchmark on a 10⁵-vertex
+  SPDE Q does not beat CHOLMOD by ≥ 30%.
+
+By 2026-04-26 the four `src/`-bearing packages are GA-ready (Phase E1
+Aqua + JET pass, Phase E2 docs site live), and the question is whether
+to delay tagging v0.1.0 to ship two more sub-packages.
+
+### Decision
+
+**Both cut from v0.1; defer to v0.2.**
+
+`LGMFormula.jl`: the explicit `LatentGaussianModel(ℓ, components, A)`
+constructor is a small surface and the
+[Getting started](../docs/src/getting-started.md) and three vignettes
+already cover the migration path from R-INLA. The macro adds zero
+numerical capability — purely ergonomics — and macro design that's
+robust against `StatsModels` schema-application edge cases is at
+least 3 weeks of work that would block the v0.1 tag. Re-add as a
+sub-package in v0.2 with the M1+M2 milestones from
+[packages/LGMFormula.jl/plans/plan.md](../packages/LGMFormula.jl/plans/plan.md).
+
+`GMRFsPardiso.jl`: Pardiso.jl upstream has had periods of disrepair
+([packages/GMRFsPardiso.jl/plans/plan.md](../packages/GMRFsPardiso.jl/plans/plan.md)
+"Risk items"), license-detection plumbing is non-trivial, and the
+benchmark gate requires a real 10⁵-vertex run we have not done. CHOLMOD
+remains the only backend in v0.1; the `FactorCache` interface in
+`GMRFs.jl` is already designed so a Pardiso specialization can land
+without an API break. Re-evaluate in v0.2 after a benchmark study.
+
+The two scaffold directories (`packages/LGMFormula.jl/` and
+`packages/GMRFsPardiso.jl/`) stay in the repo with their `Project.toml`
+and `plans/` intact; they simply do not have `src/` yet and are not in
+the v0.1 release manifest.
+
+### Consequences
+
+- v0.1.0 release manifest is exactly four packages: GMRFs.jl,
+  LatentGaussianModels.jl, INLASPDE.jl, INLASPDERasters.jl.
+- ADR-008 (`@lgm` lives in LGMFormula.jl) is unchanged; the package
+  just doesn't ship in v0.1.
+- No new public API surface to maintain in v0.1, which keeps the
+  registry submission minimal and the deprecation surface for v0.2
+  empty.
+- Users wanting Pardiso must build a custom `FactorCache` against the
+  GMRFs.jl `AbstractFactorCache` interface; this is a power-user path
+  and is acceptable for v0.1.
+
+### References
+
+- [packages/LGMFormula.jl/plans/plan.md](../packages/LGMFormula.jl/plans/plan.md)
+- [packages/GMRFsPardiso.jl/plans/plan.md](../packages/GMRFsPardiso.jl/plans/plan.md)
+- ADR-008, ADR-009 — the "split into a sub-package" pattern.
+
+---
+
 ## ADR template for future entries
 
 ```

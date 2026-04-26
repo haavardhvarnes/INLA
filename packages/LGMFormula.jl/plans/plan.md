@@ -1,5 +1,10 @@
 # LGMFormula.jl — package plan
 
+> **v0.1 status (2026-04-26):** *cut from v0.1, deferred to v0.2.* See
+> [ADR-015](../../../plans/decisions.md). The scaffold (this `plans/`
+> directory plus `Project.toml` and `CLAUDE.md`) stays in the repo;
+> implementation will start once the v0.1 packages are tagged.
+
 ## Goal
 
 Provide the Tier-2 `@lgm` formula sugar on top of
