@@ -29,6 +29,7 @@ using LogDensityProblems: LogDensityProblems
 # --- hyperpriors (loaded first; likelihoods reference them) -----------
 include("priors/abstract.jl")
 include("priors/pc.jl")
+include("priors/logit_beta.jl")
 include("priors/bym2_phi.jl")
 
 # --- link functions + likelihoods -------------------------------------
@@ -50,6 +51,7 @@ include("components/seasonal.jl")
 include("components/besag.jl")
 include("components/bym.jl")
 include("components/bym2.jl")
+include("components/leroux.jl")
 include("components/generic0.jl")
 include("components/generic1.jl")
 
@@ -80,13 +82,13 @@ export pointwise_log_density, pointwise_cdf
 # Hyperpriors
 export AbstractHyperPrior
 export PCPrecision, GammaPrecision, LogNormalPrecision, WeakPrior
-export PCBYM2Phi
+export PCBYM2Phi, LogitBeta
 export log_prior_density, user_scale, prior_name
 
 # Components
 export AbstractLatentComponent
 export Intercept, FixedEffects, IID, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
-       Generic0, Generic1
+       Leroux, Generic0, Generic1
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean
 

@@ -5,7 +5,7 @@ using LinearAlgebra
 using LatentGaussianModels
 using GMRFs
 
-@testset "LatentGaussianModels.jl" begin
+@testset verbose=true "LatentGaussianModels.jl" begin
     @testset "Links" begin
         include("regression/test_links.jl")
     end
@@ -23,6 +23,9 @@ using GMRFs
     end
     @testset "BYM2" begin
         include("regression/test_bym2.jl")
+    end
+    @testset "Leroux" begin
+        include("regression/test_leroux.jl")
     end
     @testset "Generic0" begin
         include("regression/test_generic0.jl")
@@ -76,5 +79,6 @@ using GMRFs
         include("oracle/test_synthetic_generic0.jl")
         include("oracle/test_synthetic_generic1.jl")
         include("oracle/test_synthetic_seasonal.jl")
+        include("oracle/test_synthetic_leroux.jl")
     end
 end
