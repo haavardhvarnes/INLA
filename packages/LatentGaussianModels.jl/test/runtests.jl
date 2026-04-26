@@ -18,8 +18,14 @@ using GMRFs
     @testset "Components" begin
         include("regression/test_components.jl")
     end
+    @testset "BYM" begin
+        include("regression/test_bym.jl")
+    end
     @testset "BYM2" begin
         include("regression/test_bym2.jl")
+    end
+    @testset "Generic0" begin
+        include("regression/test_generic0.jl")
     end
     @testset "Laplace — Gaussian identity" begin
         include("regression/test_laplace_gaussian.jl")
@@ -56,6 +62,11 @@ using GMRFs
     end
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_scotland_bym2.jl")
+        include("oracle/test_scotland_bym.jl")
         include("oracle/test_pennsylvania_bym2.jl")
+        include("oracle/test_synthetic_nbinomial.jl")
+        include("oracle/test_synthetic_gamma.jl")
+        include("oracle/test_synthetic_disconnected_besag.jl")
+        include("oracle/test_synthetic_generic0.jl")
     end
 end

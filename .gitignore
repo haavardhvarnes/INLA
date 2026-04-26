@@ -33,6 +33,10 @@ __pycache__/
 .RData
 .Rproj.user/
 
+# Intermediate JSON dumps from R-INLA fixture pipeline; only the JLD2
+# under packages/*/test/oracle/fixtures/ is committed.
+scripts/generate-fixtures/fixtures/
+
 # Benchmark output
 benchmarks/results/
 benchmarks/tune.json
