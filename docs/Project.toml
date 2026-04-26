@@ -1,0 +1,24 @@
+[deps]
+Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
+Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+GMRFs = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
+INLASPDE = "2835c710-3f40-4945-979f-d21c9e20d425"
+INLASPDERasters = "28708ac2-a765-4cf9-a54c-708b26c5e9a3"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+LatentGaussianModels = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
+[sources]
+GMRFs = {path = "../packages/GMRFs.jl"}
+INLASPDE = {path = "../packages/INLASPDE.jl"}
+INLASPDERasters = {path = "../packages/INLASPDERasters.jl"}
+LatentGaussianModels = {path = "../packages/LatentGaussianModels.jl"}
+
+[compat]
+Distributions = "0.25"
+Documenter = "1"
+JLD2 = "0.6.4"
+julia = "1.10"
