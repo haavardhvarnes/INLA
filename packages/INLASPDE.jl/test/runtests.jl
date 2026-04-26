@@ -48,4 +48,9 @@ using INLASPDE
         include("oracle/test_fmesher_parity.jl")
         include("oracle/test_meuse_spde.jl")
     end
+
+    @testset "Quality" begin
+        include("quality/test_aqua.jl")
+        include("quality/test_jet.jl")
+    end
 end

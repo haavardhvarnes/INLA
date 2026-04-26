@@ -81,4 +81,8 @@ using GMRFs
         include("oracle/test_synthetic_seasonal.jl")
         include("oracle/test_synthetic_leroux.jl")
     end
+    @testset "Quality" begin
+        include("quality/test_aqua.jl")
+        include("quality/test_jet.jl")
+    end
 end

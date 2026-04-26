@@ -29,8 +29,10 @@ Core only:
 - Graphs (JuliaGraphs)
 - LinearSolve (SciML)
 - Distributions (standard)
-- ChainRulesCore (standard, ~zero mass — promoted from weakdep per
-  ADR / plans/dependencies.md)
+
+`ChainRulesCore` is reserved for AD rules in v0.2 (see
+`plans/dependencies.md`); it is *not* a v0.1 dep — adding it without
+shipped `rrule`s would surface as a stale-deps Aqua failure.
 
 Weakdeps:
 - MakieCore (plotting recipes)

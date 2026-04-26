@@ -27,9 +27,11 @@ DelaunayTriangulation = "1"
 GMRFs = "0.1"
 GeoInterface = "1"
 LatentGaussianModels = "0.1"
+LinearAlgebra = "1"
 MakieCore = "0.7, 0.8"
 Meshes = "0.51, 0.52"
 SciMLOperators = "0.3, 1"
+SparseArrays = "1"
 julia = "1.10"
 
 [extras]

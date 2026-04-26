@@ -4,7 +4,6 @@ authors = ["TBD"]
 version = "0.1.0-rc1"
 
 [deps]
-ChainRulesCore = "d360d2e6-b24c-11e9-a2a3-2a2ae2dbcce4"
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
 Graphs = "86223c79-3864-5bf0-83f7-82e725a168b6"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
@@ -21,12 +20,15 @@ MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
 GMRFsMakieExt = "MakieCore"
 
 [compat]
-ChainRulesCore = "1"
 Distributions = "0.25"
 Graphs = "1.9"
+LinearAlgebra = "1"
 LinearSolve = "2, 3"
 MakieCore = "0.7, 0.8"
+Random = "1"
 SelectedInversion = "0.2"
+SparseArrays = "1"
+Statistics = "1"
 julia = "1.10"
 
 [extras]

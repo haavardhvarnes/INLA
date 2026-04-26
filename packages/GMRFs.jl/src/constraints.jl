@@ -72,17 +72,16 @@ constraints(::AR1GMRF) = NoConstraint()
 
 # RW1 open or cyclic: single sum-to-zero row (the null space is the
 # constant vector).
-function constraints(g::RW1GMRF)
+function constraints(g::RW1GMRF{T}) where {T <: Real}
     n = num_nodes(g)
-    A = reshape(ones(eltype(g), n), 1, n)
-    return LinearConstraint(A, zeros(eltype(g), 1))
+    A = reshape(ones(T, n), 1, n)
+    return LinearConstraint(A, zeros(T, 1))
 end
 
 # RW2: open has 2D null space spanned by {1, 1:n}; cyclic has 1D null
 # space {1}.
-function constraints(g::RW2GMRF)
+function constraints(g::RW2GMRF{T}) where {T <: Real}
     n = num_nodes(g)
-    T = eltype(g)
     if g.cyclic
         A = reshape(ones(T, n), 1, n)
         return LinearConstraint(A, zeros(T, 1))
@@ -95,8 +94,8 @@ function constraints(g::RW2GMRF)
 end
 
 # Besag: one sum-to-zero row per connected component.
-function constraints(g::BesagGMRF)
-    return sum_to_zero_constraints(g.g; T = eltype(g))
+function constraints(g::BesagGMRF{T}) where {T <: Real}
+    return sum_to_zero_constraints(g.g; T = T)
 end
 
 # Seasonal: s-1 constraints spanning the null space (period-s sequences
@@ -104,10 +103,9 @@ end
 # ε_k(i) = δ((i-1) mod s == k-1) - δ((i-1) mod s == s-1) repeated with
 # period s; so range(C^T) = null(Q) exactly, as required by the Laplace
 # contract.
-function constraints(g::SeasonalGMRF)
+function constraints(g::SeasonalGMRF{T}) where {T <: Real}
     n = num_nodes(g)
     s = g.period
-    T = eltype(g)
     A = zeros(T, s - 1, n)
     for i in 1:n
         r = mod1(i, s)

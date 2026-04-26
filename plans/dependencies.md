@@ -33,7 +33,7 @@ ChainRules AD rules for Zygote/Enzyme users).
 | LinearSolve | Swappable sparse factorization backend (CHOLMOD / KLU / Pardiso) | SciML |
 | Distributions | Priors as first-class distribution objects | standard |
 | Statistics | Statistical summaries | stdlib |
-| ChainRulesCore | AD rules (promoted from weakdep — near-zero mass, high convenience for Zygote/Enzyme users) | standard |
+| ChainRulesCore | AD rules — **deferred to v0.2**, removed from `[deps]` in Phase E1 hardening because no `rrule`s were written (would have failed Aqua's stale-deps check). Re-add with the first shipped rule. | standard |
 | SelectedInversion | `diag(Q⁻¹)` on the sparse Cholesky pattern; default `marginal_variances` path | see ADR-012 |
 
 Weakdeps (extensions):
@@ -50,12 +50,18 @@ Weakdeps (extensions):
 | LinearAlgebra, Random, SparseArrays, Statistics | stdlib | |
 | Distributions | Likelihoods and priors | standard |
 | LogDensityProblems | Standard interface for posterior log-density — **the seam** for downstream samplers | standard |
-| NonlinearSolve | Inner Newton for mode of x \| θ, y | SciML |
 | Optimization, OptimizationOptimJL | Outer θ-mode finding | SciML |
-| Roots | PC prior construction, 1D root-finding | standard |
 | FastGaussQuadrature | Gauss-Hermite nodes | standard |
 | QuadGK | 1D marginal integration | standard |
 | ADTypes | AD backend selection | SciML |
+| FiniteDiff | Finite-difference fallbacks | SciML |
+| Printf | Summary formatting | stdlib |
+
+`NonlinearSolve` and `Roots` were declared in early drafts; the actual
+implementations use a custom Newton (in-place over `FactorCache`) and a
+robust bisection on λ for the BYM2 PC prior. Both were removed in
+Phase E1 hardening to keep `[deps]` honest under Aqua's stale-dep scan;
+re-add when a real call site lands.
 
 Weakdeps (extensions):
 

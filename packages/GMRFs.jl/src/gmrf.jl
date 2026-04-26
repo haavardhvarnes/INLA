@@ -20,6 +20,9 @@ metadata; see `constraints(::AbstractGMRF)`.
 abstract type AbstractGMRF end
 
 Base.length(g::AbstractGMRF) = num_nodes(g)
+# Default `eltype` falls back to the precision matrix; concrete subtypes
+# parameterized by `T` should override `eltype(::Type{<:Sub{T}}) = T` so
+# JET can infer the eltype statically.
 Base.eltype(g::AbstractGMRF) = eltype(precision_matrix(g))
 
 """
@@ -67,6 +70,7 @@ end
 IIDGMRF(n::Integer; τ::Real = 1.0) = IIDGMRF{typeof(float(τ))}(Int(n), float(τ))
 
 num_nodes(g::IIDGMRF) = g.n
+Base.eltype(::Type{<:IIDGMRF{T}}) where {T} = T
 
 function precision_matrix(g::IIDGMRF{T}) where {T}
     return spdiagm(0 => fill(g.τ, g.n))
@@ -95,6 +99,7 @@ end
 
 num_nodes(g::RW1GMRF) = g.n
 rankdef(g::RW1GMRF) = 1
+Base.eltype(::Type{<:RW1GMRF{T}}) where {T} = T
 
 function precision_matrix(g::RW1GMRF{T}) where {T}
     n = g.n
@@ -140,6 +145,7 @@ end
 
 num_nodes(g::RW2GMRF) = g.n
 rankdef(g::RW2GMRF) = g.cyclic ? 1 : 2
+Base.eltype(::Type{<:RW2GMRF{T}}) where {T} = T
 
 function precision_matrix(g::RW2GMRF{T}) where {T}
     n = g.n
@@ -207,6 +213,7 @@ function AR1GMRF(n::Integer; ρ::Real, τ::Real = 1.0)
 end
 
 num_nodes(g::AR1GMRF) = g.n
+Base.eltype(::Type{<:AR1GMRF{T}}) where {T} = T
 rankdef(::AR1GMRF) = 0
 
 function precision_matrix(g::AR1GMRF{T}) where {T}
@@ -269,6 +276,7 @@ end
 
 num_nodes(g::SeasonalGMRF) = g.n
 rankdef(g::SeasonalGMRF) = g.period - 1
+Base.eltype(::Type{<:SeasonalGMRF{T}}) where {T} = T
 
 function precision_matrix(g::SeasonalGMRF{T}) where {T}
     n = g.n
@@ -322,6 +330,7 @@ BesagGMRF(W::AbstractMatrix; kwargs...) = BesagGMRF(GMRFGraph(W); kwargs...)
 num_nodes(g::BesagGMRF) = num_nodes(g.g)
 rankdef(g::BesagGMRF) = nconnected_components(g.g)
 is_scaled(g::BesagGMRF) = g.scale_model
+Base.eltype(::Type{<:BesagGMRF{T}}) where {T} = T
 
 function precision_matrix(g::BesagGMRF{T}) where {T}
     L = laplacian_matrix(g.g)

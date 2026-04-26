@@ -18,4 +18,9 @@ using INLASPDERasters
     @testset "M3 — uncertainty surfaces" begin
         include("regression/test_quantile_rasters.jl")
     end
+
+    @testset "Quality" begin
+        include("quality/test_aqua.jl")
+        include("quality/test_jet.jl")
+    end
 end

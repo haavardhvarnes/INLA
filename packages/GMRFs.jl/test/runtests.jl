@@ -19,4 +19,8 @@ using GMRFs
     @testset "Oracle (R-INLA)" begin
         include("oracle/test_qinv_rw2.jl")
     end
+    @testset "Quality" begin
+        include("quality/test_aqua.jl")
+        include("quality/test_jet.jl")
+    end
 end
