@@ -50,6 +50,7 @@ include("components/besag.jl")
 include("components/bym.jl")
 include("components/bym2.jl")
 include("components/generic0.jl")
+include("components/generic1.jl")
 
 # --- model + inference ------------------------------------------------
 include("model.jl")
@@ -83,7 +84,7 @@ export log_prior_density, user_scale, prior_name
 
 # Components
 export AbstractLatentComponent
-export Intercept, FixedEffects, IID, RW1, RW2, AR1, Besag, BYM, BYM2, Generic0
+export Intercept, FixedEffects, IID, RW1, RW2, AR1, Besag, BYM, BYM2, Generic0, Generic1
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean
 

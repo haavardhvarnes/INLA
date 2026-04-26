@@ -27,6 +27,9 @@ using GMRFs
     @testset "Generic0" begin
         include("regression/test_generic0.jl")
     end
+    @testset "Generic1" begin
+        include("regression/test_generic1.jl")
+    end
     @testset "Laplace — Gaussian identity" begin
         include("regression/test_laplace_gaussian.jl")
     end
@@ -68,5 +71,6 @@ using GMRFs
         include("oracle/test_synthetic_gamma.jl")
         include("oracle/test_synthetic_disconnected_besag.jl")
         include("oracle/test_synthetic_generic0.jl")
+        include("oracle/test_synthetic_generic1.jl")
     end
 end
