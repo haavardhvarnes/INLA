@@ -1,7 +1,7 @@
 name = "INLASPDERasters"
 uuid = "28708ac2-a765-4cf9-a54c-708b26c5e9a3"
-version = "0.1.0-rc1"
-authors = ["TBD"]
+version = "0.1.0"
+authors = ["Håvard Hvarnes <haavardhvarnes@gmail.com>"]
 
 [deps]
 # INLASPDE is the only semantic direct dep here; GMRFs and

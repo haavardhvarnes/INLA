@@ -1,7 +1,7 @@
 name = "INLASPDE"
 uuid = "2835c710-3f40-4945-979f-d21c9e20d425"
-version = "0.1.0-rc1"
-authors = ["TBD"]
+version = "0.1.0"
+authors = ["Håvard Hvarnes <haavardhvarnes@gmail.com>"]
 
 [deps]
 CoordRefSystems = "b46f11dc-f210-4604-bfba-323c1ec968cb"

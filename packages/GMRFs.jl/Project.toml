@@ -1,7 +1,7 @@
 name = "GMRFs"
 uuid = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
-authors = ["TBD"]
-version = "0.1.0-rc1"
+authors = ["Håvard Hvarnes <haavardhvarnes@gmail.com>"]
+version = "0.1.0"
 
 [deps]
 Distributions = "31c24e10-a181-5473-b8eb-7969acd0382f"
