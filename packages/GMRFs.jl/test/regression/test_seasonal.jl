@@ -50,34 +50,44 @@ end
     @test sum(abs.(eigvals(Symmetric(Q))) .< 1.0e-10) == s - 1
 end
 
-@testset "SeasonalGMRF default constraint matches null space" begin
+@testset "SeasonalGMRF default constraint = single sum-to-zero" begin
+    # R-INLA convention: one sum-to-zero row, leaving the remaining
+    # (s-2) directions of the period-s zero-sum null space identified
+    # by the data. See plans note in inference/constraints.jl for why
+    # the Laplace pipeline supports null(Q) ⊋ range(C^T) here.
+    #
+    # Note: the all-ones vector is *not* in `null(Q)` — its rolling
+    # period sums equal `s ≠ 0` — so `Q * C' ≠ 0`. The constraint
+    # therefore consumes one PD direction of `Q` (not a null
+    # direction); this is precisely why `Seasonal.log_normalizing_constant`
+    # must use `(n - period)` rather than `(n - (period - 1))` for the
+    # τ-coefficient.
     n = 10
     s = 3
     g = SeasonalGMRF(n; period = s)
     kc = GMRFs.constraints(g)
     @test kc isa LinearConstraint
     C = GMRFs.constraint_matrix(kc)
-    @test size(C) == (s - 1, n)
-    @test GMRFs.constraint_rhs(kc) == zeros(s - 1)
+    @test size(C) == (1, n)
+    @test GMRFs.constraint_rhs(kc) == zeros(1)
+    @test C ≈ ones(1, n)
 
-    # range(C^T) must equal null(Q): C separates every null direction
-    # (so det(C * V_null) ≠ 0) and Q · C' ≈ 0.
+    # `range(C^T) ⊂ range(Q)` (rolling sums of `1` are non-zero), so
+    # `Q * C^T` is *not* the zero vector — distinguishing this from the
+    # F_GENERIC0/F_BYM2 case where `range(C^T) ⊂ null(Q)`.
     Q = Matrix(precision_matrix(g))
-    null_basis = zeros(n, s - 1)
-    for k in 1:(s - 1)
-        for i in 1:n
-            r = mod1(i, s)
-            if r == k
-                null_basis[i, k] = 1.0
-            elseif r == s
-                null_basis[i, k] = -1.0
-            end
-        end
-    end
-    M = C * null_basis
-    @test size(M) == (s - 1, s - 1)
-    @test abs(det(M)) > 1.0e-10
-    @test maximum(abs, Q * C') < 1.0e-10
+    @test maximum(abs, Q * vec(C')) > 1.0e-3
+end
+
+@testset "SeasonalGMRF null_space_basis" begin
+    n = 12
+    s = 4
+    g = SeasonalGMRF(n; period = s)
+    V = GMRFs.null_space_basis(g)
+    @test size(V) == (n, s - 1)
+    @test V' * V ≈ I(s - 1) atol = 1.0e-12
+    Q = Matrix(precision_matrix(g))
+    @test maximum(abs, Q * V) < 1.0e-10
 end
 
 @testset "SeasonalGMRF rejects n ≤ period or period < 2" begin

@@ -7,17 +7,27 @@
 # at the right column offsets in the stacked `x`.
 #
 # Constraint enforcement in the Laplace step follows Rue & Held (2005)
-# §2.3: regularise the rank-deficient prior precision Q with the null-
-# space bump `V V^T` (where `V = C^T (C C^T)^{-1/2}` has orthonormal
-# columns spanning null(Q)), run Newton on the regularised posterior,
-# and apply a kriging projection at the end to land on `{x : C x = e}`.
+# §2.3: regularise the rank-deficient prior precision Q with a rank-`k`
+# null-space bump `V_C V_C^T` (where `V_C = C^T (C C^T)^{-1/2}` has
+# orthonormal columns spanning `range(C^T)`), run Newton on the
+# regularised posterior, and apply a kriging projection at the end to
+# land on `{x : C x = e}`.
 #
-# The current contract assumes `null(Q) = range(C^T)` and
-# `A C^T = 0` — i.e. the constraint exactly spans the unidentified
-# directions that the observation projector does not see. This is
-# satisfied by our BYM2 + Intercept + Poisson fits and by every
-# v0.1-scope intrinsic component. Violations would surface as a
-# `PosDefException` on `cholesky(Q + V V^T)` — not silently wrong.
+# The contract is `null(H) ⊆ range(C^T)` where `H = Q + A' D A` is the
+# unbumped Hessian — equivalently, `H_reg = Q + V_C V_C^T + A' D A`
+# must be PD. This holds whenever:
+#   (a) `range(C^T) = null(Q)` (the strong contract — every BYM/BYM2/
+#       Besag/RW component satisfies this), or
+#   (b) `null(Q) ⊋ range(C^T)` and the residual `(rd - k)` null
+#       directions are identified by `A' D A` (R-INLA's `seasonal`
+#       convention: 1-row C, `s - 1`-dim null space, data identifies
+#       the `s - 2` unconstrained directions through the likelihood).
+# The Marriott-Van Loan log-determinant `_log_det_HC` is valid in both
+# regimes — it is a pure linear-algebra identity for any PD `H_reg`
+# and full-rank `C`. Violations surface as a `PosDefException` on
+# `cholesky(H_reg)` rather than silently wrong mlik. We fail loud here
+# and revisit defensive fallbacks (full null-space bump using
+# `null_space_basis(c)`) in v0.2 if a real failure appears.
 
 """
     model_constraints(m::LatentGaussianModel) -> AbstractConstraint
@@ -52,9 +62,11 @@ end
     _null_bump(C::AbstractMatrix) -> SparseMatrixCSC
 
 Return `C^T (C C^T)^{-1} C` as a sparse matrix. This is
-`V V^T` for the orthonormalised `V = C^T (C C^T)^{-1/2}` and adds
-exactly the right rank-`k` bump to make `Q + V V^T` PD whenever
-`null(Q) = range(C^T)`.
+`V_C V_C^T` for the orthonormalised `V_C = C^T (C C^T)^{-1/2}` and adds
+a rank-`k` bump along `range(C^T)`. PD-ness of
+`Q + V_C V_C^T + A' D A` is the responsibility of the caller — if
+`null(Q) ⊋ range(C^T)`, the residual `rd - k` null directions must be
+covered by `A' D A` (typically true for informative observations).
 """
 function _null_bump(C::AbstractMatrix)
     CCt = Symmetric(Matrix(C * C'))

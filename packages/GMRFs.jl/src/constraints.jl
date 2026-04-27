@@ -98,24 +98,17 @@ function constraints(g::BesagGMRF{T}) where {T <: Real}
     return sum_to_zero_constraints(g.g; T = T)
 end
 
-# Seasonal: s-1 constraints spanning the null space (period-s sequences
-# summing to zero within one period). Row k (k = 1..s-1) is the pattern
-# ε_k(i) = δ((i-1) mod s == k-1) - δ((i-1) mod s == s-1) repeated with
-# period s; so range(C^T) = null(Q) exactly, as required by the Laplace
-# contract.
+# Seasonal: a single sum-to-zero constraint, matching R-INLA's
+# `model = "seasonal"`. The prior null space has dimension `s - 1`, but
+# only one direction is constrained; the remaining `s - 2` are
+# identified by the data. The Laplace pipeline supports this case
+# (`null(Q) ⊋ range(C^T)`) because the Marriott-Van Loan formula in
+# `_log_det_HC` is valid for any PD `H_reg` and full-rank `C`. See
+# `LatentGaussianModels.jl/src/inference/constraints.jl` for the
+# updated contract.
 function constraints(g::SeasonalGMRF{T}) where {T <: Real}
     n = num_nodes(g)
-    s = g.period
-    A = zeros(T, s - 1, n)
-    for i in 1:n
-        r = mod1(i, s)
-        if r < s
-            A[r, i] = one(T)
-        else
-            A[:, i] .= -one(T)
-        end
-    end
-    return LinearConstraint(A, zeros(T, s - 1))
+    return LinearConstraint(ones(T, 1, n), zeros(T, 1))
 end
 
 """

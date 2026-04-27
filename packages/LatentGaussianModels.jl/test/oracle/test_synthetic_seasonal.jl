@@ -2,17 +2,14 @@
 # effect vs R-INLA. Validates the LGM `Seasonal` component end-to-end
 # against R-INLA's `model = "seasonal"` on a synthetic period-6 signal.
 #
-# Known divergence — constraint convention. R-INLA applies a single
-# sum-to-zero constraint to seasonal random effects and lets the
-# likelihood identify the (s-1)-dim period-s null space. Our
-# SeasonalGMRF applies the full s-1 null-space-fixing constraints
-# (required by the current Laplace contract `null(Q) = range(C^T)`).
-# The intercept and τ_seas agree closely; τ_lik and the marginal
-# log-likelihood differ because our `b` cannot absorb the periodic
-# component (so ε absorbs the seasonal variance) and the
-# `(s-1)-vs-1` constraint count contributes an `O(s log 2π)` shift
-# to mlik. Both checks are `@test_broken` until the Laplace pipeline
-# supports `null(Q) ⊋ range(C^T)`.
+# `SeasonalGMRF` declares a single sum-to-zero constraint (R-INLA
+# convention); the likelihood identifies the remaining `s - 2`
+# directions of the period-s null space. The Laplace pipeline supports
+# `null(Q) ⊋ range(C^T)` because Marriott-Van Loan is valid for any PD
+# `H_reg = Q + V_C V_C^T + A' D A` and full-rank `C`. The Gaussian
+# normalising constant `-½(n - (s-1)) log(2π)` in
+# `log_normalizing_constant` matches R-INLA's `extra()` for F_SEASONAL
+# (shared F_GENERIC0 branch, `inla.c:2986-2987`).
 #
 # Fixture: scripts/generate-fixtures/lgm/synthetic_seasonal.R.
 
@@ -88,10 +85,7 @@ end
             # Internal θ layout: [log τ_lik; log τ_seas].
             τ_lik_J  = exp(res.θ̂[1])
             τ_seas_J = exp(res.θ̂[2])
-            # τ_lik mismatch is the constraint-convention symptom: R-INLA
-            # uses 1 sum-to-zero, we use s-1 null-space constraints, so our
-            # b ≈ 0 and ε absorbs the seasonal variance.
-            @test_broken _rel_seas(τ_lik_J,  τ_lik_R)  < SEAS_LIK_REL_TOL
+            @test _rel_seas(τ_lik_J,  τ_lik_R)  < SEAS_LIK_REL_TOL
             @test _rel_seas(τ_seas_J, τ_seas_R) < SEAS_PREC_REL_TOL
 
             hp = hyperparameters(model, res)
@@ -101,7 +95,7 @@ end
             # --- Marginal log-likelihood ---------------------------------
             mlik_R = Float64(fx["mlik"][1])
             mlik_J = log_marginal_likelihood(res)
-            @test_broken _rel_seas(mlik_J, mlik_R) < SEAS_MLIK_REL_TOL
+            @test _rel_seas(mlik_J, mlik_R) < SEAS_MLIK_REL_TOL
         end
     end
 end

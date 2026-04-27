@@ -21,27 +21,35 @@ using GMRFs: SeasonalGMRF, LinearConstraint, constraints, constraint_matrix,
     @test Matrix(Q_lgm) ≈ Matrix(Q_ref)
 end
 
-@testset "Seasonal — constraint matches GMRF default" begin
+@testset "Seasonal — constraint matches GMRF default (single sum-to-zero)" begin
     n = 10
     s = 4
     c = Seasonal(n; period = s)
 
     kc = constraints(c)
     @test kc isa LinearConstraint
-    @test size(constraint_matrix(kc)) == (s - 1, n)
-    @test constraint_rhs(kc) == zeros(s - 1)
+    @test size(constraint_matrix(kc)) == (1, n)
+    @test constraint_rhs(kc) == zeros(1)
 
     # Same constraint as the bare GMRF.
     kc_ref = constraints(SeasonalGMRF(n; period = s))
     @test constraint_matrix(kc) == constraint_matrix(kc_ref)
 end
 
-@testset "Seasonal — log NC matches ½ (n - (s-1)) log τ" begin
+@testset "Seasonal — log NC matches R-INLA F_SEASONAL convention" begin
+    # `-½(n - rd_eff) log(2π) + ½(n - rd_eff) log τ` with rd_eff = s.
+    # The +1 over the "raw" rd = s-1 accounts for the sum-to-zero
+    # constraint hitting `range(Q)` (the all-ones vector lies in the
+    # column space of the seasonal structure matrix), so one PD
+    # direction is consumed by the constraint and the τ-scaled prior
+    # dimension on the constraint surface is `n - s`, not `n - (s-1)`.
     n = 9
     s = 3
     c = Seasonal(n; period = s)
     θ = [0.7]
-    @test log_normalizing_constant(c, θ) ≈ 0.5 * (n - (s - 1)) * θ[1]
+    rd_eff = s
+    @test log_normalizing_constant(c, θ) ≈
+        -0.5 * (n - rd_eff) * log(2π) + 0.5 * (n - rd_eff) * θ[1]
 end
 
 @testset "Seasonal — invalid input rejection" begin

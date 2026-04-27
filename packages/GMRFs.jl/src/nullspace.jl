@@ -65,6 +65,24 @@ function _component_indicator_basis(gr::AbstractGMRFGraph)
     return V
 end
 
+# Seasonal — period-s zero-sum patterns, basis ε_k = e_k − e_s repeated
+# with period s for k = 1..s−1, then QR-orthonormalised.
+function null_space_basis(g::SeasonalGMRF)
+    n = g.n
+    s = g.period
+    V = zeros(Float64, n, s - 1)
+    for k in 1:(s - 1), i in 1:n
+        r = mod1(i, s)
+        if r == k
+            V[i, k] = 1.0
+        elseif r == s
+            V[i, k] = -1.0
+        end
+    end
+    F = qr(V)
+    return Matrix(F.Q)[:, 1:(s - 1)]
+end
+
 # Generic0 — fall back to dense eigendecomposition on R
 function null_space_basis(g::Generic0GMRF)
     r = rankdef(g)

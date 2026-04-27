@@ -179,13 +179,19 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 end
 
 # Constrained-Hessian log-determinant (Marriott-Van Loan):
-#   log|H_C| = log|H| + log|C H⁻¹ C^T| - log|C C^T|
-# `cache` factors the (possibly null-bumped) `H_reg = Q_reg + A' D A`.
-# For unconstrained components Q_reg ≡ Q so logdet(cache) = log|H|. In
-# the constrained case, the `V V^T` bump cancels: on null(C)⊥ it acts
-# as identity so logdet(H_reg) = logdet(H_true) + 0 to the precision
-# of the kriging projection, and the Marriott-Van Loan correction
-# matches GMRFLib's convention.
+#   log|H_C| = log|H_reg| + log|C H_reg⁻¹ C^T| - log|C C^T|
+# `cache` factors `H_reg = Q + V_C V_C^T + A' D A`. The identity is a
+# pure linear-algebra fact: it holds for any PD `H_reg` and full-rank
+# `C`. Parameterise `{x : C x = e}` by `x = x_p + N z` with `N` an
+# orthonormal basis of `null(C)`; then `N' V_C = 0` so
+# `N' H_reg N = N' H N` (the bump vanishes on the constraint surface),
+# and `|N' H_reg N| · |C C^T| = |H_reg| · |C H_reg⁻¹ C^T|` is the
+# standard Schur-complement determinant identity. So the formula is
+# correct regardless of whether `null(Q) = range(C^T)` (strong
+# contract) or `null(Q) ⊋ range(C^T)` (e.g. Seasonal with single
+# sum-to-zero, data identifies remaining null directions). The
+# residual null-space PD-ness is the contract's only requirement —
+# documented in `inference/constraints.jl`.
 function _log_det_HC(cache::GMRFs.FactorCache, C::AbstractMatrix, has_constr::Bool)
     log_det_H = logdet(cache)
     has_constr || return log_det_H

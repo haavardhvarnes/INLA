@@ -258,8 +258,12 @@ The null space has dimension `s - 1`: it is spanned by all `s`-periodic
 sequences summing to zero within one period. Equivalently, a basis is
 `ε_k = e_k - e_s` (repeated with period `s`) for `k = 1, …, s-1`, where
 `e_k` is the `k`-th canonical basis vector of ℝ^s; so `rankdef = s-1`.
+[`null_space_basis`](@ref) returns the orthonormalised version of this
+basis.
 
-Matches Rue & Held (2005, §3.4.3) and R-INLA's `model = "seasonal"`.
+The default [`constraints`](@ref) is a single sum-to-zero row (matching
+R-INLA's `model = "seasonal"`); the remaining `s - 2` null directions
+are identified by the likelihood. Matches Rue & Held (2005, §3.4.3).
 """
 struct SeasonalGMRF{T <: Real} <: AbstractGMRF
     n::Int
