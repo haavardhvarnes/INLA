@@ -7,7 +7,7 @@
 #   - posterior mean of τ_b (Besag precision), 15% relative tolerance
 #   - τ_v (IID precision) only sanity-checked: known weakly identified
 #     in classical BYM, posterior is heavy-tailed.
-#   - mlik: marked `@test_broken` (same Laplace-approx gap as BYM2).
+#   - mlik: 2% relative tolerance (matches R-INLA's `extra()` for F_BYM).
 #
 # Fixture: scripts/generate-fixtures/lgm/scotland_bym.R.
 
@@ -27,11 +27,13 @@ const BYM_FIXED_EFFECT_TOL = 0.07
 # Classical BYM is non-identified (Eberly & Carlin 2000): only τ_b/τ_v
 # is constrained by data, posteriors on each are heavy-tailed. On
 # Scotland (K=4 connected components: 53-node main + 3 island singletons)
-# our τ_b posterior mode lands ~1.78× R-INLA's. Per-CC Sørbye-Rue
+# our τ_b posterior median lands ~1.57× R-INLA's. Per-CC Sørbye-Rue
 # scaling (Freni-Sterrantino et al. 2018) is implemented and
 # mathematically correct, but it's a c-invariant reparametrisation
 # under PCPrecision priors so it does not move τ_b — root cause is
-# elsewhere (still open as of v0.1.0).
+# elsewhere (still open as of v0.1.0). We compare on the median
+# (`0.5quant`), which is well-defined for heavy-tailed precision
+# posteriors (mode is unstable, mean is dominated by the right tail).
 const BYM_TAU_B_REL_TOL    = 0.25
 const BYM_MLIK_REL_TOL     = 0.02
 
@@ -94,19 +96,18 @@ end
             # precisions. τ_v is weakly identified in classical BYM —
             # only sanity-check finiteness; τ_b should match within 15%.
             sh = fx["summary_hyperpar"]
-            τ_b_R_mode = _bym_row(sh, "Precision for region (spatial component)", "mode")
+            τ_b_R_median = _bym_row(sh, "Precision for region (spatial component)", "0.5quant")
             τ_b_J = exp(res.θ̂[2])
-            @test_broken _rel_bym(τ_b_J, τ_b_R_mode) < BYM_TAU_B_REL_TOL
+            @test_broken _rel_bym(τ_b_J, τ_b_R_median) < BYM_TAU_B_REL_TOL
 
             hp = hyperparameters(model, res)
             @test length(hp) == 2
             @test all(isfinite(r.mean) && r.sd > 0 for r in hp)
 
             # --- Marginal log-likelihood ----------------------------------
-            # Same Laplace gap as BYM2 on Scotland (K=4 connected components).
             mlik_R = Float64(fx["mlik"][1])
             mlik_J = log_marginal_likelihood(res)
-            @test_broken _rel_bym(mlik_J, mlik_R) < BYM_MLIK_REL_TOL
+            @test _rel_bym(mlik_J, mlik_R) < BYM_MLIK_REL_TOL
         end
     end
 end

@@ -98,15 +98,16 @@ function log_hyperprior(c::BYM, θ)
            log_prior_density(c.hyperprior_besag, θ[2])
 end
 
-# Per-component log NC in R-INLA convention. The proper IID block
-# contributes the full Gaussian log-NC `-½ n log(2π) + ½ n log τ_v`;
-# the intrinsic Besag block drops the structural `½ log|R̃|_+` term
-# and contributes the precision-scale piece `½ (n - K) log τ_b`,
-# where K = nconnected_components.
+# Per-component log NC matching R-INLA's `extra()` for `F_BYM`
+# (`inla.c:4868-4870`): the IID block contributes `½ n log τ_v` and
+# the intrinsic Besag block contributes `½ (n - K) log τ_b`, with a
+# shared Gaussian-NC piece `LOG_NORMC_GAUSSIAN · (n/2 + (n-K)/2)
+# = -¼ (2n - K) log(2π)`. The structural `½ log|R̃|_+` term is
+# absorbed into the joint `½ log|Q|_+` elsewhere.
 function log_normalizing_constant(c::BYM, θ)
     n = GMRFs.num_nodes(c.graph)
     K = GMRFs.nconnected_components(c.graph)
-    return -0.5 * n * log(2π) + 0.5 * n * θ[1] + 0.5 * (n - K) * θ[2]
+    return -0.25 * (2n - K) * log(2π) + 0.5 * n * θ[1] + 0.5 * (n - K) * θ[2]
 end
 
 """

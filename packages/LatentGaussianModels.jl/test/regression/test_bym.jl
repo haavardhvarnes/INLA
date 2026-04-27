@@ -99,19 +99,25 @@ end
 end
 
 @testset "BYM — log_normalizing_constant" begin
+    # Matches R-INLA's `extra()` for F_BYM (inla.c:4868-4870):
+    # NC = LOG_NORMC_GAUSSIAN · (n/2 + (n-K)/2) + (n/2) log τ_v
+    #      + ((n-K)/2) log τ_b, with LOG_NORMC_GAUSSIAN = -½ log(2π).
+    # The K factor reflects the rank deficiency of the intrinsic
+    # Besag block (one zero eigenvalue per connected component).
     g = GMRFGraph(_BYM_W_PATH)
     c = BYM(g)
     n = num_nodes(g)
     K = nconnected_components(g)
     θ = [0.4, -0.2]
-    expected = -0.5 * n * log(2π) + 0.5 * n * θ[1] + 0.5 * (n - K) * θ[2]
+    expected = -0.25 * (2n - K) * log(2π) + 0.5 * n * θ[1] + 0.5 * (n - K) * θ[2]
     @test log_normalizing_constant(c, θ) ≈ expected
 
-    # Disconnected: K = 2 should reduce the besag contribution.
+    # Disconnected: K = 2 should reduce both the besag log-prec
+    # contribution and the Gaussian-NC piece.
     g2 = GMRFGraph(_BYM_W_DISCONNECTED)
     c2 = BYM(g2)
     n2 = num_nodes(g2)
     K2 = nconnected_components(g2)
-    expected2 = -0.5 * n2 * log(2π) + 0.5 * n2 * θ[1] + 0.5 * (n2 - K2) * θ[2]
+    expected2 = -0.25 * (2n2 - K2) * log(2π) + 0.5 * n2 * θ[1] + 0.5 * (n2 - K2) * θ[2]
     @test log_normalizing_constant(c2, θ) ≈ expected2
 end
