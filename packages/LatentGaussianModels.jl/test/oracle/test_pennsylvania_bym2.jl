@@ -23,11 +23,7 @@ const FIXTURE = "pennsylvania_bym2"
 const FIXED_EFFECT_TOL = 0.05
 const TAU_REL_TOL      = 0.10
 const MLIK_REL_TOL     = 0.02
-# mlik now passes within 2% of R-INLA's integration estimate after the
-# R-INLA-style Laplace marginal restructure (per-component
-# `log_normalizing_constant` + Marriott-Van Loan constraint correction).
-# Scotland's K=4 connected components still leaves a residual gap there;
-# see `test_scotland_bym2.jl`.
+# mlik passes within 2% of R-INLA's integration estimate.
 
 _rel(a, b) = abs(a - b) / max(abs(b), 1.0)
 

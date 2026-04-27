@@ -81,13 +81,9 @@ end
             @test isfinite(hp[1].mean) && hp[1].sd > 0
 
             # --- Marginal log-likelihood --------------------------------------
-            # R-INLA's `mlik[1]` is the Gaussian-approximation mlik;
-            # ours is closest to the integrated form. Gap is ~5% on this
-            # fixture, just over the 5% tolerance — same situation as the
-            # Pennsylvania BYM2 oracle (see test_pennsylvania_bym2.jl).
             mlik_R = Float64(fx["mlik"][1])
             mlik_J = log_marginal_likelihood(res)
-            @test_broken _rel_gamma(mlik_J, mlik_R) < GAMMA_MLIK_REL_TOL
+            @test _rel_gamma(mlik_J, mlik_R) < GAMMA_MLIK_REL_TOL
         end
     end
 end

@@ -27,14 +27,11 @@ const FIXTURE = "scotland_bym2"
 const FIXED_EFFECT_TOL = 0.07   # |Δμ| / max(|μ_R|, 1)
 const TAU_REL_TOL      = 0.10   # |Δτ| / τ_R
 const MLIK_REL_TOL     = 0.02   # |Δmlik| / |mlik_R|
-# Residual gap: ~4.6 nats / 3.3% on this fixture. Pennsylvania (K=1
-# connected component) passes within tolerance; Scotland has K=4
-# connected components (53-node main + 3 island singletons) and the
-# residual gap is invariant to per-CC Sørbye-Rue scaling
-# (Freni-Sterrantino et al. 2018) — reparametrisation in `c` is a no-op
-# for the posterior under PCPrecision priors. Source of the gap is
-# unresolved as of v0.1.0; asserted via `@test_broken` so the suite
-# surfaces a future fix automatically.
+# mlik now passes within 2% of R-INLA's integration estimate after
+# `Intercept()` was switched to the improper-by-default convention to
+# match R-INLA's `prec.intercept = 0`; the previous proper-Normal
+# default contributed a constant ½ log(prec) shift to the joint
+# Gaussian normalising constant.
 
 _rel(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -138,7 +135,7 @@ end
             # Gaussian approximation]. Compare against the first (IS).
             mlik_R = Float64(fx["mlik"][1])
             mlik_J = log_marginal_likelihood(res)
-            @test_broken _rel(mlik_J, mlik_R) < MLIK_REL_TOL
+            @test _rel(mlik_J, mlik_R) < MLIK_REL_TOL
         end
     end
 end

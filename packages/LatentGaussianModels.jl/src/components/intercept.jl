@@ -1,16 +1,22 @@
 """
-    Intercept(; prec = 1.0e-3)
+    Intercept(; prec = 1.0e-3, improper = true)
 
-Scalar intercept with a fixed Normal prior: `α ~ N(0, prec⁻¹)`. No
-hyperparameters. `prec` defaults to `1e-3`, matching R-INLA's default
-weak prior on fixed effects.
+Scalar intercept. With `improper = true` (default, matching R-INLA's
+`prec.intercept = 0`), the prior is treated as flat (improper Lebesgue);
+`prec` is then only a numerical regulariser added to the joint precision
+to keep it invertible, and is dropped from the log normalising constant
+of the joint Gaussian. With `improper = false` the prior is the proper
+Normal `α ~ N(0, prec⁻¹)`.
 
 The latent field of this component has length 1.
 """
 struct Intercept{T <: Real} <: AbstractLatentComponent
     prec::T
+    improper::Bool
 end
-Intercept(; prec::Real = 1.0e-3) = Intercept{typeof(float(prec))}(float(prec))
+function Intercept(; prec::Real = 1.0e-3, improper::Bool = true)
+    return Intercept{typeof(float(prec))}(float(prec), improper)
+end
 
 Base.length(::Intercept) = 1
 nhyperparameters(::Intercept) = 0
@@ -22,9 +28,13 @@ end
 
 log_hyperprior(::Intercept, θ) = zero(eltype(θ))
 
-# Proper N(0, prec⁻¹) prior on a scalar: log NC = -½ log(2π) + ½ log(prec).
+# log NC of the (regularised) joint-Gaussian block contributed by the
+# intercept. Proper: -½ log(2π) + ½ log(prec). Improper: -½ log(2π)
+# only — the ½ log(prec) term is dropped to match R-INLA's `prec.intercept = 0`
+# convention, where `prec` is just an `idiag`-style numerical regulariser.
 function log_normalizing_constant(c::Intercept, θ)
-    return -0.5 * log(2π) + 0.5 * log(float(c.prec))
+    nc = -0.5 * log(2π)
+    return c.improper ? nc : nc + 0.5 * log(float(c.prec))
 end
 
 """

@@ -136,6 +136,15 @@ explicit component. Less convenient than R-INLA's default, but avoids an
 entire class of silent double-intercept bugs. Document the difference
 loudly.
 
+R-INLA's `control.fixed` default is `prec.intercept = 0` (improper flat
+prior on the intercept) and `prec = 0.001` for other fixed effects. Our
+`Intercept()` mirrors this: it defaults to `improper = true`, which drops
+the `½ log(prec)` term from the joint Gaussian normalising constant —
+`prec` is then only an `idiag`-style numerical regulariser added to the
+diagonal of the joint precision. Set `improper = false` to recover the
+proper `N(0, prec⁻¹)` prior. `FixedEffects` defaults to the proper prior
+with `prec = 0.001`.
+
 ## Default integration strategy
 
 R-INLA defaults: `int.strategy = "ccd"` for `len(θ) > 2`, `"grid"` for
