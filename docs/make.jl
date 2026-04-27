@@ -30,6 +30,9 @@ makedocs(
             "Temporal — Tokyo rainfall" => "vignettes/tokyo-rainfall.md",
             "Spatial — Meuse SPDE"   => "vignettes/meuse-spde.md",
         ],
+        "Benchmarks" => [
+            "Quality vs R-INLA" => "benchmarks/quality.md",
+        ],
         "Packages" => [
             "GMRFs.jl"                => "packages/gmrfs.md",
             "LatentGaussianModels.jl" => "packages/lgm.md",
