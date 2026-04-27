@@ -1,0 +1,23 @@
+name = "INLA"
+uuid = "0e5511d8-343a-4ee4-83ff-c93235e7b734"
+version = "0.1.0"
+authors = ["Håvard Hvarnes <haavardhvarnes@gmail.com>"]
+
+[deps]
+GMRFs = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
+INLASPDE = "2835c710-3f40-4945-979f-d21c9e20d425"
+LatentGaussianModels = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
+Reexport = "189a3867-3050-52da-a836-e630ba90ab69"
+
+[compat]
+GMRFs = "0.1"
+INLASPDE = "0.1"
+LatentGaussianModels = "0.1"
+Reexport = "1"
+julia = "1.10"
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
