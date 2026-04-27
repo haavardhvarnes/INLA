@@ -27,12 +27,14 @@ const FIXTURE = "scotland_bym2"
 const FIXED_EFFECT_TOL = 0.07   # |Δμ| / max(|μ_R|, 1)
 const TAU_REL_TOL      = 0.10   # |Δτ| / τ_R
 const MLIK_REL_TOL     = 0.02   # |Δmlik| / |mlik_R|
-# Residual gap: ~5 nats / 3.4% on this fixture (down from ≈43 nats).
-# Pennsylvania (K=1 connected component) now passes within tolerance;
-# Scotland has K=4 connected components and the residual gap likely
-# stems from the global Sørbye-Rue scaling vs R-INLA's per-CC scaling
-# (Freni-Sterrantino et al. 2018). Asserted via `@test_broken` so the
-# suite surfaces a future fix automatically.
+# Residual gap: ~4.6 nats / 3.3% on this fixture. Pennsylvania (K=1
+# connected component) passes within tolerance; Scotland has K=4
+# connected components (53-node main + 3 island singletons) and the
+# residual gap is invariant to per-CC Sørbye-Rue scaling
+# (Freni-Sterrantino et al. 2018) — reparametrisation in `c` is a no-op
+# for the posterior under PCPrecision priors. Source of the gap is
+# unresolved as of v0.1.0; asserted via `@test_broken` so the suite
+# surfaces a future fix automatically.
 
 _rel(a, b) = abs(a - b) / max(abs(b), 1.0)
 

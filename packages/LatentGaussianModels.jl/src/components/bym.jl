@@ -56,9 +56,15 @@ function precision_matrix(c::BYM, θ)
     τ_v = exp(θ[1])
     τ_b = exp(θ[2])
     n = GMRFs.num_nodes(c.graph)
-    L = GMRFs.laplacian_matrix(c.graph)
-    sf = c.scale_model ? GMRFs.scale_factor(c.graph) : 1.0
-    R_scaled = sf .* SparseMatrixCSC{Float64, Int}(L)
+    L = SparseMatrixCSC{Float64, Int}(GMRFs.laplacian_matrix(c.graph))
+    if c.scale_model
+        c_per_node = _bym_per_node_scale(c.graph)
+        s = sqrt.(c_per_node)
+        D = Diagonal(s)
+        R_scaled = D * L * D
+    else
+        R_scaled = L
+    end
 
     Is = Int[]; Js = Int[]; Vs = Float64[]
     # Q_11 = τ_v · I_n
@@ -76,6 +82,15 @@ function precision_matrix(c::BYM, θ)
         end
     end
     return sparse(Is, Js, Vs, 2n, 2n)
+end
+
+# Per-node Sørbye-Rue constants on the underlying graph: c_per_node[i]
+# is the scaling factor of the connected component containing node `i`
+# (Freni-Sterrantino et al. 2018).
+function _bym_per_node_scale(g::GMRFs.AbstractGMRFGraph)
+    c_k = GMRFs.per_component_scale_factors(g)
+    labels = GMRFs.connected_component_labels(g)
+    return Float64[c_k[labels[i]] for i in 1:GMRFs.num_nodes(g)]
 end
 
 function log_hyperprior(c::BYM, θ)

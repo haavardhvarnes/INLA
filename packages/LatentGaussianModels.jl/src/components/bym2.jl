@@ -35,8 +35,8 @@ subspace. Defaults match Riebler et al. (2016); see
 struct BYM2{Pτ <: AbstractHyperPrior, Pφ <: AbstractHyperPrior,
             G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
     graph::G
-    c::Float64                   # Sørbye-Rue scaling constant
-    γ::Vector{Float64}           # non-null eigenvalues of R_scaled = c·L
+    c::Vector{Float64}           # per-node Sørbye-Rue scaling constants
+    γ::Vector{Float64}           # non-null eigenvalues of R_scaled (per-CC blocks)
     hyperprior_prec::Pτ
     hyperprior_phi::Pφ
 end
@@ -45,17 +45,30 @@ function BYM2(graph::GMRFs.AbstractGMRFGraph;
               hyperprior_prec::AbstractHyperPrior = PCPrecision(),
               hyperprior_phi::Union{Nothing, AbstractHyperPrior} = nothing,
               U::Real = 0.5, α::Real = DEFAULT_BYM2_PHI_ALPHA)
-    # Compute the scaled-structure eigenvalues γ on the non-null subspace.
-    c = GMRFs.scale_factor(graph)
+    # Per-CC Sørbye-Rue scaling (Freni-Sterrantino et al. 2018): each
+    # connected component is scaled independently. The scaled structure
+    # matrix is block-diagonal, R_scaled[idx_k, idx_k] = c_k · L_k, so
+    # its non-null eigenvalues are the union of c_k · spec(L_k) over k.
+    c_k = GMRFs.per_component_scale_factors(graph)
+    labels = GMRFs.connected_component_labels(graph)
+    n = GMRFs.num_nodes(graph)
+    c_per_node = Float64[c_k[labels[i]] for i in 1:n]
     L = GMRFs.laplacian_matrix(graph)
-    r = GMRFs.nconnected_components(graph)
-    eigs = eigvals(Symmetric(Matrix{Float64}(L)))
-    sort!(eigs)
-    # Drop the r smallest eigenvalues (numerically zero for the null space).
-    nz_eigs = eigs[(r + 1):end]
-    γ = c .* nz_eigs
+    K = length(c_k)
+    γ = Float64[]
+    for k in 1:K
+        idx = findall(==(k), labels)
+        n_k = length(idx)
+        n_k == 1 && continue   # singleton: only the null eigenvalue 0
+        L_k = Symmetric(Matrix{Float64}(L[idx, idx]))
+        eigs_k = eigvals(L_k)
+        sort!(eigs_k)
+        # Drop the single null eigenvalue per component.
+        append!(γ, c_k[k] .* eigs_k[2:end])
+    end
+    sort!(γ)
     prior_phi = hyperprior_phi === nothing ? PCBYM2Phi(U, α, γ) : hyperprior_phi
-    return BYM2(graph, Float64(c), γ, hyperprior_prec, prior_phi)
+    return BYM2(graph, c_per_node, γ, hyperprior_prec, prior_phi)
 end
 
 BYM2(W::AbstractMatrix; kwargs...) = BYM2(GMRFs.GMRFGraph(W); kwargs...)
@@ -81,8 +94,10 @@ end
 function precision_matrix(c::BYM2, θ)
     τ, φ = _bym2_params(θ)
     n = GMRFs.num_nodes(c.graph)
-    L = GMRFs.laplacian_matrix(c.graph)
-    R_scaled = c.c .* SparseMatrixCSC{Float64, Int}(L)
+    L = SparseMatrixCSC{Float64, Int}(GMRFs.laplacian_matrix(c.graph))
+    s = sqrt.(c.c)
+    D = Diagonal(s)
+    R_scaled = D * L * D
 
     # Block entries:
     a = τ / (1 - φ)                 # Q_11 = a · I

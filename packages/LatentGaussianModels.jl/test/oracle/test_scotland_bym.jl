@@ -26,10 +26,12 @@ const BYM_FIXTURE = "scotland_bym"
 const BYM_FIXED_EFFECT_TOL = 0.07
 # Classical BYM is non-identified (Eberly & Carlin 2000): only τ_b/τ_v
 # is constrained by data, posteriors on each are heavy-tailed. On
-# Scotland (K=4 connected components) we additionally hit the global
-# Sørbye-Rue scaling vs R-INLA's per-CC scaling gap (also tracked by
-# `@test_broken` on Scotland BYM2 mlik). Tag the τ_b precision check
-# as broken so the suite surfaces a future fix automatically.
+# Scotland (K=4 connected components: 53-node main + 3 island singletons)
+# our τ_b posterior mode lands ~1.78× R-INLA's. Per-CC Sørbye-Rue
+# scaling (Freni-Sterrantino et al. 2018) is implemented and
+# mathematically correct, but it's a c-invariant reparametrisation
+# under PCPrecision priors so it does not move τ_b — root cause is
+# elsewhere (still open as of v0.1.0).
 const BYM_TAU_B_REL_TOL    = 0.25
 const BYM_MLIK_REL_TOL     = 0.02
 

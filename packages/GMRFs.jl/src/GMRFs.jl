@@ -47,7 +47,7 @@ export SymmetricQ, tabulated_precision
 export AbstractGMRF
 export IIDGMRF, RW1GMRF, RW2GMRF, AR1GMRF, SeasonalGMRF, BesagGMRF, Generic0GMRF
 export precision_matrix, prior_mean, rankdef, null_space_basis
-export scale_model, scale_factor, is_scaled
+export scale_model, scale_factor, per_component_scale_factors, is_scaled
 
 # We extend `Base.rand`, `Random.rand!`, and `Distributions.logpdf`
 # with methods on `AbstractGMRF`. `rand` / `rand!` come from Base/Random

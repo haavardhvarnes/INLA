@@ -299,25 +299,35 @@ end
     BesagGMRF(g::AbstractGMRFGraph; τ = 1.0, scale_model = true)
 
 The intrinsic CAR / Besag GMRF on graph `g`. Precision
-`Q = τ · (c · L)` where `L` is the graph Laplacian and `c` is the
-Sørbye-Rue scaling constant if `scale_model = true` (default, matching
-R-INLA ≥ 17.06). If `scale_model = false`, `c = 1`.
+`Q = τ · D · L · D` where `L` is the combinatorial graph Laplacian and
+`D = Diagonal(√c)`. The per-node vector `c` is the Sørbye-Rue (2014)
+geometric-mean scaling constant of the connected component containing
+each node — Freni-Sterrantino et al. (2018) showed that on disconnected
+graphs each component needs its own scaling. With `scale_model = true`
+(default, matching R-INLA ≥ 17.06) the constants come from
+[`per_component_scale_factors`](@ref); with `scale_model = false` they
+are all `1`.
 
 `rankdef` equals the number of connected components of `g`.
 """
 struct BesagGMRF{T <: Real, G <: AbstractGMRFGraph} <: AbstractGMRF
     g::G
     τ::T
-    c::T                 # scaling constant (c=1 when scale_model=false)
+    c::Vector{T}         # per-node Sørbye-Rue constants (1.0 when scale_model=false)
     scale_model::Bool
-    # Laplacian cached in the graph; the τ-independent structure τ·L·c
-    # is not cached here because τ may vary freely.
 end
 
 function BesagGMRF(g::AbstractGMRFGraph; τ::Real = 1.0, scale_model::Bool = true)
-    c = scale_model ? scale_factor(g) : 1.0
-    T = typeof(float(τ * c))
-    return BesagGMRF{T, typeof(g)}(g, T(τ), T(c), scale_model)
+    n = num_nodes(g)
+    c_per_node = if scale_model
+        c_k = per_component_scale_factors(g)
+        labels = connected_component_labels(g)
+        Float64[c_k[labels[i]] for i in 1:n]
+    else
+        ones(Float64, n)
+    end
+    T = typeof(float(τ * first(c_per_node)))
+    return BesagGMRF{T, typeof(g)}(g, T(τ), T.(c_per_node), scale_model)
 end
 
 """
@@ -333,52 +343,77 @@ is_scaled(g::BesagGMRF) = g.scale_model
 Base.eltype(::Type{<:BesagGMRF{T}}) where {T} = T
 
 function precision_matrix(g::BesagGMRF{T}) where {T}
-    L = laplacian_matrix(g.g)
-    Q = (g.τ * g.c) .* SparseMatrixCSC{T, Int}(L)
-    return Q
+    L = SparseMatrixCSC{T, Int}(laplacian_matrix(g.g))
+    s = sqrt.(g.τ .* g.c)
+    D = Diagonal(s)
+    return D * L * D
+end
+
+"""
+    per_component_scale_factors(g::AbstractGMRFGraph) -> Vector{Float64}
+
+Per-component Sørbye-Rue (2014) geometric-mean scaling constants for
+the intrinsic Besag GMRF on a (possibly disconnected) graph `g`.
+Returns a vector of length `K = nconnected_components(g)` indexed by
+component label, where entry `k` makes the geometric-mean marginal
+variance equal `1` on the non-null subspace **of component `k` alone**.
+
+This is the Freni-Sterrantino et al. (2018) refinement of Sørbye-Rue
+on disconnected graphs: each component is scaled independently rather
+than scaling the union with a single constant. R-INLA has applied this
+correction since 2018; matching it is required for posterior agreement
+on graphs like Sardinia.
+"""
+function per_component_scale_factors(g::AbstractGMRFGraph)
+    L = laplacian_matrix(g)
+    labels = connected_component_labels(g)
+    K = maximum(labels)
+    c = zeros(Float64, K)
+    for k in 1:K
+        idx = findall(==(k), labels)
+        n_k = length(idx)
+        if n_k == 1
+            # Singleton component: L_k = [0]; null space spans the whole
+            # space, no non-null subspace. The Sørbye-Rue scaling is not
+            # defined here; R-INLA convention treats singletons as 1.0.
+            c[k] = 1.0
+            continue
+        end
+        L_k = Matrix{Float64}(L[idx, idx])
+        v = fill(1.0 / sqrt(n_k), n_k)
+        Qperp = L_k + v * v'
+        Σ_k = inv(Qperp) - v * v'
+        d = diag(Σ_k)
+        pos = filter(x -> x > 0, d)
+        isempty(pos) && throw(ArgumentError(
+            "could not compute scale factor for component $k: no positive diagonal entries of generalised inverse",
+        ))
+        c[k] = exp(mean(log.(pos)))
+    end
+    return c
 end
 
 """
     scale_factor(g::AbstractGMRFGraph) -> Float64
 
-The Sørbye & Rue (2014) geometric-mean scaling constant for the
-intrinsic Besag GMRF on `g`. Applied so that under `Q_scaled = c · L`,
-the geometric mean of marginal variances of `τ⁻¹ Q_scaled⁻¹` on the
-non-null subspace equals `τ⁻¹`.
+The Sørbye & Rue (2014) geometric-mean scaling constant for a
+**connected** intrinsic Besag GMRF on `g`. Applied so that under
+`Q_scaled = c · L`, the geometric mean of marginal variances of
+`τ⁻¹ Q_scaled⁻¹` on the non-null subspace equals `τ⁻¹`.
+
+For disconnected graphs use [`per_component_scale_factors`](@ref): the
+single-scalar scaling is not the correct generalisation
+(Freni-Sterrantino et al. 2018). On a disconnected `g` this function
+returns the geometric mean of all per-component constants — kept for
+backward compatibility but not what BesagGMRF / BYM / BYM2 use.
 
 The reference implementation is dense. For production use on large
 graphs, the LGM Phase 3 selected-inversion implementation should be
 used instead (see `plans/defaults-parity.md` and ADR-004).
 """
 function scale_factor(g::AbstractGMRFGraph)
-    L = laplacian_matrix(g)
-    n = size(L, 1)
-    # Per-component null-space basis V ∈ ℝ^{n×r}: each component's
-    # indicator, L2-normalised.
-    labels = connected_component_labels(g)
-    r = maximum(labels)
-    V = zeros(Float64, n, r)
-    for i in 1:n
-        V[i, labels[i]] = 1.0
-    end
-    # Normalise columns to unit L2 (so V'V = I_r).
-    for k in 1:r
-        nk = sqrt(sum(abs2, view(V, :, k)))
-        V[:, k] ./= nk
-    end
-    # Dense generalised inverse on non-null subspace:
-    #   Q_perp = L + V V'
-    #   Σ = inv(Q_perp) - V V'
-    Ld = Matrix{Float64}(L)
-    Qperp = Ld + V * V'
-    Σ = inv(Qperp) - V * V'
-    # Scaling constant is geometric mean of positive diagonals.
-    d = diag(Σ)
-    # Guard against numerical zeros / slightly negative values at
-    # machine precision — clamp to a small positive floor.
-    pos = filter(x -> x > 0, d)
-    isempty(pos) && throw(ArgumentError("could not compute scale factor: no positive diagonal entries of generalised inverse"))
-    return exp(mean(log.(pos)))
+    c = per_component_scale_factors(g)
+    return exp(mean(log.(c)))
 end
 
 """
