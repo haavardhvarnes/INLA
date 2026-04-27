@@ -58,11 +58,17 @@ log_hyperprior(c::Generic0, θ) = log_prior_density(c.hyperprior, θ[1])
 
 GMRFs.constraints(c::Generic0) = c.constraint
 
-# Per-component log NC in R-INLA convention: drop the structural
-# `½ log|R̃|_+`; the precision-scale piece `½ (n - rd) log τ` stays.
+# Per-component log NC matching R-INLA's `extra()` for `F_GENERIC0`
+# (`inla.c:2986-2987`, shared branch with F_IID/F_BESAG/F_RW1/F_RW2/
+# F_SEASONAL): `LOG_NORMC_GAUSSIAN · (n - rd) + (n - rd)/2 · log τ`,
+# i.e. `-½(n - rd) log(2π) + ½(n - rd) log τ`. The structural
+# `½ log|R̃|_+` term is *dropped* — R-INLA reports `mlik` "up to a
+# normalisation constant" and omits this θ-independent piece for
+# `F_GENERIC0`. We follow the same convention so Julia's mlik matches
+# R-INLA's mlik (rather than the exact Gaussian-Gaussian conjugate).
 function log_normalizing_constant(c::Generic0, θ)
     n = size(c.R, 1)
-    return 0.5 * (n - c.rd) * θ[1]
+    return -0.5 * (n - c.rd) * log(2π) + 0.5 * (n - c.rd) * θ[1]
 end
 
 function gmrf(c::Generic0, θ)

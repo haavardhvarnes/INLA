@@ -58,8 +58,10 @@ end
     @test maximum(eigvals(Symmetric(Matrix(c.R)))) ≈ 1.0 atol = 1.0e-12
     @test constraints(c) isa LinearConstraint
 
-    # log NC: ½ (n - rd) log τ
-    @test log_normalizing_constant(c, [0.7]) ≈ 0.5 * (n - 1) * 0.7
+    # log NC: -½ (n - rd) log(2π) + ½ (n - rd) log τ (R-INLA F_GENERIC1
+    # without β-mixing reduces to F_GENERIC0).
+    @test log_normalizing_constant(c, [0.7]) ≈
+        -0.5 * (n - 1) * log(2π) + 0.5 * (n - 1) * 0.7
 end
 
 @testset "Generic1 — invalid input rejection" begin

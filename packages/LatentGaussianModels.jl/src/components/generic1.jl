@@ -58,11 +58,15 @@ log_hyperprior(c::Generic1, θ) = log_prior_density(c.hyperprior, θ[1])
 
 GMRFs.constraints(c::Generic1) = c.constraint
 
-# Same convention as Generic0: drop the structural ½ log|R̃|_+ piece;
-# keep the precision-scale ½ (n - rd) log τ.
+# Same convention as Generic0; matches R-INLA's `extra()` for
+# `F_GENERIC1` (`inla.c:3568-3570`). Without β-mixing the `logdet_Q`
+# correction in R-INLA collapses to zero, so the formula reduces to
+# the F_GENERIC0 branch: `-½(n - rd) log(2π) + ½(n - rd) log τ`. The
+# structural `½ log|R̃|_+` is dropped (see the Generic0 note for the
+# R-INLA `mlik`-up-to-a-constant convention).
 function log_normalizing_constant(c::Generic1, θ)
     n = size(c.R, 1)
-    return 0.5 * (n - c.rd) * θ[1]
+    return -0.5 * (n - c.rd) * log(2π) + 0.5 * (n - c.rd) * θ[1]
 end
 
 function gmrf(c::Generic1, θ)

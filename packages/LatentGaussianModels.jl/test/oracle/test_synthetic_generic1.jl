@@ -52,7 +52,10 @@ end
             A = sparse(Matrix{Float64}(A_dense))
             C = SparseMatrixCSC{Float64, Int}(inp["C"])
 
-            ℓ = GaussianLikelihood()
+            # R-INLA's `family = "gaussian"` default precision prior is
+            # `loggamma(1, 5e-5)`; pass it explicitly for parity (Julia's
+            # `GaussianLikelihood` defaults to a PC prior).
+            ℓ = GaussianLikelihood(hyperprior = GammaPrecision(1.0, 5.0e-5))
             c_g1 = Generic1(C; rankdef = 0,
                             hyperprior = GammaPrecision(1.0, 5.0e-5))
             # Sanity check the rescaling actually happened.
@@ -77,11 +80,9 @@ end
             @test all(isfinite(r.mean) && r.sd > 0 for r in hp)
 
             # --- Marginal log-likelihood ---------------------------------
-            # Same Laplace gap as Generic0 (R-INLA's `inla.stack` route
-            # adds tiny-noise predictor terms we don't reproduce).
             mlik_R = Float64(fx["mlik"][1])
             mlik_J = log_marginal_likelihood(res)
-            @test_broken _rel_g1(mlik_J, mlik_R) < G1_MLIK_REL_TOL
+            @test _rel_g1(mlik_J, mlik_R) < G1_MLIK_REL_TOL
             @test isfinite(mlik_J)
         end
     end

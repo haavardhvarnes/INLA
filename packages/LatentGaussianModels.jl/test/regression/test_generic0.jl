@@ -21,9 +21,9 @@ using GMRFs: Generic0GMRF, num_nodes, GMRFGraph, laplacian_matrix,
     @test isfinite(log_hyperprior(c, [0.0]))
     @test constraints(c) isa NoConstraint
 
-    # log NC: full rank → ½ n log τ
+    # log NC: full rank → -½ n log(2π) + ½ n log τ (R-INLA F_GENERIC0).
     n = 4
-    @test log_normalizing_constant(c, [0.5]) ≈ 0.5 * n * 0.5
+    @test log_normalizing_constant(c, [0.5]) ≈ -0.5 * n * log(2π) + 0.5 * n * 0.5
 end
 
 @testset "Generic0 — rank-deficient with constraint" begin
@@ -47,8 +47,9 @@ end
     @test constraint_matrix(con) ≈ Aeq
     @test constraint_rhs(con) ≈ e
 
-    # log NC: ½ (n - rd) log τ
-    @test log_normalizing_constant(c, [0.7]) ≈ 0.5 * (n - 1) * 0.7
+    # log NC: -½ (n - rd) log(2π) + ½ (n - rd) log τ (R-INLA F_GENERIC0).
+    @test log_normalizing_constant(c, [0.7]) ≈
+        -0.5 * (n - 1) * log(2π) + 0.5 * (n - 1) * 0.7
 end
 
 @testset "Generic0 — scale_model = true rescales R" begin
