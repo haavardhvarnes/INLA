@@ -10,6 +10,7 @@
 include("load_fixture.jl")
 
 using Test
+using LinearAlgebra: Symmetric, eigvals
 using SparseArrays
 using LatentGaussianModels: GaussianLikelihood, Generic1, GammaPrecision,
     LatentGaussianModel, inla, hyperparameters, log_marginal_likelihood
