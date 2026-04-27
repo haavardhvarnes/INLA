@@ -126,6 +126,25 @@ constraint is required.
 GMRFs.constraints(::SPDE2) = GMRFs.NoConstraint()
 
 """
+    log_normalizing_constant(c::SPDE2, θ) -> Real
+
+R-INLA-style log normalizing constant for the proper Gaussian SPDE
+prior, evaluated at internal `θ = [log τ, log κ]`:
+
+    log NC = -½ d log(2π) + ½ log|Q(θ)|
+
+where `d = length(c)` is the number of mesh vertices and `Q(θ)` is the
+SPDE precision (κ⁴ C̃ + 2κ² G₁ + G₂ scaled by τ², for α = 2). Required
+by the marginal-likelihood formula in `LatentGaussianModels.jl`'s
+Laplace inference (commit 635cbb9 / ADR-style change).
+"""
+function LatentGaussianModels.log_normalizing_constant(c::SPDE2, θ)
+    Q = LatentGaussianModels.precision_matrix(c, θ)
+    F = cholesky(Symmetric(Q))
+    return -0.5 * length(c) * log(2π) + 0.5 * logdet(F)
+end
+
+"""
     spde_user_scale(c::SPDE2{α}, θ) -> (ρ, σ)
 
 Convert the internal `θ = [log τ, log κ]` to the user-facing Matérn
