@@ -6,49 +6,85 @@ framework.
 
 Implements the stochastic partial differential equation approach of
 Lindgren, Rue & Lindström (2011), which links Matérn Gaussian fields to
-sparse Gaussian Markov random fields via finite-element projections on a
-mesh. This is the native-Julia equivalent of R-INLA's SPDE + fmesher
-functionality.
+sparse Gaussian Markov random fields via finite-element projections on
+a mesh. This is the native-Julia equivalent of R-INLA's SPDE +
+fmesher functionality.
 
 ## Status
 
-Planning. See [`plans/plan.md`](plans/plan.md).
+`v0.1.0-rc1`. Shipped:
 
-## Quick example (target API)
+- `SPDE2` — α = 2 SPDE-Matérn `AbstractLatentComponent`.
+- `PCMatern` — joint PC prior on (range, σ).
+- `inla_mesh_2d` — DT.jl-native constrained-Delaunay mesh generator
+  matching R-INLA's `inla.mesh.2d` on convex domains.
+- `MeshProjector` — A-matrix mapping mesh vertices to observation
+  points, exposed as a `SciMLOperators.AbstractSciMLOperator`.
+
+Validated against R-INLA on the Meuse zinc dataset (see
+[`test/oracle/test_meuse_spde.jl`](test/oracle/test_meuse_spde.jl)).
+Higher-α and fractional SPDE (Bolin-Kirchner 2020) are deferred to
+v0.3.
+
+## Quick example — Meuse zinc
+
+The actual API exercised by the Meuse oracle test:
 
 ```julia
-using INLASPDE, LatentGaussianModels, Meshes, DelaunayTriangulation
+using INLASPDE, LatentGaussianModels, SparseArrays
 
-# Build a mesh over the observation domain
-points = [(x, y) for (x, y) in zip(coords_x, coords_y)]
-mesh = inla_mesh_2d(points; max_edge = (0.05, 0.2), cutoff = 0.02)
+# `points :: Matrix{Float64}` (n_v × 2) — mesh vertex coordinates
+# `tv     :: Matrix{Int}`     (n_t × 3) — triangle index list (1-based)
+# `A_field :: SparseMatrixCSC` (n_obs × n_v) — projector to obs locations
 
-# SPDE–Matérn component with PC prior on range and sigma
-spde = SPDE2(
-    mesh = mesh,
-    α    = 2,
-    prior = PCMatern(range_prior = (0.3, 0.5),     # P(range < 0.3) = 0.5
-                     sigma_prior = (1.0, 0.01)),   # P(sigma > 1) = 0.01
-)
+spde = SPDE2(points, tv; α = 2,
+    pc = PCMatern(
+        range_U = 0.5, range_α = 0.5,   # P(range < 0.5) = 0.5
+        sigma_U = 1.0, sigma_α = 0.5,   # P(σ > 1.0)     = 0.5
+    ))
 
-# Use as a component in an LGM
-model = LatentGaussianModel(
-    likelihood = Gaussian(),
-    components = (Intercept(), spde),
-    projector  = MeshProjector(mesh, observation_points),
-)
+intercept = Intercept(prec = 1.0e-3)
+beta_dist = FixedEffects(1; prec = 1.0e-3)
 
-fit = inla(model, y)
+# Latent layout: x = [α, β_dist, u(field)]
+A = hcat(ones(n_obs, 1),
+        reshape(dist_cov, n_obs, 1),
+        A_field)
 
-# Predict on a grid
-pred = predict(fit, prediction_grid)
+like  = GaussianLikelihood(hyperprior = PCPrecision(1.0, 0.01))
+model = LatentGaussianModel(like, (intercept, beta_dist, spde), A)
+
+res = inla(model, y)
+```
+
+For mesh generation from a polygon, use:
+
+```julia
+mesh = inla_mesh_2d(boundary; max_edge = (0.05, 0.2), cutoff = 0.02)
+points, tv = mesh.loc, mesh.tv
+```
+
+## Installation
+
+Not yet on the General registry. Develop from a clone:
+
+```julia
+using Pkg
+Pkg.develop([
+    Pkg.PackageSpec(path = "packages/GMRFs.jl"),
+    Pkg.PackageSpec(path = "packages/LatentGaussianModels.jl"),
+    Pkg.PackageSpec(path = "packages/INLASPDE.jl"),
+])
 ```
 
 ## See also
 
-- [`GMRFs.jl`](../GMRFs.jl/) — the sparse precision substrate.
-- [`LatentGaussianModels.jl`](../LatentGaussianModels.jl/) — the LGM framework
-  that consumes SPDE components.
+- [`GMRFs.jl`](../GMRFs.jl/) — sparse precision substrate.
+- [`LatentGaussianModels.jl`](../LatentGaussianModels.jl/) — LGM
+  framework that consumes SPDE components.
+- [`INLASPDERasters.jl`](../INLASPDERasters.jl/) — raster ↔ SPDE glue
+  (planning).
 - [`Meshes.jl`](https://github.com/JuliaGeometry/Meshes.jl) — mesh
   representation.
-- [`DelaunayTriangulation.jl`](https://github.com/JuliaGeometry/DelaunayTriangulation.jl) — mesh generation.
+- [`DelaunayTriangulation.jl`](https://github.com/JuliaGeometry/DelaunayTriangulation.jl)
+  — the constrained-Delaunay engine under the hood.

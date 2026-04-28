@@ -4,53 +4,67 @@ Sparse Gaussian Markov Random Fields for Julia.
 
 A standalone, dependency-light package providing:
 
-- `AbstractGMRF` and concrete types for IID, random-walk, AR1, seasonal,
-  Besag, generic sparse-precision models.
+- `AbstractGMRF` and concrete types for IID, random-walk, AR(1),
+  seasonal, Besag, and `Generic0` sparse-precision models.
+- `GMRFGraph` — `Graphs.jl`-compatible graph wrapping any sparse
+  adjacency.
 - Sampling from `N(μ, Q⁻¹)` with and without linear constraints.
 - Log-density evaluation and log-determinant.
 - Marginal variances via selected inversion.
-- Graphs.jl-compatible graph representation.
-- Multiple sparse factorization backends via LinearSolve.jl.
+- Sparse factorization caching (`FactorCache`) — symbolic-once,
+  refactor-on-θ-change — exposed through `LinearSolve.jl`.
 
 This package is the numerical core of the Julia INLA ecosystem but is
-usable independently for any application involving sparse Gaussian models:
-spatial smoothing, disease mapping with external MCMC, image restoration,
-4D-Var data assimilation.
+usable independently for any application involving sparse Gaussian
+models: spatial smoothing, disease mapping with external MCMC, image
+restoration, 4D-Var data assimilation.
 
 ## Status
 
-Planning. See [`plans/plan.md`](plans/plan.md).
+`v0.1.0-rc1`. See the ecosystem [`CHANGELOG.md`](../../CHANGELOG.md)
+for what landed and where R-INLA parity is known to be loose.
 
-## Quick example (target API)
+Shipped concrete types: `IIDGMRF`, `RW1GMRF`, `RW2GMRF`, `AR1GMRF`,
+`SeasonalGMRF`, `BesagGMRF`, `Generic0GMRF`.
+
+## Quick example
 
 ```julia
-using GMRFs, Graphs
+using GMRFs, Graphs, SparseArrays, Random
 
-# Besag prior on a Germany-like adjacency graph
-g = load_graph("germany.graph")
-prior = BesagGMRF(graph = g, τ = 1.0, scale = true)
+# Besag prior on a small adjacency. `GMRFGraph` accepts a
+# `Graphs.AbstractGraph` or a sparse adjacency matrix.
+g = GMRFGraph(cycle_graph(6))
+prior = BesagGMRF(g; τ = 1.0, scale_model = true)
 
-# Sample from the prior
-using Random
+# Sample from the prior (linear sum-to-zero constraint applied).
 x = rand(MersenneTwister(1), prior)
 
-# Evaluate log-density
-logpdf(prior, x)
+# Log-density
+ℓ = logpdf(prior, x)
 
-# Marginal variances diag(Q⁻¹)
+# Marginal variances diag(Q⁻¹) via selected inversion
 σ² = marginal_variances(prior)
+
+# Reuse the symbolic factor when only τ changes
+cache = FactorCache(prior)
+update!(cache, BesagGMRF(g; τ = 4.0, scale_model = true))
 ```
 
 ## Installation
 
-Not yet registered. When ready:
+Not yet on the General registry. Develop from a clone:
+
 ```julia
 using Pkg
-Pkg.add("GMRFs")
+Pkg.develop(path = "packages/GMRFs.jl")
 ```
 
 ## See also
 
-- [`LatentGaussianModels.jl`](../LatentGaussianModels.jl/) — builds LGMs on
-  top of GMRFs.
-- [`INLASPDE.jl`](../INLASPDE.jl/) — SPDE–Matérn on triangulated meshes.
+- [`LatentGaussianModels.jl`](../LatentGaussianModels.jl/) — builds
+  LGMs on top of GMRFs.
+- [`INLASPDE.jl`](../INLASPDE.jl/) — SPDE–Matérn on triangulated
+  meshes.
+- [`GMRFsPardiso.jl`](../GMRFsPardiso.jl/) — license-gated MKL/Panua
+  Pardiso backend (separate package).

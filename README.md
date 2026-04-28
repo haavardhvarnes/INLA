@@ -8,10 +8,11 @@ genuine extensibility.
 
 ## Status
 
-**Planning.** No source code yet. This repository currently holds design
-documents, architectural decisions, and package scaffolding. See
-[`ROADMAP.md`](ROADMAP.md) for phased milestones and
-[`plans/`](plans/) for design decisions.
+**`v0.1.0-rc1`.** The four `src/`-bearing packages
+(`GMRFs.jl`, `LatentGaussianModels.jl`, `INLASPDE.jl`,
+`INLASPDERasters.jl`) cover the canonical R-INLA datasets within the
+testing-strategy tolerances. See [`CHANGELOG.md`](CHANGELOG.md) for
+what landed and where R-INLA parity is known to be loose.
 
 ## Packages
 
@@ -38,11 +39,52 @@ release cadences independent. Install whichever you need.
 An umbrella package (tentatively `INLA.jl`) may be added once the core
 three stabilize.
 
+## What ships in v0.1.0-rc1
+
+- **Latent components**: `Intercept`, `FixedEffects`, `IID`, `RW1`,
+  `RW2`, `AR1`, `Seasonal`, `Besag`, `BYM`, `BYM2`, `Leroux`,
+  `Generic0`, `Generic1`, `SPDE2` (α = 2 Matérn).
+- **Likelihoods**: `Gaussian`, `Poisson`, `Binomial`,
+  `NegativeBinomial`, `Gamma` — with closed-form gradients/Hessians
+  for the inner Newton loop and a ForwardDiff fallback for
+  user-defined cases.
+- **Hyperpriors**: `PCPrecision`, `GammaPrecision`,
+  `LogNormalPrecision`, `WeakPrior`, `PCBYM2Phi`, `LogitBeta`.
+- **Inference strategies**: `EmpiricalBayes` (Laplace at θ̂), `INLA`
+  (Laplace + θ-integration), and a `LogDensityProblems` seam for
+  external samplers — `LGMTuring.jl` provides the NUTS bridge.
+- **θ-integration schemes**: `Grid`, `GaussHermite`, `CCD` —
+  `int_strategy = :auto` chooses CCD for dim θ > 2, Grid otherwise.
+- **Diagnostics**: DIC, WAIC, CPO, PIT.
+
+## Reproducing R-INLA parity
+
+Eleven R-INLA oracle fixtures (Scotland and Pennsylvania BYM2,
+classical BYM, synthetic Gamma / Negative Binomial / Generic0 /
+Generic1 / Seasonal / Leroux / disconnected Besag, Meuse SPDE) are
+checked into the test suite, each with the R-INLA posterior summaries
+and `cpu.used` wall-clock embedded.
+
+The reproducer script at
+[`bench/oracle_compare.jl`](bench/oracle_compare.jl) runs every problem
+end-to-end, prints a markdown table of relative errors and side-by-side
+wall-clock seconds, and writes the full per-quantity comparison to
+JSON. From the repo root:
+
+```julia
+julia --project=bench bench/oracle_compare.jl
+```
+
+See [`bench/README.md`](bench/README.md) for column meanings, expected
+runtime (~3-5 minutes), and the JSON schema.
+
 ## Directory map
 
 - `plans/` — ecosystem-level design documents (architecture, dependencies, testing, macro policy, ADR log).
 - `references/` — annotated bibliography and notes on upstream INLA source.
-- `benchmarks/` — cross-package validation runs against R-INLA, Stan, NIMBLE.
+- `bench/` — R-INLA parity reproducer (`oracle_compare.jl`) and its env.
+- `benchmarks/` — placeholder for cross-package perf runs vs Stan/NIMBLE (Phase 0.2).
+- `docs/` — Documenter site source (`docs/src/`); built site lives at `docs/build/` (gitignored).
 - `scripts/` — fixture generation and utilities.
 - `packages/` — the Julia packages themselves, each with its own plan and `CLAUDE.md`.
 

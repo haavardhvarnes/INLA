@@ -1,0 +1,21 @@
+# Reproducible-environment manifest for `bench/oracle_compare.jl`.
+#
+# `bench/Manifest.toml` is gitignored (top-level `.gitignore`). To
+# reproduce the env from a fresh clone, run from the repo root:
+#
+#   julia --project=bench -e '
+#       using Pkg
+#       Pkg.develop([
+#           Pkg.PackageSpec(path = "packages/GMRFs.jl"),
+#           Pkg.PackageSpec(path = "packages/LatentGaussianModels.jl"),
+#           Pkg.PackageSpec(path = "packages/INLASPDE.jl"),
+#       ])
+#       Pkg.instantiate()'
+
+[deps]
+GMRFs = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
+INLASPDE = "2835c710-3f40-4945-979f-d21c9e20d425"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+LatentGaussianModels = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"
