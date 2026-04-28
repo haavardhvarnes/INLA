@@ -775,6 +775,117 @@ the v0.1 release manifest.
 
 ---
 
+## ADR-016: Simplified-Laplace mean-shift correction (Rue-Martino) added as opt-in `latent_strategy`
+
+Status: Accepted
+Date: 2026-04-28
+
+### Context
+
+ADR-006 (amended 2026-04-24) split simplified-Laplace into two pieces:
+a density-shape correction on `posterior_marginal_x` (landed as the
+`strategy = :simplified_laplace` kwarg in commit `85db314`) and a
+mean-shift correction on the latent posterior summary (deferred). The
+density correction multiplies each per-θ Gaussian by a Hermite-3 skew
+factor `(1 + γ/6 · H₃(s))`, expanded around the **unshifted** Newton
+mode `x̂(θ)`. R-INLA's `simplified.laplace` additionally shifts that
+mode by `Δx = ½ H⁻¹ Aᵀ (h³ ⊙ σ²_η)`, so for a true match against
+R-INLA's posterior mean on skewed likelihoods (Poisson, Binomial,
+Gamma, NegBin) we need the mean shift as well.
+
+Investigation prompted by `haavardhvarnes/IntegratedNestedLaplace.jl`
+(`laplace_eval`), which ships the same formula. The mean shift is one
+multi-RHS sparse triangular solve per integration point; with our
+existing `FactorCache` `\` (`packages/GMRFs.jl/src/factorization.jl:74`),
+existing closed-form `∇³_η_log_density` for all v0.1 likelihoods, and
+the kriging projection idiom from `_latent_skewness`
+(`marginals.jl:176`), the implementation is ~50 LoC plus a small wiring
+delta in `inla.jl`.
+
+We also evaluated and rejected porting the same reference's Edgeworth
+log-marginal-likelihood correction and N=100 importance-sampling
+log-marginal correction:
+
+- mlik parity is already established (project memory
+  `project_inla_mlik_gap.md`, resolved 2026-04-27 — the residual gap
+  was a normalising constant in `Intercept`/`BYM`, not a missing
+  higher-order term).
+- The Edgeworth term materialises a dense `Σ_η = A H⁻¹ Aᵀ` and is
+  `O(n_obs²)` to `O(n_obs³)` — blows the Phase-D 30 s Scotland budget.
+  The reference repo's own code computes it but does not use it
+  ("Phase 6g uses 3rd-order Taylor instead").
+- The IS estimator at fixed N=100 ships no ESS diagnostic, and at this
+  scale its Monte-Carlo error (~ 0.1 nat) is comparable to or larger
+  than the corrections it claims to make.
+
+### Decision
+
+Add a new `latent_strategy::Symbol` kwarg to `INLA(...)`, accepting
+`:gaussian` (default) and `:simplified_laplace`. Setting
+`:simplified_laplace` applies the Rue-Martino mean shift to
+`INLAResult.x_mean` and `x_var` while leaving `LaplaceResult.mode`
+(the Newton fixed point) unchanged — downstream code that operates on
+the Newton mode (`_latent_skewness`, sampling, log-marginal) is
+deliberately unaffected. The density-shape correction in
+`posterior_marginal_x(strategy = :simplified_laplace)` remains
+orthogonal: a user can pick either, both, or neither.
+
+The new field is on `INLA(...)`, not a new strategy type, so
+third-party `AbstractInferenceStrategy` subtypes (per ADR-011) do not
+have to enumerate latent variants.
+
+Default stays `:gaussian` — flipping it is a separate v0.3 decision
+gated on the Pennsylvania oracle re-run with the new path active.
+
+The variance correction (R-INLA's third simplified-Laplace term,
+`H⁻¹ Aᵀ diag(h⁴) A H⁻¹` per coordinate) and the Edgeworth / IS log-mlik
+corrections remain v0.3 / out of scope.
+
+### Consequences
+
+- **Good:** closes the v0.1 gap to R-INLA's posterior *mean* on skewed
+  likelihoods. The `:gaussian` and `:simplified_laplace` paths are
+  orthogonal at the API level, so opt-in users see the new behaviour
+  with zero risk to existing callers.
+- **Good:** complements the already-shipped Hermite skew correction
+  in `posterior_marginal_x` — together they cover R-INLA's
+  `simplified.laplace` mean and shape; only the variance term is
+  still owed.
+- **Cost:** one multi-RHS sparse triangular solve per integration
+  point. Measured at ~0% overhead on the small Pennsylvania-style
+  models in the existing oracle suite; the projected upper bound for
+  larger SPDE fits (Meuse) is ~5%.
+- **Cost:** maintenance of two latent-strategy paths through the
+  integration loop. Localised: ~3 lines in `fit(::INLA)` accumulator
+  plus the 50-line helper in `simplified_laplace_correction.jl`.
+- **Cost:** Pennsylvania oracle fixture needs regeneration to add a
+  `bym_mean_sla` field for the matched R-INLA `strategy = "simplified.laplace"`
+  output. The existing Gaussian-strategy assertions are untouched.
+- **Escape hatch:** `latent_strategy = :gaussian` is exactly the prior
+  behaviour, bit-for-bit. Verified by a regression test that asserts
+  `‖x_mean_gaussian − x_mean_simplified_laplace‖∞ < 1e-12` on a
+  Gaussian-likelihood model (where `h³ ≡ 0`).
+- **Defer v0.3:** flipping the default to `:simplified_laplace`,
+  adding the variance correction, and any per-marginal full
+  `:laplace` strategy.
+
+### References
+
+- ADR-006 (and 2026-04-24 amendment) — original deferral.
+- `replan-2026-04.md` "What this replan does not schedule" — entry
+  rewritten to keep Edgeworth / variance correction deferred while
+  removing the mean shift from the deferred list.
+- Rue, Martino, Chopin (2009) §4.2.
+- `haavardhvarnes/IntegratedNestedLaplace.jl` `laplace_eval` —
+  reference implementation of the mean shift.
+- `packages/LatentGaussianModels.jl/src/inference/simplified_laplace_correction.jl`
+  — implementation.
+- `packages/LatentGaussianModels.jl/test/regression/test_sla_mean_shift.jl`
+  — regression coverage (Gaussian collapse, dense formula
+  cross-check, BYM2 sum-to-zero preservation).
+
+---
+
 ## ADR template for future entries
 
 ```

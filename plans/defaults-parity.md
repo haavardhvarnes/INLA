@@ -203,6 +203,7 @@ default**.
 |---|---|---|---|
 | `int_strategy` | `control.inla$int.strategy` | `:auto` (→ `:ccd` if dim(θ) > 2, else `:grid`) | match R-INLA |
 | `strategy` | `control.inla$strategy` | `:laplace` | **diverges**: R-INLA default is `:simplified_laplace`; we ship full Laplace in v0.1, see ADR-006 |
+| `latent_strategy` | partial — see ADR-016 | `:gaussian` | controls per-θ summary (`x_mean`, `x_var`). `:simplified_laplace` enables the Rue-Martino mean shift `Δx = ½ H⁻¹ Aᵀ (h³ ⊙ σ²_η)`. Orthogonal to the density-shape kwarg on `posterior_marginal_x`. **Diverges from R-INLA default**: flipping to `:simplified_laplace` is v0.3, gated on the Pennsylvania oracle re-run. Variance and Edgeworth log-mlik corrections remain deferred. |
 | `verbose` | `verbose` | `false` | match |
 | `compute_dic` | `control.compute$dic` | `false` | match |
 | `compute_waic` | `control.compute$waic` | `false` | match |

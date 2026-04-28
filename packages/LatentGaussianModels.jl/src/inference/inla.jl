@@ -1,6 +1,7 @@
 """
-    INLA(; int_strategy = :auto, laplace = Laplace(), θ0 = nothing,
-          optim_options = NamedTuple())
+    INLA(; int_strategy = :auto, laplace = Laplace(),
+          latent_strategy = :gaussian,
+          θ0 = nothing, optim_options = NamedTuple())
 
 Integrated Nested Laplace Approximation for a `LatentGaussianModel`.
 
@@ -21,20 +22,48 @@ The algorithm (Rue, Martino & Chopin 2009) proceeds in three stages:
 - `:ccd` / `CCD()` — central composite design per Rue-Martino-Chopin §6.5.
 - `:gauss_hermite` / `GaussHermite()` — tensor-product Gauss-Hermite.
 - Any subtype of `AbstractIntegrationScheme` can be passed directly.
+
+### `latent_strategy`
+
+Controls the per-θ approximation of the latent posterior summary
+(`x_mean`, `x_var`) — this is R-INLA's `control.inla\$strategy`,
+distinct from the θ-integration scheme above.
+
+- `:gaussian` (default) — use the Newton mode `x̂(θ)` and the constraint-
+  corrected Laplace marginal variance. Bit-for-bit unchanged from prior
+  releases.
+- `:simplified_laplace` — apply the Rue-Martino mean-shift correction
+  `Δx(θ) = ½ H⁻¹ Aᵀ (h³ ⊙ σ²_η)` per integration point before
+  accumulating `x_mean` / `x_var`. Reduces to `:gaussian` exactly when
+  the likelihood third derivative `∇³_η log p` is zero.
+
+The mean-shift correction is independent of the density-shape skew
+correction in `posterior_marginal_x(strategy = :simplified_laplace)`:
+that one expands the per-coordinate density `p(x_i | y)` around the
+unshifted Newton mode (Rue-Martino-Chopin 2009 §4.2). They can be
+toggled independently — see ADR-016.
+
+R-INLA's full `simplified.laplace` also includes a variance correction;
+that piece is deferred to v0.3 (see ADR-006 amendment).
 """
 struct INLA{I, S <: Laplace} <: AbstractInferenceStrategy
     int_strategy::I
     laplace::S
+    latent_strategy::Symbol
     θ0::Union{Nothing, Vector{Float64}}
     optim_options::NamedTuple
 end
 
 function INLA(; int_strategy = :auto,
               laplace::Laplace = Laplace(),
+              latent_strategy::Symbol = :gaussian,
               θ0::Union{Nothing, AbstractVector{<:Real}} = nothing,
               optim_options::NamedTuple = NamedTuple())
+    latent_strategy in (:gaussian, :simplified_laplace) ||
+        throw(ArgumentError("unknown latent_strategy :$latent_strategy; " *
+                            "use :gaussian or :simplified_laplace"))
     return INLA{typeof(int_strategy), typeof(laplace)}(
-        int_strategy, laplace,
+        int_strategy, laplace, latent_strategy,
         θ0 === nothing ? nothing : collect(Float64, θ0),
         optim_options
     )
@@ -198,16 +227,23 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     n_x = m.n_x
     x_mean = zeros(Float64, n_x)
     x_m2 = zeros(Float64, n_x)                 # E[x²] - cond_var(x|θ)
+    do_sla = strategy.latent_strategy === :simplified_laplace
     for k in eachindex(points)
         lp = laplaces[k]
-        x_mean .+= w[k] .* lp.mode
+        # Per-θ mean: Newton mode by default; with `:simplified_laplace`,
+        # apply the Rue-Martino mean shift before accumulating. The
+        # underlying `LaplaceResult.mode` stays untouched so downstream
+        # code (Hermite skew expansion, sampling, log-marginal) keeps
+        # operating around the Newton fixed point.
+        mode_k = do_sla ? lp.mode .+ _sla_mean_shift(lp, m, y) : lp.mode
+        x_mean .+= w[k] .* mode_k
         # E[x²] at θ_k: mode² + conditional variance (diag of posterior
         # precision inverse, with constraint correction if present).
         # Takahashi / selected inversion via GMRFs.marginal_variances (ADR-012);
         # kriging correction applied downstream in
         # `_constrained_marginal_variances` per Rue & Held (2005) §2.3.
         cond_var = _constrained_marginal_variances(lp.precision, lp.constraint)
-        x_m2 .+= w[k] .* (lp.mode .^ 2 .+ cond_var)
+        x_m2 .+= w[k] .* (mode_k .^ 2 .+ cond_var)
     end
     x_var = x_m2 .- x_mean .^ 2
     # Numerical guard against tiny negatives from cancellation.

@@ -60,6 +60,9 @@ using GMRFs
     @testset "Simplified Laplace — skew correction" begin
         include("regression/test_simplified_laplace.jl")
     end
+    @testset "Simplified Laplace — mean-shift correction" begin
+        include("regression/test_sla_mean_shift.jl")
+    end
     @testset "LogDensityProblems conformance" begin
         include("regression/test_log_density.jl")
     end
