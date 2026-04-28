@@ -25,7 +25,6 @@ registry — add it once, then `Pkg.add` as usual:
 ```julia
 using Pkg
 Pkg.Registry.add(RegistrySpec(url = "https://github.com/haavardhvarnes/JuliaRegistry"))
-Pkg.Registry.add("General")  # idempotent if already added
 Pkg.add("INLA")
 ```
 
