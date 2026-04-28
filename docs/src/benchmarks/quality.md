@@ -7,14 +7,14 @@ geostatistics). Each section refits the model in Julia and compares
 against the R-INLA posterior stored in the fixture.
 
 The tolerance bands come from
-[`plans/testing-strategy.md`](https://github.com/HaavardHvarnes/INLA/blob/main/plans/testing-strategy.md):
+[`plans/testing-strategy.md`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/plans/testing-strategy.md):
 roughly 1–7% relative on fixed-effect means, 5–10% on hyperparameters,
 2% on the marginal log-likelihood for connected-graph BYM2 and the
 SPDE oracle. Looser bands and known divergences are noted per dataset.
 The full assertion suites live in each package's `test/oracle/`.
 
 Performance / wall-clock comparison is deferred to a v0.1.x patch (see
-[`plans/quality-and-perf-benchmarks.md`](https://github.com/HaavardHvarnes/INLA/blob/main/plans/quality-and-perf-benchmarks.md)).
+[`plans/quality-and-perf-benchmarks.md`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/plans/quality-and-perf-benchmarks.md)).
 
 ## Roll-up
 
@@ -98,7 +98,7 @@ disconnected graph (Freni-Sterrantino et al. 2018).
 
 Same model class as Scotland but with a single connected graph (`K =
 1`), 67 counties, smoking-rate covariate. See
-[`test/oracle/test_pennsylvania_bym2.jl`](https://github.com/HaavardHvarnes/INLA/blob/main/packages/LatentGaussianModels.jl/test/oracle/test_pennsylvania_bym2.jl).
+[`test/oracle/test_pennsylvania_bym2.jl`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/packages/LatentGaussianModels.jl/test/oracle/test_pennsylvania_bym2.jl).
 
 ```@example bench
 fx = jldopen(joinpath(REPO_ROOT, "packages", "LatentGaussianModels.jl",
@@ -198,7 +198,7 @@ PC-Matérn / PC-precision priors agree closely with R-INLA's defaults.
 ## Source
 
 This page is generated from
-[`docs/src/benchmarks/quality.md`](https://github.com/HaavardHvarnes/INLA/blob/main/docs/src/benchmarks/quality.md).
+[`docs/src/benchmarks/quality.md`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/docs/src/benchmarks/quality.md).
 The same fits run as oracle tests in each package's `test/oracle/`
 suite — the docs page and the test suite use identical model code
 and fixtures, so any divergence between rendered numbers and CI

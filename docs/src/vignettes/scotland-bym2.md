@@ -21,7 +21,7 @@ and PC priors on `τ` and `φ`.
 ## Loading the fixture
 
 The Scotland BYM2 fixture lives under
-[`packages/LatentGaussianModels.jl/test/oracle/fixtures/scotland_bym2.jld2`](https://github.com/HaavardHvarnes/INLA/blob/main/packages/LatentGaussianModels.jl/test/oracle/fixtures/scotland_bym2.jld2).
+[`packages/LatentGaussianModels.jl/test/oracle/fixtures/scotland_bym2.jld2`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/packages/LatentGaussianModels.jl/test/oracle/fixtures/scotland_bym2.jld2).
 It carries both the input data (`y`, `E`, `x`, `W`) and the R-INLA
 posterior summaries used as the validation oracle.
 
@@ -96,10 +96,10 @@ log_marginal_likelihood(res)
 
 The fixture's `summary_fixed` and `summary_hyperpar` carry the R-INLA
 posterior. Per
-[`plans/testing-strategy.md`](https://github.com/HaavardHvarnes/INLA/blob/main/plans/testing-strategy.md),
+[`plans/testing-strategy.md`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/plans/testing-strategy.md),
 the v0.1 oracle tolerances are 7% relative on fixed-effect means and
 10% relative on `τ`. The full assertion suite lives in
-[`test/oracle/test_scotland_bym2.jl`](https://github.com/HaavardHvarnes/INLA/blob/main/packages/LatentGaussianModels.jl/test/oracle/test_scotland_bym2.jl).
+[`test/oracle/test_scotland_bym2.jl`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/packages/LatentGaussianModels.jl/test/oracle/test_scotland_bym2.jl).
 
 ```@example scotland
 sf = fx["summary_fixed"]

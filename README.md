@@ -36,8 +36,39 @@ release cadences independent. Install whichever you need.
 | [`GMRFsPardiso.jl`](packages/GMRFsPardiso.jl/) | MKL / Panua Pardiso factorization backend for GMRFs.jl. License-gated. | Pardiso |
 | [`INLASPDERasters.jl`](packages/INLASPDERasters.jl/) | Covariate extraction from rasters + raster prediction surfaces. | Rasters |
 
-An umbrella package (tentatively `INLA.jl`) may be added once the core
-three stabilize.
+The umbrella package [`INLA.jl`](packages/INLA.jl) re-exports
+`GMRFs`, `LatentGaussianModels`, and `INLASPDE` so that `using INLA`
+brings the inference stack into scope in one import.
+
+## Installation
+
+The packages are not yet on the General registry. They are registered
+in a personal Julia registry. From a fresh Julia REPL:
+
+```julia
+using Pkg
+Pkg.Registry.add(RegistrySpec(url = "https://github.com/haavardhvarnes/JuliaRegistry"))
+Pkg.Registry.add("General")  # idempotent if already added
+Pkg.add("INLA")              # umbrella: GMRFs + LatentGaussianModels + INLASPDE
+```
+
+For a leaner install, replace `"INLA"` with any individual core
+package — `"GMRFs"`, `"LatentGaussianModels"`, `"INLASPDE"`, or
+`"INLASPDERasters"`. `INLASPDERasters` is registered but its API is
+scaffolding only in v0.1.0-rc1; see its
+[README](packages/INLASPDERasters.jl/README.md).
+
+The optional sub-packages `LGMTuring.jl`, `LGMFormula.jl`, and
+`GMRFsPardiso.jl` are **not** registered yet. Install them by
+`Pkg.develop`-ing this repo's subdir directly:
+
+```julia
+Pkg.develop(url = "https://github.com/haavardhvarnes/INLA.jl",
+            subdir = "packages/LGMTuring.jl")
+```
+
+General-registry submission is planned; until then the personal
+registry is the install path.
 
 ## What ships in v0.1.0-rc1
 

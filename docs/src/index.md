@@ -8,7 +8,7 @@ with native performance and genuine extensibility.
 
 ## Status
 
-`v0.1.0-rc1`. Phase A through D of the [replan](https://github.com/HaavardHvarnes/INLA/blob/main/plans/replan-2026-04.md)
+`v0.1.0-rc1`. Phase A through D of the [replan](https://github.com/HaavardHvarnes/INLA.jl/blob/main/plans/replan-2026-04.md)
 have landed: the four `src/`-bearing packages
 ([`GMRFs.jl`](packages/gmrfs.md),
 [`LatentGaussianModels.jl`](packages/lgm.md),
@@ -39,22 +39,27 @@ Depth = 2
 
 ## Installing
 
-`v0.1.0` is not yet on the General registry. For the rc1 line, develop
-the packages directly from a clone:
+`v0.1.0` is not yet on the General registry. The packages are
+registered in a personal Julia registry. From a fresh Julia REPL:
 
 ```julia
 using Pkg
-Pkg.develop([
-    Pkg.PackageSpec(path = "packages/GMRFs.jl"),
-    Pkg.PackageSpec(path = "packages/LatentGaussianModels.jl"),
-    Pkg.PackageSpec(path = "packages/INLASPDE.jl"),
-    Pkg.PackageSpec(path = "packages/INLASPDERasters.jl"),
-])
+Pkg.Registry.add(RegistrySpec(url = "https://github.com/haavardhvarnes/JuliaRegistry"))
+Pkg.Registry.add("General")  # idempotent if already added
+Pkg.add("INLA")              # umbrella: GMRFs + LatentGaussianModels + INLASPDE
 ```
 
+To install only one core package, substitute `"INLA"` for `"GMRFs"`,
+`"LatentGaussianModels"`, `"INLASPDE"`, or `"INLASPDERasters"`.
+
 Optional sub-packages (`LGMTuring.jl`, `LGMFormula.jl`,
-`GMRFsPardiso.jl`) install separately — see the dependency notes in
-each package's section.
+`GMRFsPardiso.jl`) are **not** registered yet — install them by
+`Pkg.develop`-ing this repo's subdir directly, e.g.
+
+```julia
+Pkg.develop(url = "https://github.com/haavardhvarnes/INLA.jl",
+            subdir = "packages/LGMTuring.jl")
+```
 
 ## How to read this site
 
@@ -75,7 +80,7 @@ each package's section.
 ## Differences from R-INLA
 
 The full list lives in
-[`plans/defaults-parity.md`](https://github.com/HaavardHvarnes/INLA/blob/main/plans/defaults-parity.md).
+[`plans/defaults-parity.md`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/plans/defaults-parity.md).
 Highlights:
 
 - **Single dispatch table.** Every latent component, likelihood,

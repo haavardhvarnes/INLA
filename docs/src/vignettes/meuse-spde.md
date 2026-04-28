@@ -96,12 +96,12 @@ fixed_effects(model, res)
 
 The fixture's `summary_fixed`, `summary_hyperpar`, and `mlik` carry
 R-INLA's posterior. Per
-[`plans/testing-strategy.md`](https://github.com/HaavardHvarnes/INLA/blob/main/plans/testing-strategy.md),
+[`plans/testing-strategy.md`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/plans/testing-strategy.md),
 the Meuse oracle tolerances are 1% on fixed-effect means relative to
 their posterior SD, 25% on `(ρ, σ)`, and 30% on `τ_ε` (looser bands
 reflect mode-vs-mean and integration-scheme differences). The full
 assertion suite lives in
-[`test/oracle/test_meuse_spde.jl`](https://github.com/HaavardHvarnes/INLA/blob/main/packages/INLASPDE.jl/test/oracle/test_meuse_spde.jl).
+[`test/oracle/test_meuse_spde.jl`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/packages/INLASPDE.jl/test/oracle/test_meuse_spde.jl).
 
 ```@example meuse
 sf_rows = fxt["summary_fixed"]["rownames"]

@@ -53,11 +53,14 @@ update!(cache, BesagGMRF(g; τ = 4.0, scale_model = true))
 
 ## Installation
 
-Not yet on the General registry. Develop from a clone:
+Not yet on the General registry. Registered in a personal Julia
+registry — add it once, then `Pkg.add` as usual:
 
 ```julia
 using Pkg
-Pkg.develop(path = "packages/GMRFs.jl")
+Pkg.Registry.add(RegistrySpec(url = "https://github.com/haavardhvarnes/JuliaRegistry"))
+Pkg.Registry.add("General")  # idempotent if already added
+Pkg.add("GMRFs")
 ```
 
 ## See also

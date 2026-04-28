@@ -61,43 +61,43 @@ canonical R-INLA datasets within the testing-strategy tolerances.
 ### Changed
 
 - **Seasonal log-NC and constraint convention**
-  ([`4020589`](https://github.com/HaavardHvarnes/INLA/commit/4020589)).
+  ([`4020589`](https://github.com/HaavardHvarnes/INLA.jl/commit/4020589)).
   `SeasonalGMRF` declares a single sum-to-zero constraint matching
   R-INLA's `model = "seasonal"`. Per-component
   `log_normalizing_constant` uses `rd_eff = period` (not `period − 1`)
   because the constraint hits `range(Q)` rather than `null(Q)`,
   consuming one PD direction. Closes the τ\_seas / mlik gap to R-INLA.
 - **BYM log-NC**
-  ([`7d1cab7`](https://github.com/HaavardHvarnes/INLA/commit/7d1cab7)).
+  ([`7d1cab7`](https://github.com/HaavardHvarnes/INLA.jl/commit/7d1cab7)).
   `BYM` per-component `log_normalizing_constant` matches R-INLA's
   `extra()` for `F_BYM`: `−¼(2n − K) log(2π)` where `K` is the number
   of connected components. Closes the Scotland BYM mlik gap.
 - **Generic0 / Generic1 log-NC**
-  ([`3e28604`](https://github.com/HaavardHvarnes/INLA/commit/3e28604)).
+  ([`3e28604`](https://github.com/HaavardHvarnes/INLA.jl/commit/3e28604)).
   Both match R-INLA's shared `F_GENERIC0` `extra()` branch
   (`inla.c:2986-2987`), with the Gaussian normaliser
   `−½(n − rd) log(2π) + ½(n − rd) θ` applied per component.
 - **`Intercept()` is improper by default**
-  ([`41c986b`](https://github.com/HaavardHvarnes/INLA/commit/41c986b)),
+  ([`41c986b`](https://github.com/HaavardHvarnes/INLA.jl/commit/41c986b)),
   matching R-INLA's `prec.intercept = 0`. Closes the constant
   ½ log(prec) shift in BYM2 / BYM joint Gaussian normalising
   constants. Pass `Intercept(prec = …)` for the proper-Normal
   variant.
 - **Phase-B feature scope trimmed to MVP**
-  ([`ebf8b42`](https://github.com/HaavardHvarnes/INLA/commit/ebf8b42))
+  ([`ebf8b42`](https://github.com/HaavardHvarnes/INLA.jl/commit/ebf8b42))
   ahead of the rc1 cut.
 
 ### Fixed
 
 - **Per-component Sørbye-Rue scaling on disconnected graphs**
-  ([`c6547a4`](https://github.com/HaavardHvarnes/INLA/commit/c6547a4)).
+  ([`c6547a4`](https://github.com/HaavardHvarnes/INLA.jl/commit/c6547a4)).
   `BesagGMRF` and `BYM2` now scale each connected component
   independently per Freni-Sterrantino, Ventrucci & Rue (2018), and
   emit one sum-to-zero constraint per component. Was the most common
   silent failure mode in disease-mapping models on disconnected
   regions.
 - **SPDE2 log-normalizing-constant** for Meuse-class meshes
-  ([`bd70f40`](https://github.com/HaavardHvarnes/INLA/commit/bd70f40)).
+  ([`bd70f40`](https://github.com/HaavardHvarnes/INLA.jl/commit/bd70f40)).
 
 ### Known limitations
 

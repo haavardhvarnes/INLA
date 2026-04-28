@@ -19,12 +19,12 @@ inference. The R-INLA-equivalent layer on top of `GMRFs.jl`.
   the convenience aliases `empirical_bayes`, `laplace`, `inla`. The
   default integration scheme is `:auto` (CCD for `dim(θ) > 2`,
   `Grid` otherwise — see ADR-010 in
-  [`plans/decisions.md`](https://github.com/HaavardHvarnes/INLA/blob/main/plans/decisions.md)).
+  [`plans/decisions.md`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/plans/decisions.md)).
 - **Diagnostics**: `dic`, `waic`, `cpo`, `pit`,
   `log_marginal_likelihood`.
 - **`INLALogDensity`** — a `LogDensityProblems`-conformant view of the
   joint posterior, with a `LogDensityOrder{1}` gradient. Downstream
-  samplers (Turing via [`LGMTuring.jl`](https://github.com/HaavardHvarnes/INLA/tree/main/packages/LGMTuring.jl),
+  samplers (Turing via [`LGMTuring.jl`](https://github.com/HaavardHvarnes/INLA.jl/tree/main/packages/LGMTuring.jl),
   AdvancedHMC, custom) plug in here.
 
 ## Building a model
