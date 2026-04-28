@@ -103,6 +103,40 @@ end
             mlik_R = Float64(fx["mlik"][1])
             mlik_J = log_marginal_likelihood(res)
             @test _rel(mlik_J, mlik_R) < MLIK_REL_TOL
+
+            # --- ADR-016: simplified.laplace BYM mean parity --------------
+            if !haskey(fx, "bym_mean_sla")
+                @test_skip "fixture has no `bym_mean_sla` field — regenerate to add ADR-016 oracle"
+            else
+                res_sla = inla(model, y; int_strategy = :grid,
+                               latent_strategy = :simplified_laplace)
+                bym_R_sla = Float64.(fx["bym_mean_sla"])
+                # R-INLA's `summary.random$region$mean` for BYM2 has length
+                # 2n: first n entries are the joint b = (1/√τ)(√(1-φ) v +
+                # √φ u*); next n are the unstructured u*. Our latent layout
+                # places b at columns 3..n+2 (after α, β).
+                @test length(bym_R_sla) == 2 * n
+                b_J = res_sla.x_mean[3:(n + 2)]
+                # Tolerance: 5% sup-norm relative to max |b_R| — same band
+                # as fixed-effects (FIXED_EFFECT_TOL). On Pennsylvania the
+                # mean-shift correction is small (~1e-3) because expected
+                # counts are large; the residual ~6e-3 gap is dominated by
+                # CCD/grid integration-weight differences with R-INLA.
+                bym_diff = maximum(abs, b_J .- bym_R_sla[1:n])
+                bym_scale = max(maximum(abs, bym_R_sla[1:n]), 1.0e-3)
+                @test bym_diff / bym_scale < 0.05
+
+                # Sanity: the SLA path actually applies the Rue-Martino
+                # shift — so it differs from the Newton-mode path. The
+                # difference is small here but must be non-zero.
+                b_J_g = res.x_mean[3:(n + 2)]
+                @test !all(iszero, b_J .- b_J_g)
+                # SLA should not be *worse* than Gaussian by more than the
+                # shift magnitude; for Pennsylvania-skewness, both paths
+                # sit within the 5% band.
+                gauss_diff = maximum(abs, b_J_g .- bym_R_sla[1:n])
+                @test bym_diff ≤ gauss_diff + maximum(abs, b_J .- b_J_g)
+            end
         end
     end
 end

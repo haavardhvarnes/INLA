@@ -110,6 +110,13 @@ function convert_fixture(doc)
         out["input"] = _convert_input(doc["input"])
     end
 
+    # ADR-016: oracle BYM/BYM2 latent posterior mean under R-INLA's
+    # `strategy = "simplified.laplace"`. Optional, present on
+    # pennsylvania_bym2; downstream tests skip transparently otherwise.
+    if haskey(doc, "bym_mean_sla") && doc["bym_mean_sla"] !== nothing
+        out["bym_mean_sla"] = Float64.(collect(doc["bym_mean_sla"]))
+    end
+
     # SPDE fmesher/mesh fields. `mesh` comes from `mesh_to_list` in
     # _helpers.R; `boundary` is a list of 2-vectors; `params` is a
     # flat dict of Floats; `A_field` is a sparse triplet.

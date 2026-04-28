@@ -101,6 +101,20 @@ fit <- INLA::inla(
     control.compute = list(return.marginals = TRUE)
 )
 
+# Second fit under R-INLA's `strategy = "simplified.laplace"` to provide
+# an oracle for INLA.jl's `latent_strategy = :simplified_laplace` (ADR-016).
+# We only need the BYM2 latent posterior mean here; marginals and DIC
+# are skipped for speed.
+fit_sla <- INLA::inla(
+    formula,
+    family = "poisson",
+    data = df,
+    E = df$expected,
+    control.predictor = list(compute = FALSE),
+    control.compute = list(return.marginals = FALSE),
+    control.inla = list(strategy = "simplified.laplace")
+)
+
 out_path <- file.path(here, "..", "fixtures", "lgm", "pennsylvania_bym2.json")
 
 write_inla_fixture(
@@ -122,8 +136,9 @@ write_inla_fixture(
 )
 
 # Append input data so the Julia-side oracle test can re-run the same
-# fit without SpatialEpi / spdep dependencies. Re-read the JSON, add
-# `input` fields, write back.
+# fit without SpatialEpi / spdep dependencies, plus the SLA-strategy
+# BYM mean for ADR-016 oracle coverage. Length is 2n: first n are the
+# joint b = (1/√τ)(√(1-φ) v + √φ u*), next n are the unstructured u*.
 fixture <- jsonlite::fromJSON(out_path, simplifyVector = FALSE)
 fixture$input <- list(
     cases    = as.integer(df$cases),
@@ -131,6 +146,7 @@ fixture$input <- list(
     x        = as.numeric(df$x),
     W        = sparse_to_triplet(Matrix::Matrix(W, sparse = TRUE))
 )
+fixture$bym_mean_sla <- as.numeric(fit_sla$summary.random$region$mean)
 jsonlite::write_json(
     fixture, out_path,
     auto_unbox = TRUE, digits = 16, pretty = FALSE, na = "null"
