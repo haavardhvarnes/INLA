@@ -35,7 +35,12 @@ jobs:
         shell: julia --color=yes --project=docs {0}
         run: |
           using Pkg
-          local_pkgs = filter(isdir, readdir("packages", join=true))
+          # Skip src-less placeholder packages (e.g. `LGMFormula.jl`,
+          # `GMRFsPardiso.jl` are 0.1.0-DEV scaffolding); `Pkg.develop`
+          # rejects path-less packages with `expected the file
+          # src/<Name>.jl to exist`.
+          local_pkgs = filter(p -> isdir(p) && isdir(joinpath(p, "src")),
+              readdir("packages", join=true))
           Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
           Pkg.instantiate()
           include("docs/make.jl")
