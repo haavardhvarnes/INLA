@@ -886,6 +886,236 @@ corrections remain v0.3 / out of scope.
 
 ---
 
+## ADR-017: Projector seam — `AbstractObservationMapping` for joint-likelihood / multi-response models
+
+Status: Proposed
+Date: 2026-04-29
+
+Supersedes ADR-005 (which deferred the call to "Phase 5"; that phase
+is now Phase G of `replan-2026-04-28.md`, and the call is due).
+
+### Context
+
+The v0.1 `LatentGaussianModel` carries a single `A::AbstractMatrix`
+projector mapping the stacked latent vector `x` to the linear
+predictor `η = A x`, alongside a single `likelihood::AbstractLikelihood`
+applied row-wise to `η`. This is sufficient for every fixture
+currently in `test/oracle/`: areal Poisson (Scotland, Pennsylvania),
+geostatistical Gaussian (Meuse), all the synthetic singletons.
+
+Phase G unlocks the rest of R-INLA's mainstream coverage —
+joint longitudinal-survival, multi-response geostatistics, disease
+mapping with multiple sentinels — and every one of these models
+violates **both** assumptions simultaneously:
+
+1. There are *several* likelihood blocks, e.g. Gaussian on the
+   longitudinal arm and Weibull on the survival arm.
+2. Each block has its own row-to-latent mapping `A_k`, and the
+   `Copy` component (Phase G scope) shares one block's latent into
+   another block's predictor with an estimated scaling β.
+
+R-INLA papers over this with `inla.stack`, which conflates *three*
+concerns: observation mapping, data stacking, and effect indexing.
+Replicating `inla.stack` verbatim would import its sharpest
+ergonomic edge — most R-INLA support questions are stack-related —
+while losing the type-stable structural API that ADR-003 committed
+us to. We need an alternative that (a) handles the multi-block case
+cleanly, (b) keeps the v0.1 single-block users on the existing
+constructor with no source change, and (c) gives third-party
+components a typed extension point rather than a magic
+`hcat`-shaped contract.
+
+The architecture document (`plans/architecture.md` §"The projector
+question — open issue") flags this and explicitly defers the
+abstract-type promotion to an ADR. The replan's Phase G "Risks"
+section names a wrong abstraction here as "the first phase where
+[it] will compound across the rest of the v0.2 horizon" and asks
+for an outside reviewer before the seam merges. This ADR is that
+review prerequisite — the code change does not start before this
+record is accepted.
+
+### Decision (proposed)
+
+Promote the projector slot to a dispatchable abstract type
+`AbstractObservationMapping <: Any`, owned by
+`LatentGaussianModels.jl`. The `LatentGaussianModel` struct's `A`
+field becomes `mapping::M <: AbstractObservationMapping`, and the
+`likelihood::L <: AbstractLikelihood` field becomes
+`likelihoods::Tuple{Vararg{<:AbstractLikelihood}}` keyed by
+observation block via the mapping.
+
+Concrete subtypes shipped with the seam:
+
+```julia
+abstract type AbstractObservationMapping end
+
+# v0.1 default — wraps the current m.A. Single-block; one likelihood.
+struct LinearProjector{A <: AbstractMatrix} <: AbstractObservationMapping
+    A::A
+end
+
+# Areal / row-aligned shortcut — algebraically a no-op A = I.
+struct IdentityMapping <: AbstractObservationMapping
+    n::Int
+end
+
+# Multi-block joint models — one (A_k, likelihood_k) per block.
+# Block boundaries are encoded as a Vector{UnitRange{Int}} keyed
+# parallel to `likelihoods`.
+struct StackedMapping{T <: Tuple} <: AbstractObservationMapping
+    blocks::T                    # Tuple of LinearProjector / IdentityMapping
+    rows::Vector{UnitRange{Int}} # observation-index ranges per block
+end
+
+# Separable space-time — also serves Phase M.
+struct KroneckerMapping{S, T} <: AbstractObservationMapping
+    A_space::S
+    A_time::T
+end
+```
+
+Required interface (every `AbstractObservationMapping` implements):
+
+```julia
+apply!(η, mapping, x)              # η .= mapping * x, in place
+apply_adjoint!(g, mapping, r)      # g .+= mappingᵀ * r, accumulating
+nrows(mapping) -> Int              # row count of the implicit matrix
+ncols(mapping) -> Int              # column count = length(x)
+likelihood_for(mapping, i) -> Int  # which block-index owns row i
+                                   # (default returns 1 for single-block)
+```
+
+`apply!` and `apply_adjoint!` are the load-bearing inner-Newton
+operations — they replace every `m.A * x` and `m.A' * r` site in
+`inference/laplace.jl`. Performance contract: an `IdentityMapping`
+falls through to a `copyto!`; a `LinearProjector{<:SparseMatrixCSC}`
+calls `mul!` on the underlying matrix with no wrapper allocation.
+Benchmarked against the v0.1 baseline on `test/oracle/`: target ≤2 %
+regression on Scotland BYM2 wall-clock, ≤5 % on Meuse SPDE.
+
+Constructor compatibility:
+
+```julia
+# v0.1 form — unchanged; wraps in LinearProjector internally.
+LatentGaussianModel(ℓ::AbstractLikelihood, components, A::AbstractMatrix)
+
+# v0.2 multi-likelihood form.
+LatentGaussianModel(ℓs::Tuple{Vararg{AbstractLikelihood}}, components,
+                    mapping::AbstractObservationMapping)
+```
+
+The single-likelihood signature continues to work for **two minor
+versions** with a one-line deprecation warning advising the new tuple
+form; v0.4 drops it. Existing `test/oracle/` fixtures keep their
+constructors unchanged across v0.1 → v0.2.
+
+### Alternatives considered
+
+**A. Carry a tuple of `(likelihood, A)` pairs directly on the
+model.** Simpler — no new abstract type, no dispatch. Rejected
+because it inlines the abstraction at every call site
+(`for (ℓ, A) in pairs ...`) and forecloses on `KroneckerMapping`,
+which Phase M needs anyway. The dispatch seam is the cheap insurance
+against re-litigating this in 18 months.
+
+**B. Keep `A` and `likelihood` as v0.1, expose multi-block via a new
+`MultiLikelihoodModel` type.** Two parallel model types means every
+inference strategy, diagnostic, and accessor in
+`LatentGaussianModels.jl` and `INLASPDE.jl` ships in two flavours.
+Rejected on cost.
+
+**C. Adopt R-INLA's `inla.stack` 1:1.** Already rejected by ADR-003
+(structural over procedural API).
+
+### Consequences
+
+**Good.**
+
+- Joint-likelihood models become a struct + a tuple, not a DSL —
+  preserves the ADR-003 commitment.
+- `Copy` (also Phase G) lands as a `LinearPredictorTerm` that the
+  mapping holds, with no further surgery on the model struct.
+- Phase M's separable space-time gets `KroneckerMapping` for free.
+- The single-likelihood hot path is unchanged: `LinearProjector{<:
+  SparseMatrixCSC}` is one indirection that the compiler inlines.
+- Third-party components define their own
+  `AbstractObservationMapping` (e.g. `LowRankProjector` for
+  factor-analytic models) without touching LGM's source.
+
+**Cost.**
+
+- One breaking change in the `LatentGaussianModel` field layout
+  (`A` → `mapping`). Mitigated by the constructor compatibility
+  shim and the deprecation window.
+- Every `m.A` access inside `LatentGaussianModels.jl`,
+  `INLASPDE.jl`, and the LGM tests is rewritten to go through
+  `apply!` / `apply_adjoint!`. ~30 sites by `grep`. One PR.
+- The `nhyperparameters` accounting changes — likelihood θ is now
+  a vector-of-tuples rather than a scalar offset. Touches
+  `θ_ranges` initialisation in `model.jl:52-58`.
+- Inference strategies that materialise `A` densely (none today, but
+  `simplified_laplace_correction.jl` does row-slicing) need a path
+  through the mapping interface. Tracked as a follow-up sub-task,
+  not a blocker for the seam itself.
+
+**Escape hatch.** If the mapping abstraction underperforms in a
+benchmarked hot path, drop to the underlying matrix via
+`mapping.A` (for `LinearProjector`) and call `mul!` directly —
+the wrapper is intentionally thin enough that this is a single-line
+opt-out for that call site.
+
+### Phasing — how this lands
+
+The replan asks for multi-likelihood as one PR series and `Copy` as
+a follow-up; this ADR keeps that split:
+
+1. **PR series 1 — seam only.** Introduce
+   `AbstractObservationMapping`, the four concrete subtypes, the
+   compatibility constructor, and the `m.A → m.mapping` rewrite.
+   Single-likelihood semantics throughout. Goal: every existing
+   oracle test passes unchanged.
+2. **PR series 2 — multi-likelihood.** Promote `likelihood` →
+   `likelihoods` and route per-block density evaluation through
+   `likelihood_for(mapping, i)`. New oracle fixture: a two-block
+   Gaussian + Poisson synthetic.
+3. **PR series 3 — `Copy` component.** Lands on top of (2) using
+   `LinearPredictorTerm` to express shared latents. Fixture:
+   Baghfalaki et al. (gated on Phase H survival likelihoods —
+   merges as a later vignette PR).
+
+### Open questions for the reviewer
+
+1. Should `IdentityMapping` carry `n::Int` or be dimension-free?
+   Carrying `n` keeps `nrows`/`ncols` cheap and lets us assert
+   shape at construction; the cost is one `Int` per model.
+2. Block ordering invariant: are the rows of `StackedMapping`
+   *required* to be contiguous and sorted, or should we allow
+   interleaved row indices? Contiguous is simpler; interleaved
+   matches R-INLA's `inla.stack` more closely. Recommendation:
+   contiguous in v0.2, defer interleaved to a follow-up if a real
+   user needs it.
+3. Do we expose `apply!`/`apply_adjoint!` as public API, or hide
+   them behind `*` / `mul!` overloads only? Public is friendlier
+   to third-party components; private keeps us free to tweak the
+   signature. Recommendation: public, documented in the package
+   `CLAUDE.md`.
+
+### References
+
+- ADR-003 (multi-dispatch primary API) — the commitment this ADR
+  preserves under multi-likelihood pressure.
+- ADR-005 (projector as field, deferred decision) — superseded.
+- `plans/architecture.md` §"The projector question — open issue" —
+  the open issue this ADR closes.
+- `plans/replan-2026-04-28.md` Phase G — "Multi-likelihood support",
+  "AbstractObservationMapping seam", "`Copy` component", and the
+  "Risks" subsection asking for outside ADR review.
+- R-INLA source: `inla.stack` in [`r-inla/rinla/R/stack.R`](https://github.com/hrue/r-inla/blob/devel/rinla/R/stack.R)
+  — the abstraction we are explicitly *not* copying.
+- Baghfalaki et al. tutorial — the joint-model fixture target.
+
+---
+
 ## ADR template for future entries
 
 ```
