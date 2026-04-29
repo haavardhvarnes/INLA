@@ -113,7 +113,13 @@ end
 # log Γ(n+1) for non-negative integer n via Distributions' logfactorial /
 # SpecialFunctions.loggamma. Keep it local to avoid pulling in
 # SpecialFunctions.jl as a dep; Distributions re-exports what we need.
-_loggamma_int(n::Integer) = Distributions.loggamma(n)
+#
+# Accept any `Real`, not just `Integer`: in the multi-likelihood pathway
+# (ADR-017 PR2) a stacked observation vector forces a single element type
+# across all blocks, so a Poisson block's counts arrive as `Float64`.
+# The values are still integer-valued; we forward them to `loggamma`
+# unchanged.
+_loggamma_int(n::Real) = Distributions.loggamma(n)
 
 # --- pointwise log-density + CDF for diagnostics ----------------------
 
