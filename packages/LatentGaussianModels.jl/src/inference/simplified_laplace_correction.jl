@@ -38,7 +38,7 @@ roughly one inner Newton iteration per integration point.
 function _sla_mean_shift(lp::LaplaceResult,
                          model::LatentGaussianModel,
                          y)
-    A = model.A
+    A = as_matrix(model.mapping)
     ℓ = model.likelihood
     n_ℓ = nhyperparameters(ℓ)
     θ_ℓ = n_ℓ > 0 ? lp.θ[1:n_ℓ] : Float64[]

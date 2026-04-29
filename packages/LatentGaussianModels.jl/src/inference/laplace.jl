@@ -61,7 +61,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
                       strategy::Laplace = Laplace(),
                       x0::Union{Nothing, AbstractVector{<:Real}} = nothing)
     Q = joint_precision(m, θ)
-    A = m.A
+    A = as_matrix(m.mapping)
     ℓ = m.likelihood
     n_ℓ = nhyperparameters(ℓ)
     θ_ℓ = θ[1:n_ℓ]

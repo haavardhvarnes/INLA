@@ -108,7 +108,7 @@ end
 end
 
 @testset "MeshProjector — integrates with LatentGaussianModel" begin
-    using LatentGaussianModels: LatentGaussianModel, GaussianLikelihood, build_projector
+    using LatentGaussianModels: LatentGaussianModel, GaussianLikelihood
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
     mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.4, min_angle = 25.0)
 
@@ -116,8 +116,11 @@ end
     locs = [0.25 0.25; 0.5 0.5; 0.75 0.75]
     P = MeshProjector(mesh, locs)
 
-    # The sparse A is directly accepted by LatentGaussianModel.
+    # The sparse A is directly accepted by LatentGaussianModel; the
+    # v0.1 constructor wraps it in a LinearProjector internally
+    # (ADR-017).
     like = GaussianLikelihood()
     model = LatentGaussianModel(like, spde, P.A)
-    @test size(model.A) == (3, length(spde))
+    @test size(model.mapping) == (3, length(spde))
+    @test model.mapping isa LinearProjector
 end

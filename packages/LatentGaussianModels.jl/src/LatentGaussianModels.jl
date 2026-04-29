@@ -55,6 +55,9 @@ include("components/leroux.jl")
 include("components/generic0.jl")
 include("components/generic1.jl")
 
+# --- observation mapping (load before model.jl) -----------------------
+include("observation_mapping.jl")
+
 # --- model + inference ------------------------------------------------
 include("model.jl")
 include("inference/abstract.jl")
@@ -93,8 +96,13 @@ export Intercept, FixedEffects, IID, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean
 
+# Observation mapping
+export AbstractObservationMapping, IdentityMapping, LinearProjector,
+       StackedMapping, KroneckerMapping
+export apply!, apply_adjoint!, nrows, ncols, likelihood_for, as_matrix
+
 # Model + inference
-export LatentGaussianModel, n_latent, n_hyperparameters
+export LatentGaussianModel, n_latent, n_observations, n_hyperparameters
 export joint_precision
 export AbstractInferenceStrategy, AbstractInferenceResult
 export AbstractIntegrationScheme, Grid, GaussHermite, CCD

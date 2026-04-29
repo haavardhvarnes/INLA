@@ -159,7 +159,7 @@ function _latent_skewness(lp::LaplaceResult,
     σ_i = sqrt(max(var_i, 0.0))
     σ_i == 0 && return 0.0
 
-    A = model.A
+    A = as_matrix(model.mapping)
     ℓ = model.likelihood
     n_ℓ = nhyperparameters(ℓ)
     θ_ℓ = n_ℓ > 0 ? lp.θ[1:n_ℓ] : Float64[]
