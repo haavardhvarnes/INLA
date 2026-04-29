@@ -18,13 +18,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Only packages with a populated `src/`. `LGMFormula.jl` and
+        # `GMRFsPardiso.jl` are 0.1.0-DEV scaffolding without sources;
+        # add them back when they ship.
         package:
           - GMRFs.jl
           - LatentGaussianModels.jl
           - INLASPDE.jl
-          - LGMFormula.jl
           - LGMTuring.jl
-          - GMRFsPardiso.jl
           - INLASPDERasters.jl
         julia-version:
           - '1.10'   # LTS
@@ -62,17 +63,21 @@ jobs:
         env:
           JULIA_PROJECT: packages/${{ matrix.package }}
         run: |
-          using Pkg
-          # Develop all local packages so intra-ecosystem deps resolve to the
-          # checkout, not the General registry (which may not have them yet).
-          # Skip placeholder packages without `src/` (DEV-versioned
-          # scaffolding) and the active project itself; `Pkg.develop`
-          # rejects both.
+          using Pkg, TOML
+          # Dev-link only the active project's intra-ecosystem [deps] —
+          # not every sibling package. Polluting the env with unrelated
+          # locals would (a) make Aqua flag them as stale deps and
+          # (b) break compat-completeness checks. The General registry
+          # supplies anything outside the local checkout.
           active = abspath(ENV["JULIA_PROJECT"])
-          local_pkgs = filter(readdir("packages", join=true)) do p
-              isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active
+          active_deps = get(TOML.parsefile(joinpath(active, "Project.toml")), "deps", Dict{String,Any}())
+          to_dev = String[]
+          for p in readdir("packages", join=true)
+              (isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active) || continue
+              name = TOML.parsefile(joinpath(p, "Project.toml"))["name"]
+              haskey(active_deps, name) && push!(to_dev, p)
           end
-          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          isempty(to_dev) || Pkg.develop([Pkg.PackageSpec(path=p) for p in to_dev])
           Pkg.instantiate()
       - uses: julia-actions/julia-runtest@v1
         with:
@@ -106,15 +111,16 @@ jobs:
         env:
           JULIA_PROJECT: packages/${{ matrix.package }}
         run: |
-          using Pkg
-          # Skip placeholder packages without `src/` (DEV-versioned
-          # scaffolding) and the active project itself; `Pkg.develop`
-          # rejects both.
+          using Pkg, TOML
           active = abspath(ENV["JULIA_PROJECT"])
-          local_pkgs = filter(readdir("packages", join=true)) do p
-              isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active
+          active_deps = get(TOML.parsefile(joinpath(active, "Project.toml")), "deps", Dict{String,Any}())
+          to_dev = String[]
+          for p in readdir("packages", join=true)
+              (isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active) || continue
+              name = TOML.parsefile(joinpath(p, "Project.toml"))["name"]
+              haskey(active_deps, name) && push!(to_dev, p)
           end
-          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          isempty(to_dev) || Pkg.develop([Pkg.PackageSpec(path=p) for p in to_dev])
           Pkg.instantiate()
       - uses: julia-actions/julia-runtest@v1
         with:
