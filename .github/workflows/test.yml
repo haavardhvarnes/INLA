@@ -66,9 +66,11 @@ jobs:
           # Develop all local packages so intra-ecosystem deps resolve to the
           # checkout, not the General registry (which may not have them yet).
           # Skip placeholder packages without `src/` (DEV-versioned
-          # scaffolding); `Pkg.develop` rejects them.
+          # scaffolding) and the active project itself; `Pkg.develop`
+          # rejects both.
+          active = abspath(ENV["JULIA_PROJECT"])
           local_pkgs = filter(readdir("packages", join=true)) do p
-              isdir(p) && isdir(joinpath(p, "src"))
+              isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active
           end
           Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
           Pkg.instantiate()
@@ -106,9 +108,11 @@ jobs:
         run: |
           using Pkg
           # Skip placeholder packages without `src/` (DEV-versioned
-          # scaffolding); `Pkg.develop` rejects them.
+          # scaffolding) and the active project itself; `Pkg.develop`
+          # rejects both.
+          active = abspath(ENV["JULIA_PROJECT"])
           local_pkgs = filter(readdir("packages", join=true)) do p
-              isdir(p) && isdir(joinpath(p, "src"))
+              isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active
           end
           Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
           Pkg.instantiate()
