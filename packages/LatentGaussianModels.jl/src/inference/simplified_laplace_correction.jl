@@ -39,12 +39,9 @@ function _sla_mean_shift(lp::LaplaceResult,
                          model::LatentGaussianModel,
                          y)
     A = as_matrix(model.mapping)
-    ℓ = model.likelihood
-    n_ℓ = nhyperparameters(ℓ)
-    θ_ℓ = n_ℓ > 0 ? lp.θ[1:n_ℓ] : Float64[]
     η̂ = A * lp.mode
 
-    h³ = ∇³_η_log_density(ℓ, y, η̂, θ_ℓ)
+    h³ = joint_∇³_η_log_density(model, y, η̂, lp.θ)
     all(iszero, h³) && return zeros(Float64, length(lp.mode))
 
     # Z = H⁻¹ Aᵀ via multi-RHS sparse Cholesky on the cached factor
