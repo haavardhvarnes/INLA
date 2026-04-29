@@ -55,7 +55,12 @@ jobs:
           version: ${{ matrix.julia-version }}
       - uses: julia-actions/cache@v2
       - name: Dev-link intra-ecosystem deps
-        shell: julia --color=yes --project=packages/${{ matrix.package }} {0}
+        # `matrix` is not a valid context inside `shell:`; pass the project
+        # via `JULIA_PROJECT` instead so the matrix interpolation lives in
+        # `env:` (where it's allowed). Same payload as before.
+        shell: julia --color=yes {0}
+        env:
+          JULIA_PROJECT: packages/${{ matrix.package }}
         run: |
           using Pkg
           # Develop all local packages so intra-ecosystem deps resolve to the
@@ -90,7 +95,10 @@ jobs:
         with:
           version: 'nightly'
       - uses: julia-actions/cache@v2
-      - shell: julia --color=yes --project=packages/${{ matrix.package }} {0}
+      - name: Dev-link intra-ecosystem deps
+        shell: julia --color=yes {0}
+        env:
+          JULIA_PROJECT: packages/${{ matrix.package }}
         run: |
           using Pkg
           local_pkgs = filter(isdir, readdir("packages", join=true))
