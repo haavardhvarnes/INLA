@@ -254,9 +254,22 @@ _component_name(c::AbstractLatentComponent, i::Integer) =
 
 function _hyperparameter_names(m::LatentGaussianModel)
     names = String[]
-    n_ℓ = nhyperparameters(m.likelihood)
-    for k in 1:n_ℓ
-        push!(names, "likelihood[$k]")
+    K = length(m.likelihoods)
+    if K == 1
+        # Back-compat: single-likelihood models keep the historical
+        # "likelihood[k]" labelling indexed over the (single) block's
+        # hyperparameters.
+        n_ℓ = nhyperparameters(m.likelihoods[1])
+        for k in 1:n_ℓ
+            push!(names, "likelihood[$k]")
+        end
+    else
+        for (b, ℓ) in enumerate(m.likelihoods)
+            n_ℓ = nhyperparameters(ℓ)
+            for j in 1:n_ℓ
+                push!(names, "likelihood[$b][$j]")
+            end
+        end
     end
     for (i, c) in enumerate(m.components)
         n_c = nhyperparameters(c)
