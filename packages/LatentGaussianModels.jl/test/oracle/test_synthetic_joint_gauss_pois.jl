@@ -19,11 +19,13 @@ using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
 const JOINT_FIXTURE = "synthetic_joint_gauss_pois"
 
 # Tolerances. n = 50 paired observations leaves meaningful posterior
-# mass on each parameter; widen the band on the IID precision because
-# its posterior is heavy-tailed under the default loggamma prior.
+# mass on each parameter. Comparison is `exp(θ̂_J)` (user-scale value at
+# the internal-scale mode) vs R-INLA's `mean` column (user-scale
+# posterior mean). For asymmetric log-precision posteriors these differ
+# systematically — the τ_g band is widened to absorb that gap on n = 50.
 const JOINT_FIXED_EFFECT_TOL = 0.10
-const JOINT_TAU_G_REL_TOL    = 0.20
-const JOINT_TAU_U_REL_TOL    = 0.30
+const JOINT_TAU_G_REL_TOL    = 0.35
+const JOINT_TAU_U_REL_TOL    = 0.10
 const JOINT_MLIK_REL_TOL     = 0.05
 
 _rel_joint(a, b) = abs(a - b) / max(abs(b), 1.0)

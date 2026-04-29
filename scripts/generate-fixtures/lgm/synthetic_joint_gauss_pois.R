@@ -7,8 +7,8 @@
 #   y_g_i | u_i ~ Normal(α + u_i, τ_g⁻¹)
 #   y_p_i | u_i ~ Poisson(exp(α + u_i))
 #   u_i ~ N(0, τ_u⁻¹)
-#   τ_g ~ logGamma(1, 5e-5)         # R-INLA default for Gaussian
-#   τ_u ~ logGamma(1, 5e-5)         # R-INLA default for IID
+#   τ_g ~ pc.prec(u = 1, α = 0.01)  # matches Julia's GaussianLikelihood default
+#   τ_u ~ pc.prec(u = 1, α = 0.01)  # matches Julia's IID default
 #   α   ~ N(0, 1e-3⁻¹)              # R-INLA default for intercept
 #
 # Block layout (matches Julia-side StackedMapping):
@@ -51,16 +51,19 @@ Y[(n + 1L):(2L * n), 2L] <- y_p
 idx <- c(seq_len(n), seq_len(n))           # site index, shared
 intercept <- rep(1.0, 2L * n)              # explicit intercept column
 
+# Match Julia defaults: `GaussianLikelihood()` and `IID(n)` both default
+# to `PCPrecision(1.0, 0.01)` — the PC prior with `P(σ > 1) = 0.01`. The
+# R-INLA equivalent is `prior = "pc.prec", param = c(u = 1, alpha = 0.01)`.
 formula <- Y ~ -1 + intercept +
     f(idx, model = "iid",
-      hyper = list(prec = list(prior = "loggamma", param = c(1, 5e-5))))
+      hyper = list(prec = list(prior = "pc.prec", param = c(1, 0.01))))
 
 fit <- INLA::inla(
     formula,
     family = c("gaussian", "poisson"),
     data = list(Y = Y, idx = idx, intercept = intercept),
     control.family = list(
-        list(hyper = list(prec = list(prior = "loggamma", param = c(1, 5e-5)))),
+        list(hyper = list(prec = list(prior = "pc.prec", param = c(1, 0.01)))),
         list()
     ),
     control.predictor = list(compute = TRUE),
