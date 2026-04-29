@@ -65,7 +65,11 @@ jobs:
           using Pkg
           # Develop all local packages so intra-ecosystem deps resolve to the
           # checkout, not the General registry (which may not have them yet).
-          local_pkgs = filter(isdir, readdir("packages", join=true))
+          # Skip placeholder packages without `src/` (DEV-versioned
+          # scaffolding); `Pkg.develop` rejects them.
+          local_pkgs = filter(readdir("packages", join=true)) do p
+              isdir(p) && isdir(joinpath(p, "src"))
+          end
           Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
           Pkg.instantiate()
       - uses: julia-actions/julia-runtest@v1
@@ -101,7 +105,11 @@ jobs:
           JULIA_PROJECT: packages/${{ matrix.package }}
         run: |
           using Pkg
-          local_pkgs = filter(isdir, readdir("packages", join=true))
+          # Skip placeholder packages without `src/` (DEV-versioned
+          # scaffolding); `Pkg.develop` rejects them.
+          local_pkgs = filter(readdir("packages", join=true)) do p
+              isdir(p) && isdir(joinpath(p, "src"))
+          end
           Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
           Pkg.instantiate()
       - uses: julia-actions/julia-runtest@v1
