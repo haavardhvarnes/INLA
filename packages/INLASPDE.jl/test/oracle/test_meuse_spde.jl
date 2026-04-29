@@ -42,7 +42,12 @@ using LinearAlgebra: norm
             sigma_U = 1.0, sigma_α = 0.5,
         ))
 
-    intercept = Intercept(prec = 1.0e-3)
+    # The R-INLA fixture sets `control.fixed = list(prec.intercept = 1e-3, ...)`
+    # — a *proper* N(0, 1000) intercept. Julia's `Intercept()` defaults to
+    # `improper = true` (matching R-INLA's `prec.intercept = 0` default; see
+    # commit 41c986b), so we must opt in to the proper form here to mirror
+    # the fixture's model and the `½ log(prec)` term in its Gaussian log-NC.
+    intercept = Intercept(prec = 1.0e-3, improper = false)
     beta_dist = FixedEffects(1; prec = 1.0e-3)
 
     # Stack projector: x = [α, β_dist, u(field)]
