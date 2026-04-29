@@ -14,6 +14,24 @@ genuine extensibility.
 testing-strategy tolerances. See [`CHANGELOG.md`](CHANGELOG.md) for
 what landed and where R-INLA parity is known to be loose.
 
+## Relationship to IntegratedNestedLaplace.jl
+
+[`IntegratedNestedLaplace.jl`](https://github.com/JuliaApproxInference/IntegratedNestedLaplace.jl)
+is a separate Julia package by a different author. It started earlier
+and is best read as a research scratchpad: a small set of hand-written
+LGMs (BivariateIID, NonStationarySPDE, …) used to explore Julia-native
+INLA approximations. Several of those numerical kernels are excellent
+references and we port them deliberately — the replan calls out
+`BivariateIIDModel` and `NonStationarySPDEModel` for graduation in
+Phase H/J, with attribution.
+
+This ecosystem (`INLA.jl` + the four core packages above) is the
+**production line**: the goal is breadth-of-R-INLA-parity, oracle-tested
+on canonical datasets, with the dispatch-based component / likelihood /
+inference-strategy seams documented in [`CLAUDE.md`](CLAUDE.md) and
+[`plans/`](plans/). If you want to fit a model and trust the answer
+against R-INLA, install from here.
+
 ## Packages
 
 ### Core ecosystem

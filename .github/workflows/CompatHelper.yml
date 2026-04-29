@@ -1,0 +1,47 @@
+name: CompatHelper
+
+on:
+  schedule:
+    # Mondays 14:00 UTC.
+    - cron: '0 14 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  CompatHelper:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v4
+
+      - name: Set up Julia
+        uses: julia-actions/setup-julia@v2
+        with:
+          version: '1.10'
+
+      - name: Install CompatHelper
+        run: julia -e 'using Pkg; Pkg.add("CompatHelper")'
+
+      - name: Run CompatHelper across the monorepo
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          julia -e '
+            using CompatHelper
+            CompatHelper.main(;
+                subdirs = [
+                    "packages/GMRFs.jl",
+                    "packages/LatentGaussianModels.jl",
+                    "packages/INLASPDE.jl",
+                    "packages/INLA.jl",
+                    "packages/INLASPDERasters.jl",
+                    "packages/LGMFormula.jl",
+                    "packages/LGMTuring.jl",
+                    "packages/GMRFsPardiso.jl",
+                ],
+                bump_compat_containing_equality_specifier = false,
+            )
+          '
