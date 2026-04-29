@@ -1116,6 +1116,252 @@ a follow-up; this ADR keeps that split:
 
 ---
 
+## ADR-018: Censoring as a likelihood-level feature — `Censoring` enum + per-row vector on the survival likelihood struct
+
+Status: Proposed
+Date: 2026-04-29
+
+### Context
+
+Phase H of `plans/replan-2026-04-28.md` ships the survival / time-to-event
+likelihood pack — Exponential, Weibull (PH and AFT), LognormalSurv,
+GammaSurv, Coxph (piecewise-baseline), WeibullCure — plus the zero-inflated
+count families. Every survival family in this pack must distinguish four
+observation modes: uncensored event time, right-censored, left-censored,
+and interval-censored. R-INLA encodes this via `inla.surv(time, event,
+time2)` where `event ∈ {0, 1, 2, 3}` is the censoring code and `time2` is
+the upper interval bound.
+
+The replan's Phase H scope (line 208) calls for a "`Censoring` enum
+(`:none`, `:right`, `:left`, `:interval`) + per-row vector on the
+likelihood struct". This ADR pins down (a) the type and where it lives,
+(b) how the boundary times for interval-censoring are carried, (c) the
+hot-path contract for `log_density` / `∇_η` / `∇²_η` / `∇³_η` under
+censoring, and (d) the upgrade path for non-survival likelihoods that
+might want censoring later (censored Gaussian → tobit). The ADR is a
+prerequisite for PR1 of the survival pack (Exponential + the censoring
+contract); Weibull / Lognormal / Gamma / Coxph land as follow-up PRs that
+inherit the contract, not re-litigate it.
+
+### Decision (proposed)
+
+**1. The enum.** Define a value-type enum in `LatentGaussianModels`:
+
+```julia
+@enum Censoring NONE RIGHT LEFT INTERVAL
+```
+
+Exported. Symbol coercion (`Censoring(:none)`, etc.) is provided as a
+convenience for keyword-call sites; storage is always the enum, not a
+`Symbol`, so the inner Newton loop sees a single byte per row and the
+compiler can unbox the branch.
+
+**2. Per-row vector on the survival likelihood struct.** Each survival
+family carries the censoring data as struct fields, *not* on `y`:
+
+```julia
+struct ExponentialLikelihood{L, C, V} <: AbstractLikelihood
+    link::L              # LogLink default — rate parameterisation
+    censoring::C         # Nothing | AbstractVector{Censoring}
+    time_hi::V           # Nothing | AbstractVector{<:Real} — INTERVAL upper bounds
+end
+```
+
+Construction:
+
+```julia
+ExponentialLikelihood()                                   # all NONE, fastest path
+ExponentialLikelihood(censoring = [NONE, RIGHT, NONE])    # mixed; time_hi unused
+ExponentialLikelihood(censoring = [NONE, INTERVAL],
+                      time_hi   = [0.0, 5.0])             # interval row uses time_hi[2]
+```
+
+The `Nothing` sentinel is load-bearing — it gives a separate dispatch for
+the all-uncensored case so the closed-form simple-density path is not
+dragged through a per-row switch in the hot path.
+
+**3. The `log_density` contract under censoring.** For a survival family
+with hazard `h(t; η, θ)` and survival `S(t; η, θ) = exp(-Λ(t; η, θ))`:
+
+| Censoring        | log p(y_i \| η_i, θ)                                        |
+|------------------|------------------------------------------------------------|
+| `NONE`           | `log f(t_i) = log h(t_i) − Λ(t_i)`                          |
+| `RIGHT`          | `log S(t_i) = −Λ(t_i)`                                      |
+| `LEFT`           | `log F(t_i) = log(1 − S(t_i))`                              |
+| `INTERVAL`       | `log[S(t_lo) − S(t_hi)] = log[exp(−Λ_lo) − exp(−Λ_hi)]`     |
+
+`y[i]` carries `t_lo` for `INTERVAL` rows; `time_hi[i]` carries `t_hi`. For
+`NONE`/`RIGHT`/`LEFT`, `y[i]` is the relevant single time. The `INTERVAL`
+log-difference uses `logsubexp(a, b) = a + log1p(-exp(b - a))` for `a > b`
+to retain digits; this is a small helper, not a new dependency.
+
+`∇_η`, `∇²_η`, `∇³_η` follow the same per-row dispatch — for each
+censoring mode the chain rule against the link function `g(η) = ` rate
+(or scale, depending on family) yields a closed form that is no more
+expensive than the uncensored case modulo a single `expm1` per
+non-`NONE` row. The `Nothing`-censoring dispatch reuses the simple
+broadcast path.
+
+**4. Boundary-time storage decision.** Three alternatives considered:
+
+- **A. `time_hi::Union{Nothing, Vector{<:Real}}` on the struct.**
+  Adopted. Cheap for the common single-bound case; one extra Vector for
+  the interval case; the type-parameterised `Nothing` keeps dispatch
+  type-stable. Cost: a tiny amount of dead storage when only some rows
+  are `INTERVAL` (`time_hi[i]` for non-`INTERVAL` rows is unread).
+- **B. Heterogeneous `y::Vector{Union{T,Tuple{T,T}}}`.** Rejected —
+  breaks every existing `y::AbstractVector{<:Real}` contract throughout
+  diagnostics, plotting, and the predict/predict_quantile API.
+- **C. A `SurvivalOutcome{T}` data type carrying `(t_lo, t_hi, c)` per
+  row.** Rejected — forces a dependent type on every survival likelihood
+  and on the `y` argument across the public API; the per-row vector
+  approach achieves the same density of information with no surface
+  change to `y`.
+
+**5. Default for non-censored families.** Gaussian, Poisson, Binomial,
+NegBinomial do **not** acquire censoring fields in PR1. The contract
+is opt-in per likelihood. A future censored Gaussian (tobit) will follow
+the same pattern: add `censoring::Union{Nothing, Vector{Censoring}}`
+plus `time_hi` to its struct, dispatch on the `Nothing` field for the
+existing fast path. No cross-cutting change to `AbstractLikelihood` is
+required; the seam is the per-likelihood struct field, not the abstract
+type.
+
+**6. Validation.** At `fit` time, assert
+`length(censoring) == length(y)` and `time_hi[i] > y[i]` for every
+`INTERVAL` row. These are public-boundary `@assert`s, removed from the
+inner Newton loop per the existing hot-path policy in
+`packages/LatentGaussianModels.jl/CLAUDE.md`.
+
+**7. Diagnostics under censoring.** `pointwise_log_density` honours the
+censoring code per row (i.e., its sum equals `log_density`, regardless
+of the censoring mix). `pointwise_cdf` for censored rows is undefined in
+v0.1 — PIT for censored observations needs a non-trivial reweighting
+(Henderson-Crowther) that is deferred to a v0.2 follow-up; the default
+`pointwise_cdf` fallback `throw`s on first call so a user who tries to
+compute PIT with censored data gets a clean error.
+
+### Alternatives considered
+
+**A. Censoring as an outer wrapper likelihood —
+`CensoredLikelihood{L<:AbstractLikelihood}`.** This keeps every base
+likelihood (Gaussian, Exponential, Weibull) censoring-naïve and adds
+censoring through composition. Rejected because the survival families
+*already* use the survival function `S` directly in their derivative
+formulas — a wrapper would have to re-derive `∇²` and `∇³` of
+`log[S − S]` numerically, blowing up cost for `INTERVAL`. Composition is
+attractive in the abstract but pays a real performance cost in the inner
+Newton loop, and does not naturally extend to censoring upper-bound
+storage.
+
+**B. Censoring as part of the `LikelihoodMapping` (ADR-017) instead of
+on the likelihood struct.** Rejected — `LikelihoodMapping` is the
+*routing* layer (which row goes to which likelihood block), not the
+*outcome model* layer. Censoring is intrinsic to the outcome model
+(survival vs. event) and naturally co-locates with the family-specific
+`log_density` formula. Putting it on the mapping would force every
+joint-likelihood model to carry a redundant censoring vector even for
+its non-survival blocks.
+
+**C. `Vector{Symbol}` instead of `Vector{Censoring}`.** Rejected on
+performance — `Symbol` is a pointer, the per-row branch through `===`
+is heavier than an enum compare; on a 5e4-observation Tonsil fit the
+branch dominates the inner-loop cost relative to the closed-form
+hazard arithmetic. The `Censoring(:none)` symbol coercion at
+construction is the convenience users wanted; the storage is the
+enum.
+
+### Consequences
+
+**Good.**
+
+- Survival families share one censoring contract; PR1 (Exponential)
+  shakes it down end-to-end before Weibull adds a shape hyperparameter
+  and Coxph adds a piecewise baseline.
+- The `Nothing`-censoring fast path means uncensored exponential fits
+  pay zero overhead from the censoring infrastructure — same throughput
+  as a hypothetical "no-censoring-ever" implementation.
+- Future censored-Gaussian (tobit) lands as a struct-field addition, not
+  an `AbstractLikelihood` contract change.
+- Aligns with R-INLA's `inla.surv` on the data side (lo/hi/code triple)
+  while keeping the Julia API typed and dispatch-friendly.
+
+**Cost.**
+
+- Each survival family must implement the four-way per-row dispatch in
+  `log_density`, `∇_η`, `∇²_η`, `∇³_η`. ~40 LoC per family. Mitigated by
+  a shared internal helper module
+  (`packages/LatentGaussianModels.jl/src/likelihoods/survival/_censoring.jl`)
+  exposing the censoring branches as inlineable building blocks.
+- `time_hi` storage is wasted for non-`INTERVAL` rows in mixed datasets.
+  In practice interval censoring is rare (Tonsil: 0%, Leuk: 0%, Gambia:
+  0%); the typical fit pays one extra `Vector` of length n_obs that goes
+  unread. Acceptable.
+- Validation assertions at the public boundary need clear, R-INLA-style
+  error messages — a row with `INTERVAL` and `time_hi[i] ≤ y[i]` is the
+  most common user mistake and the message must call this out.
+
+**Escape hatch.** If a user needs a censoring mode the enum doesn't cover
+(e.g. Type-II progressive censoring), they can implement their own
+`AbstractLikelihood` subtype that handles its own outcome encoding
+without using `Censoring` — the enum is convention, not a load-bearing
+hook in the abstract type's contract. The shared helper module is
+internal API.
+
+### Phasing — how this lands
+
+1. **PR1 — `Censoring` + `ExponentialLikelihood` + oracle.** Lands the
+   enum in `LatentGaussianModels`, the `_censoring.jl` helper, the
+   Exponential family with full censoring support, an R-INLA oracle
+   fixture (synthetic exponential survival, Phase H scope) under
+   `scripts/generate-fixtures/lgm/exp_survival/`, and tier-1 / tier-2
+   tests. **This ADR's deliverable.**
+2. **PR2 — `WeibullLikelihood` (PH parameterisation).** Reuses the
+   censoring helper. Adds the shape hyperparameter and PC prior on it.
+3. **PR3 — `LognormalSurvLikelihood`, `GammaSurvLikelihood`,
+   `WeibullCureLikelihood`.** Three families, one PR; the censoring
+   pattern is now mechanical.
+4. **PR4 — `CoxphLikelihood`** with piecewise-constant baseline and
+   stratification. Most complex; censoring contract carried over.
+5. **PR5 — Zero-inflated families.** Independent of censoring; gated on
+   the multi-likelihood seam (ADR-017) only. Lands separately.
+6. **PR6 — `PCAlphaW` hyperprior.** Sørbye-Rue 2017. Pure prior
+   addition; independent of the censoring contract.
+
+### Open questions
+
+1. **Left-truncation.** R-INLA's `inla.surv` carries a `truncation`
+   column for left-truncated data (e.g., delayed entry into a cohort).
+   This is **not** in the v0.1 censoring enum. Recommendation: add
+   `truncation::Union{Nothing, Vector{<:Real}}` on the survival likelihood
+   in a v0.2 PR if a user reports needing it; the contract here doesn't
+   foreclose on it.
+2. **`pointwise_cdf` under censoring.** The Henderson-Crowther PIT for
+   censored observations is non-trivial. Recommendation: deferred to
+   v0.2; the v0.1 default `throw` is the right ergonomic for now.
+3. **`@enum` vs. `BitFlags`.** A `@enum` cannot be combined (e.g.,
+   right-censored *and* left-truncated). If we need the cross product
+   later we'll move to `@bitflag`. Recommendation: stick with `@enum`
+   in v0.1; revisit in v0.2 alongside left-truncation.
+
+### References
+
+- `plans/replan-2026-04-28.md` Phase H, line 208 — censoring enum scope.
+- ADR-017 — multi-likelihood seam; Phase H survival families plug into
+  the same `LikelihoodMapping` story but the censoring contract is
+  orthogonal.
+- ADR-006 (and 2026-04-24 amendment) — sets the precedent of opt-in
+  per-likelihood extensions to the inner-Newton path
+  (`∇³_η_log_density` was added the same way).
+- Klein & Moeschberger (2003), *Survival Analysis*, §3.5 — the four
+  censoring modes and their likelihoods.
+- R-INLA `inla.surv` source —
+  [`r-inla/rinla/R/inla.surv.R`](https://github.com/hrue/r-inla/blob/devel/rinla/R/inla.surv.R).
+- `packages/LatentGaussianModels.jl/CLAUDE.md` — likelihood contract +
+  hot-path policy this ADR extends.
+
+---
+
 ## ADR template for future entries
 
 ```
