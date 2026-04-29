@@ -39,7 +39,8 @@ function posterior_samples_η(rng::Random.AbstractRNG,
                              model::LatentGaussianModel;
                              n_samples::Integer = 1000)
     n_samples ≥ 1 || throw(ArgumentError("n_samples must be ≥ 1"))
-    n_obs = size(model.A, 1)
+    A = as_matrix(model.mapping)
+    n_obs = size(A, 1)
     n_ℓ = nhyperparameters(model.likelihood)
 
     η_samples = Matrix{Float64}(undef, n_obs, n_samples)
@@ -54,7 +55,7 @@ function posterior_samples_η(rng::Random.AbstractRNG,
         lp = res.laplaces[k]
 
         x = _sample_laplace(rng, lp)
-        @views η_samples[:, s] .= model.A * x
+        @views η_samples[:, s] .= A * x
         if n_ℓ > 0
             @views θℓ_samples[:, s] .= res.θ_points[k][1:n_ℓ]
         end
@@ -106,9 +107,10 @@ MC-based [`waic`](@ref) is a robust alternative.
 function dic(res::INLAResult, model::LatentGaussianModel, y)
     ℓ = model.likelihood
     n_ℓ = nhyperparameters(ℓ)
+    A = as_matrix(model.mapping)
 
     # D at the posterior mean of the linear predictor + θ_ℓ.
-    η_mean = model.A * res.x_mean
+    η_mean = A * res.x_mean
     θℓ_mean = n_ℓ > 0 ? res.θ_mean[1:n_ℓ] : Float64[]
     D_mode = -2 * log_density(ℓ, y, η_mean, θℓ_mean)
 
@@ -118,10 +120,10 @@ function dic(res::INLAResult, model::LatentGaussianModel, y)
         w = res.θ_weights[k]
         w == 0 && continue
         lp = res.laplaces[k]
-        η_k = model.A * lp.mode
+        η_k = A * lp.mode
         θℓ_k = n_ℓ > 0 ? res.θ_points[k][1:n_ℓ] : Float64[]
         neg_∇²η = .-∇²_η_log_density(ℓ, y, η_k, θℓ_k)  # nonneg for canonical links
-        var_η_k = _predictor_variance(model.A, lp)
+        var_η_k = _predictor_variance(A, lp)
         D_bar += w * (-2 * log_density(ℓ, y, η_k, θℓ_k) +
                       sum(neg_∇²η .* var_η_k))
     end

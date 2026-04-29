@@ -1,21 +1,26 @@
 """
-    LatentGaussianModel(likelihood, components, A; component_projectors = nothing)
+    LatentGaussianModel(likelihood, components, mapping)
+    LatentGaussianModel(likelihood, components, A::AbstractMatrix)
+    LatentGaussianModel(likelihood, component,  mapping_or_A)
 
 Bayesian latent Gaussian model:
 
-    y | η, θ_ℓ ∼ p(y | η, θ_ℓ),     η = A x,
+    y | η, θ_ℓ ∼ p(y | η, θ_ℓ),     η = mapping * x,
     x | θ     ∼ N(0, Q(θ)⁻¹),       Q(θ) = blockdiag(Q_1(θ_1), ...),
     θ         ∼ π(θ).
+
+# Arguments
 
 - `likelihood::AbstractLikelihood` — observation model. Carries any
   observation-level hyperparameters (e.g. Gaussian `τ`).
 - `components::Tuple{Vararg{AbstractLatentComponent}}` — latent
   components, concatenated into a single `x` of length
   `sum(length, components)`.
-- `A::SparseMatrixCSC` — projector from the stacked latent vector to
-  the linear predictor `η`, shape `(n_obs, n_x)`. The caller is
-  responsible for building `A`; for models built component-by-component
-  use `build_projector`.
+- `mapping::AbstractObservationMapping` — projector from the stacked
+  latent vector `x` to the linear predictor `η`. The convenience
+  signature `LatentGaussianModel(ℓ, components, A::AbstractMatrix)`
+  wraps the matrix in [`LinearProjector`](@ref) automatically (the
+  v0.1 default).
 
 Internally we store the latent slices (index ranges of each component
 in `x`) and hyperparameter slices (ranges of each component's `θ_i`
@@ -24,10 +29,10 @@ hyperparameters).
 """
 struct LatentGaussianModel{L <: AbstractLikelihood,
                            C <: Tuple{Vararg{AbstractLatentComponent}},
-                           A <: AbstractMatrix}
+                           M <: AbstractObservationMapping}
     likelihood::L
     components::C
-    A::A
+    mapping::M
     latent_ranges::Vector{UnitRange{Int}}   # range of each component in x
     θ_ranges::Vector{UnitRange{Int}}        # range of each component in θ (after likelihood θ)
     n_x::Int
@@ -36,7 +41,7 @@ end
 
 function LatentGaussianModel(likelihood::AbstractLikelihood,
                              components::Tuple{Vararg{AbstractLatentComponent}},
-                             A::AbstractMatrix)
+                             mapping::AbstractObservationMapping)
     nc = length(components)
     latent_ranges = Vector{UnitRange{Int}}(undef, nc)
     offset = 0
@@ -46,8 +51,8 @@ function LatentGaussianModel(likelihood::AbstractLikelihood,
     end
     n_x = offset
 
-    size(A, 2) == n_x ||
-        throw(DimensionMismatch("projector A has $(size(A,2)) columns; components span $n_x"))
+    ncols(mapping) == n_x ||
+        throw(DimensionMismatch("mapping has ncols=$(ncols(mapping)); components span $n_x"))
 
     θ_ranges = Vector{UnitRange{Int}}(undef, nc)
     θ_offset = nhyperparameters(likelihood)
@@ -58,13 +63,21 @@ function LatentGaussianModel(likelihood::AbstractLikelihood,
     end
     n_θ = θ_offset
 
-    return LatentGaussianModel{typeof(likelihood), typeof(components), typeof(A)}(
-        likelihood, components, A, latent_ranges, θ_ranges, n_x, n_θ)
+    return LatentGaussianModel{typeof(likelihood), typeof(components), typeof(mapping)}(
+        likelihood, components, mapping, latent_ranges, θ_ranges, n_x, n_θ)
 end
 
-# Convenience: single component, projector supplied.
-LatentGaussianModel(ℓ::AbstractLikelihood, c::AbstractLatentComponent, A::AbstractMatrix) =
-    LatentGaussianModel(ℓ, (c,), A)
+# v0.1 compatibility: AbstractMatrix wraps in LinearProjector. Existing
+# `LatentGaussianModel(ℓ, components, A)` calls keep working unchanged.
+LatentGaussianModel(likelihood::AbstractLikelihood,
+                    components::Tuple{Vararg{AbstractLatentComponent}},
+                    A::AbstractMatrix) =
+    LatentGaussianModel(likelihood, components, LinearProjector(A))
+
+# Convenience: single component, mapping or matrix supplied.
+LatentGaussianModel(ℓ::AbstractLikelihood, c::AbstractLatentComponent,
+                    mapping_or_A::Union{AbstractObservationMapping, AbstractMatrix}) =
+    LatentGaussianModel(ℓ, (c,), mapping_or_A)
 
 """
     n_latent(m) -> Int
@@ -72,6 +85,13 @@ LatentGaussianModel(ℓ::AbstractLikelihood, c::AbstractLatentComponent, A::Abst
 Length of the stacked latent vector `x`.
 """
 n_latent(m::LatentGaussianModel) = m.n_x
+
+"""
+    n_observations(m) -> Int
+
+Number of observation rows. Equal to `nrows(m.mapping)`.
+"""
+n_observations(m::LatentGaussianModel) = nrows(m.mapping)
 
 """
     n_hyperparameters(m) -> Int
