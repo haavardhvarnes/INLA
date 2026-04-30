@@ -15,6 +15,9 @@ using GMRFs
     @testset "Likelihoods" begin
         include("regression/test_likelihoods.jl")
     end
+    @testset "ExponentialLikelihood — Censoring" begin
+        include("regression/test_exponential_censoring.jl")
+    end
     @testset "Components" begin
         include("regression/test_components.jl")
     end
@@ -83,6 +86,7 @@ using GMRFs
         include("oracle/test_synthetic_generic1.jl")
         include("oracle/test_synthetic_seasonal.jl")
         include("oracle/test_synthetic_leroux.jl")
+        include("oracle/test_synthetic_exponential_survival.jl")
     end
     @testset "Quality" begin
         include("quality/test_aqua.jl")

@@ -40,6 +40,8 @@ include("likelihoods/poisson.jl")
 include("likelihoods/binomial.jl")
 include("likelihoods/negbinomial.jl")
 include("likelihoods/gamma.jl")
+include("likelihoods/survival/_censoring.jl")
+include("likelihoods/survival/exponential.jl")
 
 # --- components -------------------------------------------------------
 include("components/abstract.jl")
@@ -79,9 +81,16 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 
 # Likelihoods
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
-       BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood
+       BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
+       ExponentialLikelihood
 export log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density, link
 export pointwise_log_density, pointwise_cdf
+
+# Censoring (survival likelihoods). Enum values are not exported by
+# default to avoid namespace pollution; users can either pass symbols
+# (`[:none, :right, :none]`) or qualified names (`Censoring.NONE`,
+# or `using LatentGaussianModels: NONE, RIGHT, LEFT, INTERVAL`).
+export Censoring
 
 # Hyperpriors
 export AbstractHyperPrior
