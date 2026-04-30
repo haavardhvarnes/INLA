@@ -46,6 +46,7 @@ include("likelihoods/survival/exponential.jl")
 include("likelihoods/survival/weibull.jl")
 include("likelihoods/survival/lognormal.jl")
 include("likelihoods/survival/gamma_surv.jl")
+include("likelihoods/survival/weibull_cure.jl")
 
 # --- components -------------------------------------------------------
 include("components/abstract.jl")
@@ -87,7 +88,7 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
        ExponentialLikelihood, WeibullLikelihood, LognormalSurvLikelihood,
-       GammaSurvLikelihood
+       GammaSurvLikelihood, WeibullCureLikelihood
 export log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density, link
 export pointwise_log_density, pointwise_cdf
 
