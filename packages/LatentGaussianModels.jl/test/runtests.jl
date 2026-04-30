@@ -18,6 +18,18 @@ using GMRFs
     @testset "ExponentialLikelihood — Censoring" begin
         include("regression/test_exponential_censoring.jl")
     end
+    @testset "WeibullLikelihood — Censoring" begin
+        include("regression/test_weibull_censoring.jl")
+    end
+    @testset "LognormalSurvLikelihood — Censoring" begin
+        include("regression/test_lognormal_surv_censoring.jl")
+    end
+    @testset "GammaSurvLikelihood — Censoring" begin
+        include("regression/test_gamma_surv_censoring.jl")
+    end
+    @testset "WeibullCureLikelihood — Censoring" begin
+        include("regression/test_weibull_cure_censoring.jl")
+    end
     @testset "Cox PH — augmentation invariants" begin
         include("regression/test_coxph_augmentation.jl")
     end
@@ -63,6 +75,9 @@ using GMRFs
     @testset "INLA — Cox PH (synthetic recovery)" begin
         include("regression/test_inla_coxph.jl")
     end
+    @testset "INLA — WeibullCure (synthetic, no R-INLA family)" begin
+        include("regression/test_inla_weibull_cure.jl")
+    end
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
     end
@@ -93,6 +108,9 @@ using GMRFs
         include("oracle/test_synthetic_seasonal.jl")
         include("oracle/test_synthetic_leroux.jl")
         include("oracle/test_synthetic_exponential_survival.jl")
+        include("oracle/test_synthetic_weibull_survival.jl")
+        include("oracle/test_synthetic_lognormal_survival.jl")
+        include("oracle/test_synthetic_gamma_survival.jl")
         include("oracle/test_synthetic_coxph.jl")
     end
     @testset "Quality" begin
