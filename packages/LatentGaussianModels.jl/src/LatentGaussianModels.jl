@@ -29,6 +29,7 @@ using LogDensityProblems: LogDensityProblems
 # --- hyperpriors (loaded first; likelihoods reference them) -----------
 include("priors/abstract.jl")
 include("priors/pc.jl")
+include("priors/pc_alphaw.jl")
 include("priors/logit_beta.jl")
 include("priors/bym2_phi.jl")
 
@@ -95,7 +96,7 @@ export Censoring
 # Hyperpriors
 export AbstractHyperPrior
 export PCPrecision, GammaPrecision, LogNormalPrecision, WeakPrior
-export PCBYM2Phi, LogitBeta
+export PCBYM2Phi, LogitBeta, PCAlphaW
 export log_prior_density, user_scale, prior_name
 
 # Components
