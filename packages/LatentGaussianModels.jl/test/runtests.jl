@@ -21,6 +21,9 @@ using GMRFs
     @testset "WeibullLikelihood — Censoring" begin
         include("regression/test_weibull_censoring.jl")
     end
+    @testset "LognormalSurvLikelihood — Censoring" begin
+        include("regression/test_lognormal_surv_censoring.jl")
+    end
     @testset "Components" begin
         include("regression/test_components.jl")
     end
@@ -91,6 +94,7 @@ using GMRFs
         include("oracle/test_synthetic_leroux.jl")
         include("oracle/test_synthetic_exponential_survival.jl")
         include("oracle/test_synthetic_weibull_survival.jl")
+        include("oracle/test_synthetic_lognormal_survival.jl")
     end
     @testset "Quality" begin
         include("quality/test_aqua.jl")
