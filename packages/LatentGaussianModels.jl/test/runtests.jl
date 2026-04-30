@@ -24,6 +24,9 @@ using GMRFs
     @testset "LognormalSurvLikelihood — Censoring" begin
         include("regression/test_lognormal_surv_censoring.jl")
     end
+    @testset "GammaSurvLikelihood — Censoring" begin
+        include("regression/test_gamma_surv_censoring.jl")
+    end
     @testset "Components" begin
         include("regression/test_components.jl")
     end
