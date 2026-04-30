@@ -15,6 +15,9 @@ using GMRFs
     @testset "Likelihoods" begin
         include("regression/test_likelihoods.jl")
     end
+    @testset "ExponentialLikelihood — Censoring" begin
+        include("regression/test_exponential_censoring.jl")
+    end
     @testset "Components" begin
         include("regression/test_components.jl")
     end
