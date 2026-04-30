@@ -18,6 +18,9 @@ using GMRFs
     @testset "ExponentialLikelihood — Censoring" begin
         include("regression/test_exponential_censoring.jl")
     end
+    @testset "Cox PH — augmentation invariants" begin
+        include("regression/test_coxph_augmentation.jl")
+    end
     @testset "Components" begin
         include("regression/test_components.jl")
     end
@@ -57,6 +60,9 @@ using GMRFs
     @testset "INLA — Poisson + BYM2 (synthetic)" begin
         include("regression/test_inla_poisson_bym2.jl")
     end
+    @testset "INLA — Cox PH (synthetic recovery)" begin
+        include("regression/test_inla_coxph.jl")
+    end
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
     end
@@ -87,6 +93,7 @@ using GMRFs
         include("oracle/test_synthetic_seasonal.jl")
         include("oracle/test_synthetic_leroux.jl")
         include("oracle/test_synthetic_exponential_survival.jl")
+        include("oracle/test_synthetic_coxph.jl")
     end
     @testset "Quality" begin
         include("quality/test_aqua.jl")
