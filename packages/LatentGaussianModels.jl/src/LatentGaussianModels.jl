@@ -20,6 +20,7 @@ using Distributions: Distributions
 using FastGaussQuadrature: FastGaussQuadrature
 using FiniteDiff: FiniteDiff
 using GMRFs
+using SpecialFunctions: SpecialFunctions
 using GMRFs: AbstractGMRFGraph, GMRFGraph, AbstractGMRF, NoConstraint,
              LinearConstraint, FactorCache
 using Optimization: Optimization
@@ -46,6 +47,7 @@ include("likelihoods/survival/exponential.jl")
 include("likelihoods/survival/coxph.jl")
 include("likelihoods/survival/weibull.jl")
 include("likelihoods/survival/lognormal.jl")
+include("likelihoods/survival/gamma_surv.jl")
 
 # --- components -------------------------------------------------------
 include("components/abstract.jl")
@@ -86,7 +88,8 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 # Likelihoods
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
-       ExponentialLikelihood, WeibullLikelihood, LognormalSurvLikelihood
+       ExponentialLikelihood, WeibullLikelihood, LognormalSurvLikelihood,
+       GammaSurvLikelihood
 export CoxphAugmented, inla_coxph, coxph_design
 export log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density, link
 export pointwise_log_density, pointwise_cdf
