@@ -24,6 +24,9 @@ using GMRFs
     @testset "LognormalSurvLikelihood — Censoring" begin
         include("regression/test_lognormal_surv_censoring.jl")
     end
+    @testset "GammaSurvLikelihood — Censoring" begin
+        include("regression/test_gamma_surv_censoring.jl")
+    end
     @testset "Cox PH — augmentation invariants" begin
         include("regression/test_coxph_augmentation.jl")
     end
