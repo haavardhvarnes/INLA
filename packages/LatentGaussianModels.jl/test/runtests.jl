@@ -18,6 +18,9 @@ using GMRFs
     @testset "ExponentialLikelihood — Censoring" begin
         include("regression/test_exponential_censoring.jl")
     end
+    @testset "WeibullLikelihood — Censoring" begin
+        include("regression/test_weibull_censoring.jl")
+    end
     @testset "Cox PH — augmentation invariants" begin
         include("regression/test_coxph_augmentation.jl")
     end
@@ -93,6 +96,7 @@ using GMRFs
         include("oracle/test_synthetic_seasonal.jl")
         include("oracle/test_synthetic_leroux.jl")
         include("oracle/test_synthetic_exponential_survival.jl")
+        include("oracle/test_synthetic_weibull_survival.jl")
         include("oracle/test_synthetic_coxph.jl")
     end
     @testset "Quality" begin
