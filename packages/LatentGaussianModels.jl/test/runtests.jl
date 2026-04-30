@@ -18,6 +18,9 @@ using GMRFs
     @testset "ExponentialLikelihood — Censoring" begin
         include("regression/test_exponential_censoring.jl")
     end
+    @testset "WeibullLikelihood — Censoring" begin
+        include("regression/test_weibull_censoring.jl")
+    end
     @testset "Components" begin
         include("regression/test_components.jl")
     end
@@ -87,6 +90,7 @@ using GMRFs
         include("oracle/test_synthetic_seasonal.jl")
         include("oracle/test_synthetic_leroux.jl")
         include("oracle/test_synthetic_exponential_survival.jl")
+        include("oracle/test_synthetic_weibull_survival.jl")
     end
     @testset "Quality" begin
         include("quality/test_aqua.jl")
