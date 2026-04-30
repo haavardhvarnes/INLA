@@ -100,6 +100,7 @@ using GMRFs
         include("oracle/test_synthetic_leroux.jl")
         include("oracle/test_synthetic_exponential_survival.jl")
         include("oracle/test_synthetic_weibull_survival.jl")
+        include("oracle/test_synthetic_lognormal_survival.jl")
         include("oracle/test_synthetic_coxph.jl")
     end
     @testset "Quality" begin
