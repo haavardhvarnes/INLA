@@ -27,6 +27,9 @@ using GMRFs
     @testset "GammaSurvLikelihood — Censoring" begin
         include("regression/test_gamma_surv_censoring.jl")
     end
+    @testset "WeibullCureLikelihood — Censoring" begin
+        include("regression/test_weibull_cure_censoring.jl")
+    end
     @testset "Cox PH — augmentation invariants" begin
         include("regression/test_coxph_augmentation.jl")
     end
@@ -71,6 +74,9 @@ using GMRFs
     end
     @testset "INLA — Cox PH (synthetic recovery)" begin
         include("regression/test_inla_coxph.jl")
+    end
+    @testset "INLA — WeibullCure (synthetic, no R-INLA family)" begin
+        include("regression/test_inla_weibull_cure.jl")
     end
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
