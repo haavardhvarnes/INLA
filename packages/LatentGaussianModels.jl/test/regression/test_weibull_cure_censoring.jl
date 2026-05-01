@@ -6,6 +6,7 @@ using LatentGaussianModels: WeibullCureLikelihood, WeibullLikelihood, LogLink,
     GammaPrecision, LogitBeta
 
 using DifferentiationInterface: gradient, AutoForwardDiff
+using ForwardDiff: ForwardDiff   # required by `AutoForwardDiff()` extension on Julia 1.10
 
 # AD-based oracles (independent of the closed-form chain rule in production).
 # Backend kept local to this file; ForwardDiff + DI are test-only deps.
