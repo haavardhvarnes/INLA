@@ -164,22 +164,49 @@ jobs:
       - name: Tamper check — tolerance compare committed vs regenerated
         shell: bash
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          # `set -e` deliberately not enabled — we capture the compare.jl
+          # exit code via the `if` form so the diff report still gets
+          # emitted to the step summary on failure (visible without auth
+          # on public-repo run pages).
 
           # Tolerance comparator (rtol=1e-4, atol=1e-8). BLAS/libm sub-ULP
-          # differences between developer machine and CI runner cause byte
-          # diff to fail spuriously; compare.jl walks the JLD2 structure
-          # numerically. Real semantic drift (algorithm or input change)
-          # still blows past 1e-4 and fails loudly.
-          if ! julia --project=scripts/generate-fixtures \
+          # differences between developer machine and CI runner can cause
+          # byte diff to fail spuriously; compare.jl walks the JLD2
+          # structure numerically. Real semantic drift (algorithm or
+          # input change) still blows past 1e-4 and fails loudly.
+          if julia --project=scripts/generate-fixtures \
               scripts/generate-fixtures/compare.jl \
-              committed-fixtures regenerated-fixtures; then
+              committed-fixtures regenerated-fixtures \
+              2>&1 | tee fixture-compare.log; then
+            cmp_passed=1
+          else
+            cmp_passed=0
+          fi
+
+          # Always render the diff report into the run-page step summary
+          # so it's visible without log-read auth.
+          {
+            if [ "$cmp_passed" -eq 1 ]; then
+              echo "## ✅ Fixture tolerance compare passed"
+            else
+              echo "## ❌ Fixture tolerance compare failed"
+            fi
+            echo
+            echo '```'
+            cat fixture-compare.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          if [ "$cmp_passed" -eq 0 ]; then
             echo "::error title=Fixture drift::Regeneration produced numerically different fixtures."
             echo "Possible causes:"
             echo "  (a) A fixture-generation script changed deliberately"
             echo "      — commit the regenerated .jld2 files alongside the change."
             echo "  (b) R-INLA stack drift past tolerance"
             echo "      — check the INLA version line emitted earlier."
+            echo "Full diff is in the run-page step summary and in the"
+            echo "uploaded fixture-regen-bundle artifact (fixture-compare.log)."
             exit 1
           fi
 
@@ -212,4 +239,5 @@ jobs:
             r-package-manifest.csv
             scripts/generate-fixtures/INLA_VERSION.txt
             regenerated-fixtures/
+            fixture-compare.log
           retention-days: 30

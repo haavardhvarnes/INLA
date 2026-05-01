@@ -200,17 +200,20 @@ function main(args)
 
     failed = false
 
+    # All output goes to stdout so CI's `2>&1 | tee` produces a
+    # consistently-ordered log for the step summary; exit code (not
+    # stream choice) signals failure.
     if !isempty(only_committed)
-        println(stderr, "Committed fixtures with no regenerated counterpart:")
+        println("Committed fixtures with no regenerated counterpart:")
         for p in sort!(collect(only_committed))
-            println(stderr, "  ", p)
+            println("  ", p)
         end
         failed = true
     end
     if !isempty(only_regenerated)
-        println(stderr, "Regenerated fixtures not committed:")
+        println("Regenerated fixtures not committed:")
         for p in sort!(collect(only_regenerated))
-            println(stderr, "  ", p)
+            println("  ", p)
         end
         failed = true
     end
@@ -225,16 +228,15 @@ function main(args)
             println("  OK   $rel")
         else
             failed = true
-            println(stderr, "  FAIL $rel ($(length(diffs)) diff entries)")
+            println("  FAIL $rel ($(length(diffs)) diff entries)")
             for d in diffs
-                println(stderr, d)
+                println(d)
             end
         end
     end
 
     if failed
-        println(stderr,
-            "\nFixture drift exceeds rtol=$RTOL or atol=$ATOL. Investigate above.")
+        println("\nFixture drift exceeds rtol=$RTOL or atol=$ATOL. Investigate above.")
         exit(1)
     else
         println("All fixtures match within tolerance.")
