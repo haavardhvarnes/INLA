@@ -11,6 +11,11 @@ stack. The reference implementation is [`hrue/r-inla`](https://github.com/hrue/r
 Canonical method references are in `references/papers.md`. Ecosystem-level
 design lives in `plans/`; each package has its own `plans/plan.md`.
 
+**Supported Julia version: 1.12+ only** (current stable). Julia 1.10 LTS
+is *not* supported — see ADR-020 in `plans/decisions.md`. Don't add
+back-compat shims for older versions; assume `Returns`, public marker,
+and other 1.11+ features are available.
+
 ## Architectural principles — treat as load-bearing
 
 1. **Dispatch over macros.** Multiple dispatch is the primary extension

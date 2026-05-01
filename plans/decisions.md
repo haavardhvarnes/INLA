@@ -1540,6 +1540,61 @@ unblock further survival/zero-inflated documentation work.
 
 ---
 
+## ADR-020: Drop Julia 1.10 LTS support — Julia 1.12 is the minimum supported version
+
+Status: Accepted
+Date: 2026-05-01
+
+### Context
+
+The replan-2026-04-28 Phase F plan committed the v0.1.0 / v0.1.1 release
+to Julia 1.10 LTS + current stable, on the assumption that LTS coverage
+broadens the user base. In practice this project has zero LTS-pinned
+users (no downstream issues filed against 1.10, no LTS-only deps), and
+maintaining the LTS lane has carried real cost:
+
+- The CI matrix doubles for the four core packages (LTS × current,
+  Linux × macOS × Windows), and the LTS includes are the slow tail.
+- Several recent commits used 1.11+ syntax (`@kwdef` improvements,
+  `Returns`, `Splat`) that needed manual back-porting for the LTS lane.
+- Julia 1.12 is the current stable — the pragmatic floor — and is what
+  the local development environment, the benchmark machine, and the
+  authors' editors all run on.
+
+### Decision
+
+**Julia 1.12 is the minimum supported version across the entire monorepo.**
+This applies to every package's `[compat] julia` field and every CI
+matrix lane.
+
+- All `Project.toml` `[compat] julia` entries are bumped to `"1.12"`.
+- The `.github/workflows/test.yml` matrix drops `'1.10'` and keeps `'1'`
+  (which resolves to 1.12.x today and to whatever stable is when CI
+  runs in the future).
+- Cross-platform coverage (macOS, Windows) tracks `'1'` rather than the
+  former 1.10 pin.
+- The replan-2026-04-28 acceptance criterion ("`Pkg.add(\"INLA\")` from
+  a fresh depot resolves on Julia 1.10 LTS and current stable") is
+  superseded — only current stable.
+
+### Consequences
+
+- New language features ≥ 1.11 (e.g. `Returns`, `Splat`, public marker
+  in `module`) are now usable without conditional shims.
+- Smaller CI matrix → faster PR feedback, lower spend.
+- Users on 1.10 LTS who try `Pkg.add("INLA")` will get a clean compat
+  error from Pkg.resolve, not a broken install.
+- AutoMerge on the General registry should be untroubled — `julia =
+  "1.12"` is a valid lower bound for Pkg.
+
+### References
+
+- `plans/replan-2026-04-28.md` Phase F — superseded acceptance criterion.
+- ADR-001 — package split context (which versioning policy applies to all
+  four core packages uniformly).
+
+---
+
 ## ADR template for future entries
 
 ```
