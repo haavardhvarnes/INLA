@@ -19,8 +19,11 @@ suppressPackageStartupMessages(library(INLA))
 set.seed(20260423)
 
 n <- 50L
-# Build RW2 structure matrix (intrinsic, rank n - 2)
-Q_struct <- INLA::inla.rw(n, order = 2, scale.model = FALSE, sparse = TRUE)
+# Build RW2 structure matrix (intrinsic, rank n - 2). `inla.rw` was
+# unexported in newer R-INLA versions, so reach it via the triple-colon
+# operator. The function body is unchanged, so the resulting matrix —
+# and therefore the JLD2 fixture bytes — match older releases.
+Q_struct <- INLA:::inla.rw(n, order = 2, scale.model = FALSE, sparse = TRUE)
 
 # inla.qinv: diagonal of Q^{-1} under sum-to-zero constraint. Supply the
 # two constraints RW2 uses under the hood: 1^T x = 0 and i^T x = 0.
