@@ -8,7 +8,7 @@ genuine extensibility.
 
 ## Status
 
-**`v0.1.0-rc1`.** The four `src/`-bearing packages
+**`v0.1.1`.** The four `src/`-bearing packages
 (`GMRFs.jl`, `LatentGaussianModels.jl`, `INLASPDE.jl`,
 `INLASPDERasters.jl`) cover the canonical R-INLA datasets within the
 testing-strategy tolerances. See [`CHANGELOG.md`](CHANGELOG.md) for
@@ -73,7 +73,7 @@ Pkg.add("INLA")              # umbrella: GMRFs + LatentGaussianModels + INLASPDE
 For a leaner install, replace `"INLA"` with any individual core
 package — `"GMRFs"`, `"LatentGaussianModels"`, `"INLASPDE"`, or
 `"INLASPDERasters"`. `INLASPDERasters` is registered but its API is
-scaffolding only in v0.1.0-rc1; see its
+scaffolding only in v0.1.1; see its
 [README](packages/INLASPDERasters.jl/README.md).
 
 The optional sub-packages `LGMTuring.jl`, `LGMFormula.jl`, and
@@ -88,7 +88,7 @@ Pkg.develop(url = "https://github.com/haavardhvarnes/INLA.jl",
 General-registry submission is planned; until then the personal
 registry is the install path.
 
-## What ships in v0.1.0-rc1
+## What ships in v0.1.1
 
 - **Latent components**: `Intercept`, `FixedEffects`, `IID`, `RW1`,
   `RW2`, `AR1`, `Seasonal`, `Besag`, `BYM`, `BYM2`, `Leroux`,

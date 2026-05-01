@@ -20,7 +20,10 @@ jobs:
       - name: Set up Julia
         uses: julia-actions/setup-julia@v2
         with:
-          version: '1.10'
+          # Per ADR-020 the ecosystem requires Julia 1.12+; track current
+          # stable here. CompatHelper itself doesn't care which version
+          # runs it as long as the registry resolver does.
+          version: '1'
 
       - name: Install CompatHelper
         run: julia -e 'using Pkg; Pkg.add("CompatHelper")'
