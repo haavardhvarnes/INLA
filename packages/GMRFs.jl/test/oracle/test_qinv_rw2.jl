@@ -9,7 +9,7 @@ include("load_fixture.jl")
 using Test
 using SparseArrays
 using LinearAlgebra
-using GMRFs: marginal_variances
+using GMRFs: RW2GMRF, marginal_variances, precision_matrix
 
 const FIXTURE = "qinv_rw2"
 
@@ -22,10 +22,19 @@ const FIXTURE = "qinv_rw2"
         ref_diag = fx["qinv_diag"]::Vector{Float64}
         ref_logdet = get(fx, "log_det", nothing)
 
-        # diag(Q^{-1}) on the non-null subspace (with constraints) — our
-        # implementation applies the Freni-Sterrantino / Rue-Held correction
-        # internally; we tolerate 1% relative error per testing-strategy.md.
-        our_diag = marginal_variances(Q)
+        # The fixture stores R-INLA's `inla.rw(n, order = 2)` structure
+        # matrix; verify GMRFs.jl's RW2GMRF builds the same Q.
+        n = size(Q, 1)
+        g = RW2GMRF(n)
+        @test precision_matrix(g) ≈ Q
+
+        # Generalised marginal variances on the non-null subspace under
+        # the canonical RW2 null-space basis (1's and ramp). R-INLA's
+        # `inla.qinv` applies the same two constraints in the fixture
+        # generator, so the fixtures match modulo the jitter the
+        # generator adds to make Q PD; we tolerate 1% relative error per
+        # `testing-strategy.md`.
+        our_diag = marginal_variances(g)
         @test length(our_diag) == length(ref_diag)
         @test isapprox(our_diag, ref_diag; rtol=1.0e-2)
 
