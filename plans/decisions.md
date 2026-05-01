@@ -1362,6 +1362,239 @@ internal API.
 
 ---
 
+## ADR-019: Zero-inflated count families — three R-INLA parameterisations × three base distributions
+
+Status: Proposed
+Date: 2026-05-01
+
+### Context
+
+ADR-018 PR5 ships the zero-inflated count families promised in Phase H of
+`plans/replan-2026-04-28.md`. R-INLA exposes three parameterisations
+(`zeroinflatedX0`, `zeroinflatedX1`, `zeroinflatedX2`) over three count
+families (Poisson, Binomial, NegativeBinomial), giving nine concrete
+likelihoods. They differ in (a) how the zero-inflation probability `π`
+relates to the count distribution's mean and (b) the hyperparameter scale.
+Three ADR questions need pinning before nine likelihoods land:
+
+1. **Which parameterisation is which?** R-INLA's documentation is sparse;
+   the source-of-truth is `r-inla/inlaprog/src/likelihood.c`. We need to
+   commit to a single canonical mapping so future debugging against
+   R-INLA fixtures isn't a guessing game.
+2. **One file per family, or one per parameterisation?** Nine likelihoods
+   is enough that the structural choice matters for both readability and
+   the AbstractLikelihood contract.
+3. **Which gradients are closed-form?** `∇³_η_log_density` matters only
+   for the simplified-Laplace correction (ADR-006 amendment). Closed-form
+   gradients across all 9 × 3 = 27 method positions is unnecessary.
+
+### Decision (proposed)
+
+**1. Parameterisations — canonical mapping.** Three families × three
+suffixes; the suffix names the parameterisation, *not* the base
+distribution. Across all nine, `θ` carries `[log(size)?, zi_scalar]`:
+
+| Suffix | Name                    | π_i formula                | Count component on `y > 0`           |
+|--------|-------------------------|----------------------------|--------------------------------------|
+| `0`    | hurdle                  | `logit(π) = θ` (constant)  | base distribution truncated at 0     |
+| `1`    | standard mixture        | `logit(π) = θ` (constant)  | base distribution (zero allowed)     |
+| `2`    | intensity-modulated     | `π_i = 1 - q_i^α`, `θ = log α` | base distribution (zero allowed) |
+
+`q_i` is family-specific: `μ_i / (1 + μ_i)` for Poisson and
+NegativeBinomial (with `μ_i = E_i · exp(η_i)`); `sigmoid(η_i)` for
+Binomial. ZINB carries an extra `θ[1] = log(size)` for overdispersion;
+the zi scalar is `θ[2]`. ZIP and ZIB carry only the zi scalar (1
+hyperparameter total).
+
+This mapping matches R-INLA's `family = "zeroinflated{poisson,binomial,
+nbinomial}{0,1,2}"` byte-for-byte.
+
+**2. File layout — one file per family, three structs each.** All three
+parameterisations of a family share the same `y > 0` count component
+arithmetic; bundling them in a single file lets the shared expressions
+appear once in comments and the differences live in adjacent functions.
+
+```
+src/likelihoods/zero_inflated/
+    _helpers.jl        # logsumexp2, only
+    poisson.jl         # ZIP0/1/2 — three structs, three log_density,
+                       #   three ∇_η, three ∇²_η, plus ZIP1 ∇³_η
+    binomial.jl        # ZIB0/1/2 — same shape; ZIB1 also closed-form ∇³
+    negbinomial.jl     # ZINB0/1/2 — same shape; ∇³ falls back to FD
+```
+
+Each struct is a separate `<: AbstractLikelihood` so dispatch picks the
+right closed form without runtime branching on `family`. The
+constructor signature mirrors the plain count family:
+
+- ZIP / ZINB: `T(; link = LogLink(), E = nothing,
+  hyperprior_size = GammaPrecision(1.0, 0.1),  # ZINB only
+  hyperprior_zi = GaussianPrior(0.0, 1.0))`
+- ZIB: `T(n_trials; link = LogitLink(),
+  hyperprior = GaussianPrior(0.0, 1.0))`
+
+ZIP/ZINB enforce `LogLink`; ZIB enforces `LogitLink`. Other links throw
+in the constructor (matches the plain-NB / plain-Bin policy already in
+the package).
+
+**3. Default hyperpriors — match R-INLA verbatim.**
+
+- `θ = logit(π)` (types 0/1): `gaussian(mean = 0, prec = 1)` on the
+  internal scale, encoded as `GaussianPrior(0.0, 1.0)` (the new
+  R-INLA-equivalent prior added in PR5 step A).
+- `θ = log(α)` (type 2): same `gaussian(0, 1)`.
+- `θ[1] = log(size)` (ZINB): `loggamma(1, 0.1)`, encoded as the
+  existing `GammaPrecision(1.0, 0.1)`. Identical to plain NB.
+
+**4. Gradient closure — closed-form everywhere except `∇³_η` on types
+0/2.** `∇_η_log_density` and `∇²_η_log_density` are closed-form for all
+nine likelihoods. `∇³_η_log_density` is closed-form for **type 1 only**
+(both ZIP1 and ZIB1; ZINB1 falls back via the abstract default). The
+type-1 simplified-Laplace correction is the most common
+zero-inflated use case in disease-mapping; types 0 and 2 fall back to
+the AbstractLikelihood FD default (acceptable since ADR-006's amendment
+only requires closed-form `∇³` where it materially affects the inner
+hot path).
+
+Gradient derivations (recorded in source comments, not the ADR):
+
+- **Type 0 (hurdle).** `y = 0` branch's η-derivative vanishes because
+  `log p = log π` is `η`-independent. `y > 0` derivatives need a
+  truncation correction `-K = -∂η log(1 - P_count(0))`.
+- **Type 1 (standard mixture).** `y > 0` reduces to plain count family.
+  `y = 0` uses a posterior weight `w = (1-π)·P_count(0) /
+  (π + (1-π)·P_count(0))`, computed via `logsumexp2` (the only shared
+  helper). All three derivatives close cleanly:
+  `∇_η = -μ·w` (ZIP1), `-n·p·w` (ZIB1), `-s·μ·w/M` (ZINB1) and similar
+  for higher orders.
+- **Type 2 (intensity-modulated).** `y > 0` adds `α/(1+μ)` to the plain
+  count gradient (ZIP/ZINB) or `α(1-p) - n·p` (ZIB1). `y = 0` is
+  `log f` with `f = 1 - q^α·D`, `D = 1 - P_count(0)`; ∂²η computed via
+  the quotient rule `(∂²f·f - (∂f)²)/f²`.
+
+**5. Hyperprior split for ZINB.** Two hyperparameters → two prior fields.
+The struct carries `hyperprior_size::P1` and `hyperprior_zi::P2`
+separately so each can be tuned independently via R-INLA-style kwargs:
+`ZeroInflatedNegativeBinomialLikelihood1(; hyperprior_size =
+PCPrecision(1.0, 0.01), hyperprior_zi = GaussianPrior(0.0, 0.5))`.
+
+### Consequences
+
+- 27 closed-form methods across 9 likelihoods, ≈800 LoC. Validated to
+  ~1e-9 against FiniteDiff on a mix-of-zeros, mix-of-positives, and
+  large-count test grid (`test/regression/test_zero_inflated.jl`).
+- Type-2 ZINB `y = 0` ∂²η has the most algebraically dense closed form
+  (the `∂A` term mixes both `pn0` and `(1-μ)`). FD validation is the
+  primary correctness check; the comment block in `negbinomial.jl`
+  records the derivation step-by-step so future audits can reproduce it.
+- Adding a fourth parameterisation (R-INLA does not currently support
+  one, but ZIB has been discussed) is mechanical: drop in a new
+  `ZeroInflatedXLikelihood3` with its own `log_density` and gradients.
+  No abstract-type change.
+- The simplified-Laplace correction (ADR-006 amendment) gains the
+  type-1 families immediately; types 0 and 2 will fall back to the
+  classical Gaussian approximation at the inner Laplace step. This is
+  acceptable for v0.1 — disease-mapping fits use type 1 in the vast
+  majority of published applications.
+
+### Phasing — how this lands
+
+PR5 of ADR-018 is the single PR landing all nine likelihoods plus
+regression tests. Oracle fixture (synthetic ZIP1 vs R-INLA) lands in a
+follow-up PR per the replan; tier-1 regression tests are sufficient to
+unblock further survival/zero-inflated documentation work.
+
+### Open questions
+
+1. **R-INLA's `quantile` parameter on type 2.** R-INLA exposes a
+   `quantile` kwarg that re-parameterises α via the prior expected
+   probability `P(y = 0)` at a chosen quantile of the linear predictor.
+   This is a *user-facing convenience* that gets translated to a prior
+   on `θ = log α`. Recommendation: skip in v0.1; users can set the
+   prior on `log α` directly via `hyperprior_zi`. Add in v0.2 if there
+   is demand.
+2. **Closed-form ∇³ for ZINB1.** The ZINB1 `y = 0` posterior weight
+   structure is the same as ZIP1 / ZIB1. The ∇³ derivation is
+   mechanically the same shape but algebraically dense (extra `s` and
+   `M` factors). Recommendation: deferred until simplified-Laplace
+   correction performance on ZINB1 becomes a documented bottleneck.
+3. **Predictive PIT under zero-inflation.** `pointwise_cdf` for ZI
+   families needs the mixture CDF, which has a discrete jump at zero.
+   Recommendation: deferred to v0.2; the `pointwise_log_density`
+   methods are sufficient for DIC / WAIC / log marginal likelihood
+   diagnostics shipping in v0.1.
+
+### References
+
+- `plans/replan-2026-04-28.md` Phase H — zero-inflated families scope.
+- ADR-006 (and 2026-04-24 amendment) — `∇³_η_log_density` opt-in.
+- ADR-017 — multi-likelihood seam; ZI families plug into the same
+  `LikelihoodMapping` story.
+- ADR-018 — PR5 of the survival pack is this work.
+- R-INLA likelihood source —
+  [`r-inla/inlaprog/src/likelihood.c`](https://github.com/hrue/r-inla/blob/devel/inlaprog/src/likelihood.c).
+- Lambert (1992), *Technometrics* 34(1) — original ZIP1 standard
+  mixture parameterisation.
+- Heilbron (1994), *Biometrical Journal* 36(5) — hurdle (type 0)
+  parameterisation.
+
+---
+
+## ADR-020: Drop Julia 1.10 LTS support — Julia 1.12 is the minimum supported version
+
+Status: Accepted
+Date: 2026-05-01
+
+### Context
+
+The replan-2026-04-28 Phase F plan committed the v0.1.0 / v0.1.1 release
+to Julia 1.10 LTS + current stable, on the assumption that LTS coverage
+broadens the user base. In practice this project has zero LTS-pinned
+users (no downstream issues filed against 1.10, no LTS-only deps), and
+maintaining the LTS lane has carried real cost:
+
+- The CI matrix doubles for the four core packages (LTS × current,
+  Linux × macOS × Windows), and the LTS includes are the slow tail.
+- Several recent commits used 1.11+ syntax (`@kwdef` improvements,
+  `Returns`, `Splat`) that needed manual back-porting for the LTS lane.
+- Julia 1.12 is the current stable — the pragmatic floor — and is what
+  the local development environment, the benchmark machine, and the
+  authors' editors all run on.
+
+### Decision
+
+**Julia 1.12 is the minimum supported version across the entire monorepo.**
+This applies to every package's `[compat] julia` field and every CI
+matrix lane.
+
+- All `Project.toml` `[compat] julia` entries are bumped to `"1.12"`.
+- The `.github/workflows/test.yml` matrix drops `'1.10'` and keeps `'1'`
+  (which resolves to 1.12.x today and to whatever stable is when CI
+  runs in the future).
+- Cross-platform coverage (macOS, Windows) tracks `'1'` rather than the
+  former 1.10 pin.
+- The replan-2026-04-28 acceptance criterion ("`Pkg.add(\"INLA\")` from
+  a fresh depot resolves on Julia 1.10 LTS and current stable") is
+  superseded — only current stable.
+
+### Consequences
+
+- New language features ≥ 1.11 (e.g. `Returns`, `Splat`, public marker
+  in `module`) are now usable without conditional shims.
+- Smaller CI matrix → faster PR feedback, lower spend.
+- Users on 1.10 LTS who try `Pkg.add("INLA")` will get a clean compat
+  error from Pkg.resolve, not a broken install.
+- AutoMerge on the General registry should be untroubled — `julia =
+  "1.12"` is a valid lower bound for Pkg.
+
+### References
+
+- `plans/replan-2026-04-28.md` Phase F — superseded acceptance criterion.
+- ADR-001 — package split context (which versioning policy applies to all
+  four core packages uniformly).
+
+---
+
 ## ADR template for future entries
 
 ```

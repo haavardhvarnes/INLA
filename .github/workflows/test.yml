@@ -28,26 +28,26 @@ jobs:
           - LGMTuring.jl
           - INLASPDERasters.jl
         julia-version:
-          - '1.10'   # LTS
-          - '1'      # current stable (resolves to 1.12.x)
+          - '1'      # current stable (resolves to 1.12.x). Per ADR-020,
+                     # 1.12 is the minimum supported Julia version.
         os:
           - ubuntu-latest
         include:
-          # Mac and Windows only on LTS, only for core three
+          # Mac and Windows on current stable, only for core three
           - package: GMRFs.jl
-            julia-version: '1.10'
+            julia-version: '1'
             os: macos-latest
           - package: GMRFs.jl
-            julia-version: '1.10'
+            julia-version: '1'
             os: windows-latest
           - package: LatentGaussianModels.jl
-            julia-version: '1.10'
+            julia-version: '1'
             os: macos-latest
           - package: LatentGaussianModels.jl
-            julia-version: '1.10'
+            julia-version: '1'
             os: windows-latest
           - package: INLASPDE.jl
-            julia-version: '1.10'
+            julia-version: '1'
             os: macos-latest
     steps:
       - uses: actions/checkout@v4
