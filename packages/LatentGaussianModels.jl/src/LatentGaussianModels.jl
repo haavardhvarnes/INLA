@@ -33,6 +33,7 @@ include("priors/pc.jl")
 include("priors/pc_alphaw.jl")
 include("priors/logit_beta.jl")
 include("priors/bym2_phi.jl")
+include("priors/gaussian_internal.jl")
 
 # --- link functions + likelihoods -------------------------------------
 include("likelihoods/links.jl")
@@ -49,6 +50,10 @@ include("likelihoods/survival/weibull.jl")
 include("likelihoods/survival/lognormal.jl")
 include("likelihoods/survival/gamma_surv.jl")
 include("likelihoods/survival/weibull_cure.jl")
+include("likelihoods/zero_inflated/_helpers.jl")
+include("likelihoods/zero_inflated/poisson.jl")
+include("likelihoods/zero_inflated/binomial.jl")
+include("likelihoods/zero_inflated/negbinomial.jl")
 
 # --- components -------------------------------------------------------
 include("components/abstract.jl")
@@ -91,7 +96,14 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
        ExponentialLikelihood, WeibullLikelihood, LognormalSurvLikelihood,
-       GammaSurvLikelihood, WeibullCureLikelihood
+       GammaSurvLikelihood, WeibullCureLikelihood,
+       ZeroInflatedPoissonLikelihood0, ZeroInflatedPoissonLikelihood1,
+       ZeroInflatedPoissonLikelihood2,
+       ZeroInflatedBinomialLikelihood0, ZeroInflatedBinomialLikelihood1,
+       ZeroInflatedBinomialLikelihood2,
+       ZeroInflatedNegativeBinomialLikelihood0,
+       ZeroInflatedNegativeBinomialLikelihood1,
+       ZeroInflatedNegativeBinomialLikelihood2
 export CoxphAugmented, inla_coxph, coxph_design
 export log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density, link
 export pointwise_log_density, pointwise_cdf
@@ -105,7 +117,7 @@ export Censoring
 # Hyperpriors
 export AbstractHyperPrior
 export PCPrecision, GammaPrecision, LogNormalPrecision, WeakPrior
-export PCBYM2Phi, LogitBeta, PCAlphaW
+export PCBYM2Phi, LogitBeta, PCAlphaW, GaussianPrior
 export log_prior_density, user_scale, prior_name
 
 # Components
