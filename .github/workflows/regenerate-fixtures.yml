@@ -43,10 +43,12 @@ jobs:
     timeout-minutes: 45
 
     env:
-      # Pinned snapshot of Posit Public Package Manager for CRAN.
-      # Matches the date around which fixtures were last deliberately
-      # generated. Bump in lockstep with renv.lock updates.
-      R_REPOS_CRAN: "https://packagemanager.posit.co/cran/__linux__/jammy/2026-04-22"
+      # Posit Public Package Manager — floating "latest" snapshot on
+      # the Ubuntu codename matching `runs-on: ubuntu-latest` (currently
+      # noble, 24.04). renv.lock is still a stub (see comment block
+      # above), so strict pinning isn't yet wired; until it is, drift
+      # from CRAN is the same risk as in any other unpinned step.
+      R_REPOS_CRAN: "https://packagemanager.posit.co/cran/__linux__/noble/latest"
       # R-INLA stable channel. Version pin is in renv.lock once the
       # follow-up lands; until then we accept whatever "stable" resolves to
       # and capture it in the artifact step below.
@@ -64,7 +66,7 @@ jobs:
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          r-version: '4.4.0'
+          r-version: 'release'
           use-public-rspm: false
 
       - name: Cache R library
@@ -72,31 +74,44 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ${{ env.R_LIBS_USER }}
-          key: r-4.4.0-ubuntu-${{ hashFiles('scripts/generate-fixtures/renv.lock') }}
+          key: r-release-ubuntu-${{ hashFiles('scripts/generate-fixtures/renv.lock') }}
           restore-keys: |
-            r-4.4.0-ubuntu-
+            r-release-ubuntu-
 
-      - name: Install R packages (CRAN from pinned PPM + INLA from stable)
+      - name: Install R packages (CRAN from PPM + INLA from stable)
         shell: Rscript {0}
         run: |
-          options(repos = c(CRAN = Sys.getenv("R_REPOS_CRAN"),
-                            INLA = Sys.getenv("R_REPOS_INLA")))
+          # `repos` is set on every install call rather than once at the
+          # top: BiocManager::install() temporarily replaces `options(repos)`
+          # with the Bioconductor mirror, and on some R versions the
+          # original is not restored, so a follow-up install.packages() can
+          # silently miss CRAN packages and produce "package not available"
+          # warnings instead of hard failures.
+          cran_repos <- c(CRAN = Sys.getenv("R_REPOS_CRAN"),
+                          INLA = Sys.getenv("R_REPOS_INLA"))
+          options(repos = cran_repos)
+
           # R-INLA imports `gsl` (CRAN) and the Bioconductor packages
           # `Rgraphviz` and `graph`. Without them, `library(INLA)` fails
           # with `dyn.load(...)` / `package or namespace load failed`.
-          # Install Bioconductor deps via BiocManager before INLA.
           if (!requireNamespace("BiocManager", quietly = TRUE)) {
-              install.packages("BiocManager")
+              install.packages("BiocManager", repos = cran_repos)
           }
           BiocManager::install(c("Rgraphviz", "graph"),
                                update = FALSE, ask = FALSE)
-          if (!requireNamespace("gsl", quietly = TRUE)) {
-              install.packages("gsl")  # needs system libgsl-dev (above)
-          }
+          options(repos = cran_repos)  # restore after BiocManager
+
+          # Hard-install gsl (system libgsl-dev is on the runner above).
+          # Without `repos = cran_repos` we have hit "package 'gsl' is not
+          # available" on a stale repo state — keep this explicit.
+          install.packages("gsl", repos = cran_repos)
+          stopifnot(requireNamespace("gsl", quietly = TRUE))
+
           needed <- c("jsonlite", "Matrix", "SpatialEpi", "spdep", "INLA")
           missing <- needed[!sapply(needed, requireNamespace, quietly = TRUE)]
           if (length(missing) > 0) {
-              install.packages(missing, dependencies = TRUE)
+              install.packages(missing, dependencies = TRUE,
+                               repos = cran_repos)
           }
           # Force-load INLA to surface dyn.load failures here, not during
           # the regenerate step where the error message is harder to spot.
