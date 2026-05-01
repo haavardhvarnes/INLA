@@ -23,7 +23,7 @@ and throw a `PriorConstraintError` otherwise. Pass
 the check.
 """
 function Distributions.logpdf(g::AbstractGMRF, x::AbstractVector;
-                              check_constraint::Bool = true)
+        check_constraint::Bool=true)
     n = num_nodes(g)
     length(x) == n ||
         throw(DimensionMismatch("logpdf: x length $(length(x)) ≠ num_nodes $n"))

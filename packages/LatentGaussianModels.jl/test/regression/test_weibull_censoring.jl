@@ -1,16 +1,19 @@
 using LatentGaussianModels: WeibullLikelihood, ExponentialLikelihood, LogLink,
-    Censoring, NONE, RIGHT, LEFT, INTERVAL,
-    log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density,
-    pointwise_log_density, pointwise_cdf,
-    nhyperparameters, initial_hyperparameters, link, log_hyperprior,
-    GammaPrecision
+                            Censoring, NONE, RIGHT, LEFT, INTERVAL,
+                            log_density, ∇_η_log_density, ∇²_η_log_density,
+                            ∇³_η_log_density,
+                            pointwise_log_density, pointwise_cdf,
+                            nhyperparameters, initial_hyperparameters, link, log_hyperprior,
+                            GammaPrecision
 
 # Reuses the same FD helper used in test_likelihoods.jl.
-function fd_grad_wb(f, η, h = 1.0e-6)
+function fd_grad_wb(f, η, h=1.0e-6)
     g = similar(η)
     for i in eachindex(η)
-        ep = copy(η); ep[i] += h
-        em = copy(η); em[i] -= h
+        ep = copy(η)
+        ep[i] += h
+        em = copy(η)
+        em[i] -= h
         g[i] = (f(ep) - f(em)) / (2h)
     end
     return g
@@ -32,7 +35,7 @@ const WB_LOG_ALPHAS = (-0.7, 0.0, 0.7)   # α ≈ 0.5, 1.0, 2.0
 
     # Non-LogLink rejected
     struct _DummyLink <: LatentGaussianModels.AbstractLinkFunction end
-    @test_throws ArgumentError WeibullLikelihood(link = _DummyLink())
+    @test_throws ArgumentError WeibullLikelihood(link=_DummyLink())
 end
 
 @testset "WeibullLikelihood — fast path (all uncensored)" begin
@@ -53,17 +56,17 @@ end
 
         g = ∇_η_log_density(ℓ, y, η, θ)
         g_fd = fd_grad_wb(h -> log_density(ℓ, y, h, θ), η)
-        @test g ≈ g_fd atol = 1.0e-4
+        @test g≈g_fd atol=1.0e-4
         @test g ≈ @. 1 - exp(η) * y^α
 
         H = ∇²_η_log_density(ℓ, y, η, θ)
         H_fd = fd_grad_wb(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
-        @test H ≈ H_fd atol = 1.0e-4
+        @test H≈H_fd atol=1.0e-4
         @test H ≈ @. -exp(η) * y^α
 
         T = ∇³_η_log_density(ℓ, y, η, θ)
         T_fd = fd_grad_wb(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
-        @test T ≈ T_fd atol = 1.0e-4
+        @test T≈T_fd atol=1.0e-4
     end
 end
 
@@ -74,7 +77,7 @@ end
     censoring = [NONE, RIGHT, LEFT, INTERVAL, NONE, RIGHT, LEFT, INTERVAL]
     time_hi = y_lo .+ abs.(randn(rng, 8)) .+ 0.1
 
-    ℓ = WeibullLikelihood(censoring = censoring, time_hi = time_hi)
+    ℓ = WeibullLikelihood(censoring=censoring, time_hi=time_hi)
 
     for log_α in WB_LOG_ALPHAS
         θ = [log_α]
@@ -85,15 +88,15 @@ end
 
         g = ∇_η_log_density(ℓ, y_lo, η, θ)
         g_fd = fd_grad_wb(h -> log_density(ℓ, y_lo, h, θ), η)
-        @test g ≈ g_fd atol = 1.0e-4
+        @test g≈g_fd atol=1.0e-4
 
         H = ∇²_η_log_density(ℓ, y_lo, η, θ)
         H_fd = fd_grad_wb(h -> sum(∇_η_log_density(ℓ, y_lo, h, θ)), η)
-        @test H ≈ H_fd atol = 1.0e-4
+        @test H≈H_fd atol=1.0e-4
 
         T = ∇³_η_log_density(ℓ, y_lo, η, θ)
         T_fd = fd_grad_wb(h -> sum(∇²_η_log_density(ℓ, y_lo, h, θ)), η)
-        @test T ≈ T_fd atol = 1.0e-4
+        @test T≈T_fd atol=1.0e-4
     end
 end
 
@@ -103,7 +106,7 @@ end
     η = randn(rng, 6) .* 0.5
 
     ℓ_fast = WeibullLikelihood()
-    ℓ_mixed = WeibullLikelihood(censoring = fill(NONE, 6))
+    ℓ_mixed = WeibullLikelihood(censoring=fill(NONE, 6))
 
     for log_α in WB_LOG_ALPHAS
         θ = [log_α]
@@ -137,8 +140,8 @@ end
     # Mixed-censoring agreement at α = 1 too
     cens = [NONE, RIGHT, LEFT, INTERVAL, NONE, RIGHT, LEFT]
     t_hi = y .+ 0.5
-    ℓ_w_m = WeibullLikelihood(censoring = cens, time_hi = t_hi)
-    ℓ_e_m = ExponentialLikelihood(censoring = cens, time_hi = t_hi)
+    ℓ_w_m = WeibullLikelihood(censoring=cens, time_hi=t_hi)
+    ℓ_e_m = ExponentialLikelihood(censoring=cens, time_hi=t_hi)
     @test log_density(ℓ_w_m, y, η, θ_w) ≈ log_density(ℓ_e_m, y, η, θ_e)
     @test ∇_η_log_density(ℓ_w_m, y, η, θ_w) ≈
           ∇_η_log_density(ℓ_e_m, y, η, θ_e)
@@ -149,15 +152,15 @@ end
 @testset "WeibullLikelihood — Symbol coercion" begin
     censoring_sym = [:none, :right, :left, :interval]
     time_hi = [0.0, 0.0, 0.0, 5.0]
-    ℓ = WeibullLikelihood(censoring = censoring_sym, time_hi = time_hi)
+    ℓ = WeibullLikelihood(censoring=censoring_sym, time_hi=time_hi)
     @test ℓ.censoring isa Vector{Censoring}
     @test ℓ.censoring == [NONE, RIGHT, LEFT, INTERVAL]
 end
 
 @testset "WeibullLikelihood — bad censoring type rejected" begin
-    @test_throws ArgumentError WeibullLikelihood(censoring = [1, 2, 3])
+    @test_throws ArgumentError WeibullLikelihood(censoring=[1, 2, 3])
     @test_throws ArgumentError WeibullLikelihood(
-        censoring = ["none", "right"])
+        censoring=["none", "right"])
 end
 
 @testset "WeibullLikelihood — RIGHT-only closed form" begin
@@ -167,7 +170,7 @@ end
     log_α = 0.4
     α = exp(log_α)
     θ = [log_α]
-    ℓ = WeibullLikelihood(censoring = fill(RIGHT, 5))
+    ℓ = WeibullLikelihood(censoring=fill(RIGHT, 5))
     @test log_density(ℓ, y, η, θ) ≈ -sum(@. exp(η) * y^α)
     @test ∇_η_log_density(ℓ, y, η, θ) ≈ @. -exp(η) * y^α
     @test ∇²_η_log_density(ℓ, y, η, θ) ≈ @. -exp(η) * y^α
@@ -184,7 +187,7 @@ end
     α = exp(log_α)
     θ = [log_α]
     ℓ = WeibullLikelihood(
-        censoring = fill(INTERVAL, 4), time_hi = time_hi)
+        censoring=fill(INTERVAL, 4), time_hi=time_hi)
 
     λ = exp.(η)
     u_lo = λ .* y_lo .^ α
@@ -208,11 +211,11 @@ end
     @test all(0 .≤ cdf_fast .≤ 1)
 
     # All-NONE censored variant: same numbers
-    ℓ_none = WeibullLikelihood(censoring = fill(NONE, 4))
+    ℓ_none = WeibullLikelihood(censoring=fill(NONE, 4))
     @test pointwise_cdf(ℓ_none, y, η, θ) ≈ cdf_fast
 
     # Censored variant with non-NONE rows: undefined, throws
-    ℓ_cens = WeibullLikelihood(censoring = [NONE, RIGHT, NONE, NONE])
+    ℓ_cens = WeibullLikelihood(censoring=[NONE, RIGHT, NONE, NONE])
     @test_throws ArgumentError pointwise_cdf(ℓ_cens, y, η, θ)
 end
 
@@ -225,7 +228,7 @@ end
     α = exp(log_α)
     θ = [log_α]
     ℓ = WeibullLikelihood(
-        censoring = [NONE, RIGHT, LEFT, INTERVAL], time_hi = time_hi)
+        censoring=[NONE, RIGHT, LEFT, INTERVAL], time_hi=time_hi)
 
     pp = pointwise_log_density(ℓ, y_lo, η, θ)
     λ = exp.(η)

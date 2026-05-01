@@ -29,18 +29,18 @@ censoring modes; see ADR-018 for the contract.
 ```
 """
 struct ExponentialLikelihood{
-        L <: AbstractLinkFunction,
-        C <: Union{Nothing, AbstractVector{Censoring}},
-        V <: Union{Nothing, AbstractVector{<:Real}},
+    L <: AbstractLinkFunction,
+    C <: Union{Nothing, AbstractVector{Censoring}},
+    V <: Union{Nothing, AbstractVector{<:Real}}
 } <: AbstractLikelihood
     link::L
     censoring::C
     time_hi::V
 end
 
-function ExponentialLikelihood(; link::AbstractLinkFunction = LogLink(),
-        censoring = nothing,
-        time_hi::Union{Nothing, AbstractVector{<:Real}} = nothing)
+function ExponentialLikelihood(; link::AbstractLinkFunction=LogLink(),
+        censoring=nothing,
+        time_hi::Union{Nothing, AbstractVector{<:Real}}=nothing)
     return ExponentialLikelihood(link, _coerce_censoring(censoring), time_hi)
 end
 

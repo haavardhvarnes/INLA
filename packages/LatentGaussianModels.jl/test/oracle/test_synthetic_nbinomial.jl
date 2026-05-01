@@ -13,8 +13,8 @@ include("load_fixture.jl")
 using Test
 using SparseArrays
 using LatentGaussianModels: NegativeBinomialLikelihood, Intercept, FixedEffects,
-    LatentGaussianModel, inla, fixed_effects, hyperparameters,
-    log_marginal_likelihood
+                            LatentGaussianModel, inla, fixed_effects, hyperparameters,
+                            log_marginal_likelihood
 
 const NB_FIXTURE = "synthetic_nbinomial"
 
@@ -22,8 +22,8 @@ const NB_FIXTURE = "synthetic_nbinomial"
 # meaningful posterior mass; size hyperparameter is on log-scale and
 # matched within 15% on the user scale (R-INLA reports `size` directly).
 const NB_FIXED_EFFECT_TOL = 0.05
-const NB_SIZE_REL_TOL     = 0.15
-const NB_MLIK_REL_TOL     = 0.05
+const NB_SIZE_REL_TOL = 0.15
+const NB_MLIK_REL_TOL = 0.05
 
 _rel_nb(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -56,14 +56,14 @@ end
             n = length(y)
 
             ℓ = NegativeBinomialLikelihood()
-            c_int  = Intercept()
+            c_int = Intercept()
             c_beta = FixedEffects(1)
             # Latent layout: [α; β]. Linear predictor η_i = α + β x_i.
             A = sparse(hcat(ones(n), reshape(x, n, 1)))
             model = LatentGaussianModel(ℓ, (c_int, c_beta), A)
 
             # dim(θ) = 1 (likelihood size only) → :auto picks Grid.
-            res = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Fixed effects ------------------------------------------------
             sf = fx["summary_fixed"]
@@ -79,7 +79,8 @@ end
             # R-INLA's "size for the nbinomial observations" is reported on
             # the user scale; our internal scale is log(size).
             sh = fx["summary_hyperpar"]
-            size_R = _row_value(sh, "size for the nbinomial observations (1/overdispersion)", "mean")
+            size_R = _row_value(
+                sh, "size for the nbinomial observations (1/overdispersion)", "mean")
             size_J = exp(res.θ̂[1])
             @test _rel_nb(size_J, size_R) < NB_SIZE_REL_TOL
 

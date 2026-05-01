@@ -44,10 +44,10 @@ once `u = λ t` is replaced by `u = λ t^α` and time differences by
 ```
 """
 struct WeibullLikelihood{
-        L <: AbstractLinkFunction,
-        C <: Union{Nothing, AbstractVector{Censoring}},
-        V <: Union{Nothing, AbstractVector{<:Real}},
-        P <: AbstractHyperPrior,
+    L <: AbstractLinkFunction,
+    C <: Union{Nothing, AbstractVector{Censoring}},
+    V <: Union{Nothing, AbstractVector{<:Real}},
+    P <: AbstractHyperPrior
 } <: AbstractLikelihood
     link::L
     censoring::C
@@ -55,10 +55,10 @@ struct WeibullLikelihood{
     hyperprior::P
 end
 
-function WeibullLikelihood(; link::AbstractLinkFunction = LogLink(),
-        censoring = nothing,
-        time_hi::Union{Nothing, AbstractVector{<:Real}} = nothing,
-        hyperprior::AbstractHyperPrior = GammaPrecision(1.0, 0.001))
+function WeibullLikelihood(; link::AbstractLinkFunction=LogLink(),
+        censoring=nothing,
+        time_hi::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        hyperprior::AbstractHyperPrior=GammaPrecision(1.0, 0.001))
     link isa LogLink ||
         throw(ArgumentError(
             "WeibullLikelihood: only LogLink is supported, got $(typeof(link))"))

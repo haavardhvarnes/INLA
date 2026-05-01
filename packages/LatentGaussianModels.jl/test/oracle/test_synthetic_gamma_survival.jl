@@ -18,15 +18,15 @@ using Test
 using SparseArrays
 using LinearAlgebra
 using LatentGaussianModels: GammaSurvLikelihood, NONE, RIGHT, Censoring,
-    Intercept, FixedEffects, LatentGaussianModel, inla,
-    fixed_effects, hyperparameters
+                            Intercept, FixedEffects, LatentGaussianModel, inla,
+                            fixed_effects, hyperparameters
 
 const GS_SURV_FIXTURE = "synthetic_gamma_survival"
 
-const GS_SURV_FE_MEAN_TOL  = 0.05    # |Δmean| / max(|R|, 1)
-const GS_SURV_FE_SD_TOL    = 0.10    # |Δsd|  / R-sd
-const GS_SURV_PHI_TOL      = 0.10    # |Δφ|   / R-mean
-const GS_SURV_PHI_SD_TOL   = 0.20    # |Δsd_φ| / R-sd
+const GS_SURV_FE_MEAN_TOL = 0.05    # |Δmean| / max(|R|, 1)
+const GS_SURV_FE_SD_TOL = 0.10    # |Δsd|  / R-sd
+const GS_SURV_PHI_TOL = 0.10    # |Δφ|   / R-mean
+const GS_SURV_PHI_SD_TOL = 0.20    # |Δsd_φ| / R-sd
 
 _rel_gs(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -53,13 +53,13 @@ end
             @test_skip "fixture has no `input` field — regenerate"
         else
             inp = fx["input"]
-            time  = Float64.(inp["time"])
+            time = Float64.(inp["time"])
             event = Int.(inp["event"])
-            xcov  = Float64.(inp["x"])
+            xcov = Float64.(inp["x"])
             n = length(time)
 
             cens = Censoring[e == 1 ? NONE : RIGHT for e in event]
-            ℓ = GammaSurvLikelihood(censoring = cens)
+            ℓ = GammaSurvLikelihood(censoring=cens)
             A = sparse(hcat(ones(n), reshape(xcov, n, 1)))
             model = LatentGaussianModel(ℓ, (Intercept(), FixedEffects(1)), A)
 
@@ -67,10 +67,10 @@ end
 
             # --- Fixed effects: posterior mean + sd --------------------------
             sf = fx["summary_fixed"]
-            α_R   = _gs_row(sf, "(Intercept)", "mean")
-            β_R   = _gs_row(sf, "x",           "mean")
+            α_R = _gs_row(sf, "(Intercept)", "mean")
+            β_R = _gs_row(sf, "x", "mean")
             α_sd_R = _gs_row(sf, "(Intercept)", "sd")
-            β_sd_R = _gs_row(sf, "x",           "sd")
+            β_sd_R = _gs_row(sf, "x", "sd")
 
             fe = fixed_effects(model, res)
             @test length(fe) == 2
@@ -83,17 +83,17 @@ end
             sh = fx["summary_hyperpar"]
             # R-INLA rowname is `Precision-parameter for the Gamma surv`
             # (truncated form stored in summary.hyperpar).
-            φ_R    = _gs_row(sh, "Precision-parameter for the Gamma surv",
-                              "mean")
+            φ_R = _gs_row(sh, "Precision-parameter for the Gamma surv",
+                "mean")
             φ_sd_R = _gs_row(sh, "Precision-parameter for the Gamma surv",
-                              "sd")
+                "sd")
 
             # Mean on user scale via delta method around θ̂ = log φ̂.
             # E[φ] ≈ exp(θ_mean), Var[φ] ≈ Σθ * (exp θ̂)².
-            φ_J     = exp(res.θ_mean[1])
-            φ_sd_J  = sqrt(res.Σθ[1, 1]) * exp(res.θ̂[1])
-            @test _rel_gs(φ_J, φ_R)         < GS_SURV_PHI_TOL
-            @test _rel_gs(φ_sd_J, φ_sd_R)   < GS_SURV_PHI_SD_TOL
+            φ_J = exp(res.θ_mean[1])
+            φ_sd_J = sqrt(res.Σθ[1, 1]) * exp(res.θ̂[1])
+            @test _rel_gs(φ_J, φ_R) < GS_SURV_PHI_TOL
+            @test _rel_gs(φ_sd_J, φ_sd_R) < GS_SURV_PHI_SD_TOL
 
             # --- mlik ---------------------------------------------------------
             # Exposed but not asserted with a tight tolerance: R-INLA's

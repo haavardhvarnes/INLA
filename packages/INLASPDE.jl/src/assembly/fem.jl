@@ -27,8 +27,8 @@ ultimately calls.
 """
 function assemble_fem_matrices(
         points::AbstractMatrix{<:Real},
-        triangles::AbstractMatrix{<:Integer},
-    )
+        triangles::AbstractMatrix{<:Integer}
+)
     size(points, 2) == 2 ||
         throw(ArgumentError("points must be n × 2 for 2D meshes; got size $(size(points))"))
     size(triangles, 2) == 3 ||

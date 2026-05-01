@@ -58,13 +58,10 @@ Find the mode `x̂` of `log p(x | θ, y) ∝ log p(y | A x, θ_ℓ) - ½ x' Q(θ
 by Newton iteration. Returns a `LaplaceResult`.
 """
 function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
-                      strategy::Laplace = Laplace(),
-                      x0::Union{Nothing, AbstractVector{<:Real}} = nothing)
+        strategy::Laplace=Laplace(),
+        x0::Union{Nothing, AbstractVector{<:Real}}=nothing)
     Q = joint_precision(m, θ)
     A = as_matrix(m.mapping)
-    ℓ = m.likelihood
-    n_ℓ = nhyperparameters(ℓ)
-    θ_ℓ = θ[1:n_ℓ]
 
     # --- constraint bookkeeping ---------------------------------------
     constraint = model_constraints(m)
@@ -84,7 +81,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 
     # Build initial posterior precision and factor cache on Q_reg.
     η = A * x
-    ∇²η = ∇²_η_log_density(ℓ, y, η, θ_ℓ)
+    ∇²η = joint_∇²_η_log_density(m, y, η, θ)
     D = Diagonal(-∇²η)
     H = Q_reg + (A' * D * A)
     H = _symmetrize!(H)
@@ -92,11 +89,11 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 
     converged = false
     iter = 0
-    for k in 1:strategy.maxiter
+    for k in 1:(strategy.maxiter)
         iter = k
         η = A * x
-        ∇η = ∇_η_log_density(ℓ, y, η, θ_ℓ)
-        ∇²η = ∇²_η_log_density(ℓ, y, η, θ_ℓ)
+        ∇η = joint_∇_η_log_density(m, y, η, θ)
+        ∇²η = joint_∇²_η_log_density(m, y, η, θ)
         D = Diagonal(-∇²η)
         H = Q_reg + (A' * D * A)
         H = _symmetrize!(H)
@@ -134,7 +131,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 
     # Final evaluation at x̂.
     η = A * x
-    ∇²η = ∇²_η_log_density(ℓ, y, η, θ_ℓ)
+    ∇²η = joint_∇²_η_log_density(m, y, η, θ)
     D = Diagonal(-∇²η)
     H = Q_reg + (A' * D * A)
     H = _symmetrize!(H)
@@ -147,13 +144,13 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         U_final, W_final = _kriging_correction(cache, C)
         _project_to_constraint!(x, C, e_c, U_final, W_final)
         η = A * x
-        constraint_data = (C = C, e = e_c, U = U_final, W_fact = W_final)
+        constraint_data = (C=C, e=e_c, U=U_final, W_fact=W_final)
     else
         constraint_data = nothing
     end
 
     # log p(x̂, y | θ) — uses the *original* Q for the latent quadratic.
-    log_joint = log_density(ℓ, y, η, θ_ℓ) - 0.5 * dot(x, Q * x)
+    log_joint = joint_log_density(m, y, η, θ) - 0.5 * dot(x, Q * x)
 
     # R-INLA-style Laplace marginal:
     #   log p(y | θ) ≈ log p(y | x̂) - ½ x̂' Q x̂
@@ -170,12 +167,12 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     # absorbed into the global `log|H_C|` correction.
     log_det_HC = _log_det_HC(cache, C, has_constr)
     log_normc_total = _sum_log_normalizing_constants(m, θ)
-    log_marginal = log_density(ℓ, y, η, θ_ℓ) - 0.5 * dot(x, Q * x) +
+    log_marginal = joint_log_density(m, y, η, θ) - 0.5 * dot(x, Q * x) +
                    0.5 * m.n_x * log(2π) - 0.5 * log_det_HC +
                    log_normc_total
 
     return LaplaceResult(x, H, cache, collect(θ), log_joint, log_marginal,
-                         iter, converged, constraint_data)
+        iter, converged, constraint_data)
 end
 
 # Constrained-Hessian log-determinant (Marriott-Van Loan):

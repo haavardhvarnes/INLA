@@ -20,6 +20,6 @@ function lumped_mass(C::AbstractSparseMatrix)
     n = size(C, 1)
     n == size(C, 2) ||
         throw(ArgumentError("C must be square; got size $(size(C))"))
-    d = vec(sum(C; dims = 2))
+    d = vec(sum(C; dims=2))
     return sparse(1:n, 1:n, d, n, n)
 end

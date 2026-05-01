@@ -1,7 +1,7 @@
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood, Intercept,
-    IID, RW1, BYM2, LatentGaussianModel, INLALogDensity,
-    sample_conditional, inla, laplace_mode,
-    initial_hyperparameters, n_hyperparameters, n_latent
+                            IID, RW1, BYM2, LatentGaussianModel, INLALogDensity,
+                            sample_conditional, inla, laplace_mode,
+                            initial_hyperparameters, n_hyperparameters, n_latent
 using Distributions: Poisson
 using GMRFs: GMRFGraph
 using LogDensityProblems
@@ -16,7 +16,7 @@ using Statistics: mean
     y = 0.5 .+ 0.6 .* randn(rng, n)
 
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                 sparse(ones(n, 1)))
+        sparse(ones(n, 1)))
     ld = INLALogDensity(model, y)
 
     # dimension + capabilities
@@ -55,10 +55,10 @@ end
 
     c_int = Intercept()
     c_iid = IID(n)
-    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
     model = LatentGaussianModel(GaussianLikelihood(), (c_int, c_iid), A)
 
-    res = inla(model, y; int_strategy = :grid)
+    res = inla(model, y; int_strategy=:grid)
     ld = INLALogDensity(model, y)
 
     _ℓ, g = LogDensityProblems.logdensity_and_gradient(ld, res.θ̂)
@@ -100,19 +100,19 @@ end
 
     c_int = Intercept()
     c_iid = IID(n)
-    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
     model = LatentGaussianModel(GaussianLikelihood(), (c_int, c_iid), A)
     θ = [0.0, 0.0]           # τ_ε = τ_x = 1
 
     # Single-sample: Vector of length n_latent.
     x = sample_conditional(model, θ, y;
-                           rng = Random.Xoshiro(1))
+        rng=Random.Xoshiro(1))
     @test x isa Vector{Float64}
     @test length(x) == n_latent(model)
 
     # Matrix-sample: (n_latent, n_samples).
     X = sample_conditional(model, θ, y, 10;
-                           rng = Random.Xoshiro(1))
+        rng=Random.Xoshiro(1))
     @test X isa Matrix{Float64}
     @test size(X) == (n_latent(model), 10)
 
@@ -121,7 +121,7 @@ end
 
     # Different seeds → different draws.
     X2 = sample_conditional(model, θ, y, 10;
-                            rng = Random.Xoshiro(2))
+        rng=Random.Xoshiro(2))
     @test !(X2[:, 1] ≈ X[:, 1])
 
     # n_samples must be ≥ 1.
@@ -142,14 +142,14 @@ end
 
     c_int = Intercept()
     c_iid = IID(n)
-    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
     model = LatentGaussianModel(GaussianLikelihood(), (c_int, c_iid), A)
     θ = [log(1 / σ_ε^2), log(1 / σ_x^2)]
 
     lp = laplace_mode(model, y, θ)
     X = sample_conditional(model, θ, y, 4000;
-                           rng = Random.Xoshiro(17))
-    x_bar = vec(mean(X; dims = 2))
+        rng=Random.Xoshiro(17))
+    x_bar = vec(mean(X; dims=2))
     # Empirical mean within 4 SE of the analytical mode (intercept
     # entry has Var ≈ 1/(n/σ_ε²) so SE ≈ σ_ε/√(n · n_samples)).
     se = 1.0 / sqrt(n * 4000)
@@ -177,7 +177,7 @@ end
     θ = initial_hyperparameters(model)
 
     X = sample_conditional(model, θ, y, 20;
-                           rng = Random.Xoshiro(7))
+        rng=Random.Xoshiro(7))
     # Structured block is the second half of each column. The
     # constraint is sum(x_structured) = 0.
     for s in 1:size(X, 2)

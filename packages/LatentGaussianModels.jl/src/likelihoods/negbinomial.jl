@@ -15,16 +15,16 @@ default hyperprior matches R-INLA's `family = "nbinomial"` default
 Currently only the canonical `LogLink` is supported.
 """
 struct NegativeBinomialLikelihood{L <: AbstractLinkFunction,
-                                  V <: Union{Nothing, AbstractVector},
-                                  P <: AbstractHyperPrior} <: AbstractLikelihood
+    V <: Union{Nothing, AbstractVector},
+    P <: AbstractHyperPrior} <: AbstractLikelihood
     link::L
     E::V
     hyperprior::P
 end
 
-function NegativeBinomialLikelihood(; link::AbstractLinkFunction = LogLink(),
-                                     E::Union{Nothing, AbstractVector} = nothing,
-                                     hyperprior::AbstractHyperPrior = GammaPrecision(1.0, 0.1))
+function NegativeBinomialLikelihood(; link::AbstractLinkFunction=LogLink(),
+        E::Union{Nothing, AbstractVector}=nothing,
+        hyperprior::AbstractHyperPrior=GammaPrecision(1.0, 0.1))
     link isa LogLink ||
         throw(ArgumentError("NegativeBinomialLikelihood: only LogLink is supported, got $(typeof(link))"))
     return NegativeBinomialLikelihood(link, E, hyperprior)

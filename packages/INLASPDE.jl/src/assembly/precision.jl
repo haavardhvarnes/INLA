@@ -29,8 +29,8 @@ arrays. See [`assemble_fem_matrices`](@ref) for the argument conventions.
 """
 function FEMMatrices(
         points::AbstractMatrix{<:Real},
-        triangles::AbstractMatrix{<:Integer},
-    )
+        triangles::AbstractMatrix{<:Integer}
+)
     C, G1 = assemble_fem_matrices(points, triangles)
     C_lumped = lumped_mass(C)
     G2 = stiffness_squared(G1, C_lumped)
@@ -93,9 +93,9 @@ Missing `C_lumped` and `G2` are derived on the fly. Prefer
 function spde_precision(
         α::Integer, τ::Real, κ::Real,
         C::AbstractSparseMatrix, G1::AbstractSparseMatrix,
-        C_lumped::Union{Nothing, AbstractSparseMatrix} = nothing,
-        G2::Union{Nothing, AbstractSparseMatrix} = nothing,
-    )
+        C_lumped::Union{Nothing, AbstractSparseMatrix}=nothing,
+        G2::Union{Nothing, AbstractSparseMatrix}=nothing
+)
     if α == 1
         τ > 0 && κ > 0 ||
             throw(ArgumentError("τ and κ must be positive; got τ=$τ, κ=$κ"))

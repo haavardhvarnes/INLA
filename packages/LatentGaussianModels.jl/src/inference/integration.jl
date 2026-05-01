@@ -77,17 +77,17 @@ posterior, then renormalises. Returning log-weights avoids underflow
 at high dimension.
 """
 function integration_nodes(scheme::Grid, θ̂::AbstractVector{<:Real},
-                           Σ::AbstractMatrix{<:Real})
+        Σ::AbstractMatrix{<:Real})
     m = length(θ̂)
     F = eigen(Symmetric(Σ))
     halfσ = F.vectors * Diagonal(sqrt.(max.(F.values, 0.0)))   # Σ^{1/2}
 
-    z_1d = range(-scheme.span, scheme.span; length = scheme.n_per_dim)
+    z_1d = range(-scheme.span, scheme.span; length=scheme.n_per_dim)
     Δz = step(z_1d)
     # Standard-normal weights φ(z) Δz per dimension, product over dims.
     log_w1d = [-0.5 * z^2 - 0.5 * log(2π) + log(Δz) for z in z_1d]
 
-    iters = Iterators.product(ntuple(_ -> 1:scheme.n_per_dim, m)...)
+    iters = Iterators.product(ntuple(_ -> 1:(scheme.n_per_dim), m)...)
     points = Vector{Vector{Float64}}(undef, length(iters))
     lws = Vector{Float64}(undef, length(iters))
     for (k, idx) in enumerate(iters)
@@ -99,7 +99,7 @@ function integration_nodes(scheme::Grid, θ̂::AbstractVector{<:Real},
 end
 
 function integration_nodes(scheme::GaussHermite, θ̂::AbstractVector{<:Real},
-                           Σ::AbstractMatrix{<:Real})
+        Σ::AbstractMatrix{<:Real})
     m = length(θ̂)
     F = eigen(Symmetric(Σ))
     halfσ = F.vectors * Diagonal(sqrt.(max.(F.values, 0.0)))
@@ -110,7 +110,7 @@ function integration_nodes(scheme::GaussHermite, θ̂::AbstractVector{<:Real},
     z_1d = x .* sqrt(2)
     log_w1d = log.(w ./ sqrt(π))
 
-    iters = Iterators.product(ntuple(_ -> 1:scheme.n_per_dim, m)...)
+    iters = Iterators.product(ntuple(_ -> 1:(scheme.n_per_dim), m)...)
     points = Vector{Vector{Float64}}(undef, length(iters))
     lws = Vector{Float64}(undef, length(iters))
     for (k, idx) in enumerate(iters)
@@ -122,10 +122,10 @@ function integration_nodes(scheme::GaussHermite, θ̂::AbstractVector{<:Real},
 end
 
 function integration_nodes(scheme::CCD, θ̂::AbstractVector{<:Real},
-                           Σ::AbstractMatrix{<:Real})
+        Σ::AbstractMatrix{<:Real})
     m = length(θ̂)
     if m ≤ 1
-        return integration_nodes(Grid(n_per_dim = 7, span = 3.0), θ̂, Σ)
+        return integration_nodes(Grid(n_per_dim=7, span=3.0), θ̂, Σ)
     end
 
     f0 = scheme.f0 === nothing ? sqrt(m + 2.0) : scheme.f0
@@ -137,7 +137,8 @@ function integration_nodes(scheme::CCD, θ̂::AbstractVector{<:Real},
     push!(zs, zeros(m))
     # Axial
     for i in 1:m
-        e = zeros(m); e[i] = f0
+        e = zeros(m)
+        e[i] = f0
         push!(zs, copy(e))
         e[i] = -f0
         push!(zs, copy(e))

@@ -22,17 +22,17 @@ using Random
 using SparseArrays
 using Statistics
 using LatentGaussianModels: inla_coxph, coxph_design, CoxphAugmented,
-    PoissonLikelihood, log_density
+                            PoissonLikelihood, log_density
 
 @testset "inla_coxph: basic augmentation invariants" begin
     Random.seed!(20260430)
-    n  = 50
+    n = 50
     bp = [0.0, 1.0, 2.0, 3.0, 4.0]
-    K  = length(bp) - 1
-    time  = clamp.(rand(n) .* 3.5 .+ 0.1, 0.1, 3.95)
+    K = length(bp) - 1
+    time = clamp.(rand(n) .* 3.5 .+ 0.1, 0.1, 3.95)
     event = rand(0:1, n)
 
-    aug = inla_coxph(time, event; breakpoints = bp)
+    aug = inla_coxph(time, event; breakpoints=bp)
 
     # Type / size invariants ---------------------------------------------
     @test aug isa CoxphAugmented
@@ -49,7 +49,7 @@ using LatentGaussianModels: inla_coxph, coxph_design, CoxphAugmented,
     # Invariant 2: total exposure per subject ≡ time -----------------------
     for i in 1:n
         rows = findall(==(i), aug.subject)
-        @test sum(aug.E[rows]) ≈ time[i] atol = 1e-12
+        @test sum(aug.E[rows])≈time[i] atol=1e-12
     end
 
     # Invariant 3: event count per subject ≡ event[i] ----------------------
@@ -61,7 +61,7 @@ using LatentGaussianModels: inla_coxph, coxph_design, CoxphAugmented,
     # Invariant 1: subjects contribute up to k_last ------------------------
     for i in 1:n
         rows = findall(==(i), aug.subject)
-        ks   = aug.interval[rows]
+        ks = aug.interval[rows]
         @test ks == sort(ks) == collect(1:length(ks))
         # The last interval visited is the one containing t_i:
         k_last = ks[end]
@@ -74,11 +74,11 @@ end
 
 @testset "inla_coxph: explicit small example" begin
     # 3 subjects, 4 intervals; check every row by hand.
-    time  = [0.5, 2.5, 3.8]
+    time = [0.5, 2.5, 3.8]
     event = [1, 0, 1]
-    bp    = [0.0, 1.0, 2.0, 3.0, 4.0]
+    bp = [0.0, 1.0, 2.0, 3.0, 4.0]
 
-    aug = inla_coxph(time, event; breakpoints = bp)
+    aug = inla_coxph(time, event; breakpoints=bp)
 
     # Subject 1: dies at t=0.5, only crosses interval 1.
     # Row: (subj=1, k=1, E=0.5, y=1)
@@ -86,21 +86,21 @@ end
     # Rows: (2,1,1.0,0), (2,2,1.0,0), (2,3,0.5,0)
     # Subject 3: dies at 3.8, crosses intervals 1,2,3,4.
     # Rows: (3,1,1.0,0), (3,2,1.0,0), (3,3,1.0,0), (3,4,0.8,1)
-    expected_subject  = [1, 2, 2, 2, 3, 3, 3, 3]
+    expected_subject = [1, 2, 2, 2, 3, 3, 3, 3]
     expected_interval = [1, 1, 2, 3, 1, 2, 3, 4]
-    expected_E        = [0.5, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0, 0.8]
-    expected_y        = [1, 0, 0, 0, 0, 0, 0, 1]
+    expected_E = [0.5, 1.0, 1.0, 0.5, 1.0, 1.0, 1.0, 0.8]
+    expected_y = [1, 0, 0, 0, 0, 0, 0, 1]
 
-    @test aug.subject  == expected_subject
+    @test aug.subject == expected_subject
     @test aug.interval == expected_interval
-    @test aug.E        ≈ expected_E
-    @test aug.y        == expected_y
+    @test aug.E ≈ expected_E
+    @test aug.y == expected_y
 end
 
 @testset "inla_coxph: defaults / breakpoint construction" begin
     Random.seed!(11)
-    n     = 100
-    time  = rand(n) .* 5 .+ 0.01
+    n = 100
+    time = rand(n) .* 5 .+ 0.01
     event = rand(0:1, n)
 
     aug = inla_coxph(time, event)
@@ -109,7 +109,7 @@ end
     @test issorted(aug.breakpoints)
     @test aug.n_intervals ≥ 2
     # Total exposure = sum of times.
-    @test sum(aug.E) ≈ sum(time) atol = 1e-10
+    @test sum(aug.E)≈sum(time) atol=1e-10
 end
 
 @testset "inla_coxph: input validation" begin
@@ -117,25 +117,25 @@ end
     @test_throws DimensionMismatch inla_coxph([1.0, 2.0], [1])
     @test_throws ArgumentError inla_coxph([0.0, 1.0], [1, 1])     # time > 0
     @test_throws ArgumentError inla_coxph([1.0, 2.0], [2, 1])     # bad event
-    @test_throws ArgumentError inla_coxph([1.0], [1]; nbreakpoints = 1)
+    @test_throws ArgumentError inla_coxph([1.0], [1]; nbreakpoints=1)
     @test_throws ArgumentError inla_coxph([1.0], [1];
-        breakpoints = [0.0, 0.5])  # bp[end] < max(time)
+        breakpoints=[0.0, 0.5])  # bp[end] < max(time)
     @test_throws ArgumentError inla_coxph([1.0], [1];
-        breakpoints = [0.5, 1.0])  # bp[1] != 0
+        breakpoints=[0.5, 1.0])  # bp[1] != 0
     @test_throws ArgumentError inla_coxph([1.0], [1];
-        breakpoints = [1.0, 0.0])  # not sorted
+        breakpoints=[1.0, 0.0])  # not sorted
 end
 
 @testset "coxph_design: structure" begin
-    time  = [0.5, 2.5, 3.8]
+    time = [0.5, 2.5, 3.8]
     event = [1, 0, 1]
-    bp    = [0.0, 1.0, 2.0, 3.0, 4.0]
-    aug   = inla_coxph(time, event; breakpoints = bp)
+    bp = [0.0, 1.0, 2.0, 3.0, 4.0]
+    aug = inla_coxph(time, event; breakpoints=bp)
 
     # Baseline-only design.
     B = coxph_design(aug)
     @test size(B) == (length(aug.y), aug.n_intervals)
-    @test sum(B; dims = 2) == ones(length(aug.y), 1)  # row sums = 1
+    @test sum(B; dims=2) == ones(length(aug.y), 1)  # row sums = 1
     @test B isa SparseMatrixCSC
     # Each row has a 1 at column = interval index.
     for r in 1:length(aug.y)
@@ -147,7 +147,7 @@ end
     A = coxph_design(aug, X)
     @test size(A) == (length(aug.y), aug.n_intervals + size(X, 2))
     # Baseline block is identical.
-    @test A[:, 1:aug.n_intervals] == B
+    @test A[:, 1:(aug.n_intervals)] == B
     # Covariate block: row r has X[subject[r], :].
     Xrep = A[:, (aug.n_intervals + 1):end]
     for r in 1:length(aug.y)
@@ -175,17 +175,17 @@ end
 
 @testset "Algebraic equivalence: augmented Poisson ↔ piecewise-exp" begin
     Random.seed!(2026)
-    n  = 30
+    n = 30
     bp = [0.0, 0.7, 1.4, 2.1, 2.8, 3.5]
-    K  = length(bp) - 1
-    time  = clamp.(rand(n) .* 3.4 .+ 0.05, 0.05, 3.45)
+    K = length(bp) - 1
+    time = clamp.(rand(n) .* 3.4 .+ 0.05, 0.05, 3.45)
     event = rand(0:1, n)
 
-    aug = inla_coxph(time, event; breakpoints = bp)
-    γ   = randn(K)        # baseline log-hazards
-    η   = γ[aug.interval] # piecewise-constant linear predictor (no covariates)
+    aug = inla_coxph(time, event; breakpoints=bp)
+    γ = randn(K)        # baseline log-hazards
+    η = γ[aug.interval] # piecewise-constant linear predictor (no covariates)
 
-    ℓ = PoissonLikelihood(E = aug.E)
+    ℓ = PoissonLikelihood(E=aug.E)
     logL_pois = log_density(ℓ, aug.y, η, Float64[])
 
     # Independent piecewise-exponential log-density:
@@ -216,26 +216,26 @@ end
         end
     end
 
-    @test logL_pois ≈ logL_pwe + aux atol = 1e-9
+    @test logL_pois≈logL_pwe + aux atol=1e-9
 end
 
 # Verify the equivalence holds when we add covariate effects.
 @testset "Equivalence with covariates" begin
     Random.seed!(7)
-    n     = 25
-    bp    = [0.0, 1.0, 2.0, 3.0]
-    K     = length(bp) - 1
-    time  = clamp.(rand(n) .* 2.9 .+ 0.05, 0.05, 2.95)
+    n = 25
+    bp = [0.0, 1.0, 2.0, 3.0]
+    K = length(bp) - 1
+    time = clamp.(rand(n) .* 2.9 .+ 0.05, 0.05, 2.95)
     event = rand(0:1, n)
-    X     = randn(n, 2)
-    β     = [0.4, -0.2]
-    γ     = randn(K)
+    X = randn(n, 2)
+    β = [0.4, -0.2]
+    γ = randn(K)
 
-    aug = inla_coxph(time, event; breakpoints = bp)
-    A   = coxph_design(aug, X)
-    η   = A * vcat(γ, β)
+    aug = inla_coxph(time, event; breakpoints=bp)
+    A = coxph_design(aug, X)
+    η = A * vcat(γ, β)
 
-    ℓ = PoissonLikelihood(E = aug.E)
+    ℓ = PoissonLikelihood(E=aug.E)
     logL_pois = log_density(ℓ, aug.y, η, Float64[])
 
     # Direct piecewise-exponential.
@@ -262,5 +262,5 @@ end
             aux += log(min(t_i, bp[k_last + 1]) - bp[k_last])
         end
     end
-    @test logL_pois ≈ logL_pwe + aux atol = 1e-9
+    @test logL_pois≈logL_pwe + aux atol=1e-9
 end

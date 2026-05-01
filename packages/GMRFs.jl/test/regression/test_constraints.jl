@@ -20,7 +20,7 @@ end
 
 @testset "constraints(::AbstractGMRF) defaults" begin
     @test constraints(IIDGMRF(3)) isa NoConstraint
-    @test constraints(AR1GMRF(5; ρ = 0.3)) isa NoConstraint
+    @test constraints(AR1GMRF(5; ρ=0.3)) isa NoConstraint
 
     rc = constraints(RW1GMRF(5))
     @test rc isa LinearConstraint
@@ -32,7 +32,7 @@ end
     @test constraint_matrix(rc2_open)[1, :] == ones(5)
     @test constraint_matrix(rc2_open)[2, :] == 1:5
 
-    rc2_cyc = constraints(RW2GMRF(5; cyclic = true))
+    rc2_cyc = constraints(RW2GMRF(5; cyclic=true))
     @test nconstraints(rc2_cyc) == 1
 end
 
@@ -45,5 +45,5 @@ end
     @test nconstraints(cons) == 3   # nodes: {1,2}, {3}, {4,5}
     A = constraint_matrix(cons)
     # node 3 is isolated — its own component
-    @test sum(A; dims = 2) == [2.0; 1.0; 2.0;;]
+    @test sum(A; dims=2) == [2.0; 1.0; 2.0;;]
 end

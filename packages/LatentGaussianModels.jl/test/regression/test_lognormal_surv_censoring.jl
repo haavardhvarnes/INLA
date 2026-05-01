@@ -1,18 +1,21 @@
 using LatentGaussianModels: LognormalSurvLikelihood, IdentityLink,
-    Censoring, NONE, RIGHT, LEFT, INTERVAL,
-    log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density,
-    pointwise_log_density, pointwise_cdf,
-    nhyperparameters, initial_hyperparameters, link, log_hyperprior,
-    PCPrecision
+                            Censoring, NONE, RIGHT, LEFT, INTERVAL,
+                            log_density, ∇_η_log_density, ∇²_η_log_density,
+                            ∇³_η_log_density,
+                            pointwise_log_density, pointwise_cdf,
+                            nhyperparameters, initial_hyperparameters, link, log_hyperprior,
+                            PCPrecision
 
 using Distributions: Distributions
 
 # Reuses the same FD helper used in test_likelihoods.jl.
-function fd_grad_lns(f, η, h = 1.0e-6)
+function fd_grad_lns(f, η, h=1.0e-6)
     g = similar(η)
     for i in eachindex(η)
-        ep = copy(η); ep[i] += h
-        em = copy(η); em[i] -= h
+        ep = copy(η)
+        ep[i] += h
+        em = copy(η)
+        em[i] -= h
         g[i] = (f(ep) - f(em)) / (2h)
     end
     return g
@@ -35,7 +38,7 @@ const LNS_LOG_TAUS = (-0.7, 0.0, 0.7)   # σ ≈ 1.42, 1.00, 0.71
 
     # Non-IdentityLink rejected
     @test_throws ArgumentError LognormalSurvLikelihood(
-        link = LatentGaussianModels.LogLink())
+        link=LatentGaussianModels.LogLink())
 end
 
 @testset "LognormalSurvLikelihood — fast path (all uncensored)" begin
@@ -60,17 +63,17 @@ end
 
         g = ∇_η_log_density(ℓ, y, η, θ)
         g_fd = fd_grad_lns(h -> log_density(ℓ, y, h, θ), η)
-        @test g ≈ g_fd atol = 1.0e-4
+        @test g≈g_fd atol=1.0e-4
         @test g ≈ @. τ * (log(y) - η)
 
         H = ∇²_η_log_density(ℓ, y, η, θ)
         H_fd = fd_grad_lns(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
-        @test H ≈ H_fd atol = 1.0e-4
+        @test H≈H_fd atol=1.0e-4
         @test H ≈ fill(-τ, length(y))
 
         T = ∇³_η_log_density(ℓ, y, η, θ)
         T_fd = fd_grad_lns(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
-        @test T ≈ T_fd atol = 1.0e-4
+        @test T≈T_fd atol=1.0e-4
         @test T == zeros(length(y))
     end
 end
@@ -82,7 +85,7 @@ end
     censoring = [NONE, RIGHT, LEFT, INTERVAL, NONE, RIGHT, LEFT, INTERVAL]
     time_hi = y_lo .+ abs.(randn(rng, 8)) .+ 0.5
 
-    ℓ = LognormalSurvLikelihood(censoring = censoring, time_hi = time_hi)
+    ℓ = LognormalSurvLikelihood(censoring=censoring, time_hi=time_hi)
 
     for log_τ in LNS_LOG_TAUS
         θ = [log_τ]
@@ -93,15 +96,15 @@ end
 
         g = ∇_η_log_density(ℓ, y_lo, η, θ)
         g_fd = fd_grad_lns(h -> log_density(ℓ, y_lo, h, θ), η)
-        @test g ≈ g_fd atol = 1.0e-4
+        @test g≈g_fd atol=1.0e-4
 
         H = ∇²_η_log_density(ℓ, y_lo, η, θ)
         H_fd = fd_grad_lns(h -> sum(∇_η_log_density(ℓ, y_lo, h, θ)), η)
-        @test H ≈ H_fd atol = 1.0e-4
+        @test H≈H_fd atol=1.0e-4
 
         T = ∇³_η_log_density(ℓ, y_lo, η, θ)
         T_fd = fd_grad_lns(h -> sum(∇²_η_log_density(ℓ, y_lo, h, θ)), η)
-        @test T ≈ T_fd atol = 1.0e-4
+        @test T≈T_fd atol=1.0e-4
     end
 end
 
@@ -111,7 +114,7 @@ end
     η = randn(rng, 6) .* 0.4
 
     ℓ_fast = LognormalSurvLikelihood()
-    ℓ_mixed = LognormalSurvLikelihood(censoring = fill(NONE, 6))
+    ℓ_mixed = LognormalSurvLikelihood(censoring=fill(NONE, 6))
 
     for log_τ in LNS_LOG_TAUS
         θ = [log_τ]
@@ -128,15 +131,15 @@ end
 @testset "LognormalSurvLikelihood — Symbol coercion" begin
     censoring_sym = [:none, :right, :left, :interval]
     time_hi = [0.0, 0.0, 0.0, 5.0]
-    ℓ = LognormalSurvLikelihood(censoring = censoring_sym, time_hi = time_hi)
+    ℓ = LognormalSurvLikelihood(censoring=censoring_sym, time_hi=time_hi)
     @test ℓ.censoring isa Vector{Censoring}
     @test ℓ.censoring == [NONE, RIGHT, LEFT, INTERVAL]
 end
 
 @testset "LognormalSurvLikelihood — bad censoring type rejected" begin
-    @test_throws ArgumentError LognormalSurvLikelihood(censoring = [1, 2, 3])
+    @test_throws ArgumentError LognormalSurvLikelihood(censoring=[1, 2, 3])
     @test_throws ArgumentError LognormalSurvLikelihood(
-        censoring = ["none", "right"])
+        censoring=["none", "right"])
 end
 
 @testset "LognormalSurvLikelihood — RIGHT-only closed form" begin
@@ -149,10 +152,10 @@ end
     σ = sqrt(1 / τ)
     θ = [log_τ]
     N = Distributions.Normal()
-    ℓ = LognormalSurvLikelihood(censoring = fill(RIGHT, 5))
+    ℓ = LognormalSurvLikelihood(censoring=fill(RIGHT, 5))
 
     expected = sum(Distributions.logccdf(N, (log(y[i]) - η[i]) / σ)
-                   for i in eachindex(y))
+    for i in eachindex(y))
     @test log_density(ℓ, y, η, θ) ≈ expected
 end
 
@@ -165,10 +168,10 @@ end
     σ = sqrt(1 / τ)
     θ = [log_τ]
     N = Distributions.Normal()
-    ℓ = LognormalSurvLikelihood(censoring = fill(LEFT, 5))
+    ℓ = LognormalSurvLikelihood(censoring=fill(LEFT, 5))
 
     expected = sum(Distributions.logcdf(N, (log(y[i]) - η[i]) / σ)
-                   for i in eachindex(y))
+    for i in eachindex(y))
     @test log_density(ℓ, y, η, θ) ≈ expected
 end
 
@@ -183,7 +186,7 @@ end
     θ = [log_τ]
     N = Distributions.Normal()
     ℓ = LognormalSurvLikelihood(
-        censoring = fill(INTERVAL, 4), time_hi = time_hi)
+        censoring=fill(INTERVAL, 4), time_hi=time_hi)
 
     # log[F(t_hi) - F(t_lo)] computed via Distributions.logdiffcdf
     # equivalent: logsubexp(logcdf(N, w_hi), logcdf(N, w_lo))
@@ -215,11 +218,11 @@ end
     @test all(0 .≤ cdf_fast .≤ 1)
 
     # All-NONE censored variant: same numbers
-    ℓ_none = LognormalSurvLikelihood(censoring = fill(NONE, 4))
+    ℓ_none = LognormalSurvLikelihood(censoring=fill(NONE, 4))
     @test pointwise_cdf(ℓ_none, y, η, θ) ≈ cdf_fast
 
     # Censored variant with non-NONE rows: undefined, throws
-    ℓ_cens = LognormalSurvLikelihood(censoring = [NONE, RIGHT, NONE, NONE])
+    ℓ_cens = LognormalSurvLikelihood(censoring=[NONE, RIGHT, NONE, NONE])
     @test_throws ArgumentError pointwise_cdf(ℓ_cens, y, η, θ)
 end
 
@@ -234,13 +237,14 @@ end
     θ = [log_τ]
     N = Distributions.Normal()
     ℓ = LognormalSurvLikelihood(
-        censoring = [NONE, RIGHT, LEFT, INTERVAL], time_hi = time_hi)
+        censoring=[NONE, RIGHT, LEFT, INTERVAL], time_hi=time_hi)
 
     pp = pointwise_log_density(ℓ, y_lo, η, θ)
 
     # NONE: log lognormal density
-    @test pp[1] ≈ -log(y_lo[1]) - 0.5 * log(2π) + 0.5 * log_τ -
-                  0.5 * τ * (log(y_lo[1]) - η[1])^2
+    @test pp[1] ≈
+          -log(y_lo[1]) - 0.5 * log(2π) + 0.5 * log_τ -
+          0.5 * τ * (log(y_lo[1]) - η[1])^2
 
     # RIGHT: log Φ((η − log t)/σ) = logccdf(N, (log t − η)/σ)
     @test pp[2] ≈ Distributions.logccdf(N, (log(y_lo[2]) - η[2]) / σ)

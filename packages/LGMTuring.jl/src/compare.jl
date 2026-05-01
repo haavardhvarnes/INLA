@@ -32,25 +32,26 @@ diff = compare_posteriors(inla_fit, chain; model = model)
 ```
 """
 function compare_posteriors(inla_fit::INLAResult, chain::Chains;
-                             model::LatentGaussianModel,
-                             tol_mean::Real = 0.10,
-                             tol_sd::Real   = 0.20)
+        model::LatentGaussianModel,
+        tol_mean::Real=0.10,
+        tol_sd::Real=0.20)
     inla_rows = hyperparameters(model, inla_fit)
     names = Symbol.([r.name for r in inla_rows])
 
     chain_names = Symbol.(string.(chain.name_map.parameters))
     nuts_means = Dict{Symbol, Float64}()
-    nuts_sds   = Dict{Symbol, Float64}()
+    nuts_sds = Dict{Symbol, Float64}()
     for nm in chain_names
         col = vec(Array(chain[nm]))
         nuts_means[nm] = mean(col)
-        nuts_sds[nm]   = std(col)
+        nuts_sds[nm] = std(col)
     end
 
-    rows = NamedTuple{(:name, :inla_mean, :nuts_mean, :mean_abs_diff,
-                       :inla_sd, :nuts_sd, :sd_rel_diff, :flagged),
-                      Tuple{String, Float64, Float64, Float64,
-                            Float64, Float64, Float64, Bool}}[]
+    rows = NamedTuple{
+        (:name, :inla_mean, :nuts_mean, :mean_abs_diff,
+            :inla_sd, :nuts_sd, :sd_rel_diff, :flagged),
+        Tuple{String, Float64, Float64, Float64,
+            Float64, Float64, Float64, Bool}}[]
     for (k, name) in enumerate(names)
         haskey(nuts_means, name) ||
             throw(ArgumentError("hyperparameter \"$name\" missing from chain " *
@@ -63,12 +64,13 @@ function compare_posteriors(inla_fit::INLAResult, chain::Chains;
         mdiff = abs(im - nm)
         sd_rel = is > 0 ? abs(ns - is) / is : abs(ns - is)
         flagged = (mdiff / scale > tol_mean) || (sd_rel > tol_sd)
-        push!(rows, (name = String(name),
-                     inla_mean = im, nuts_mean = nm,
-                     mean_abs_diff = mdiff,
-                     inla_sd = is, nuts_sd = ns,
-                     sd_rel_diff = sd_rel,
-                     flagged = flagged))
+        push!(rows,
+            (name=String(name),
+                inla_mean=im, nuts_mean=nm,
+                mean_abs_diff=mdiff,
+                inla_sd=is, nuts_sd=ns,
+                sd_rel_diff=sd_rel,
+                flagged=flagged))
     end
     return rows
 end

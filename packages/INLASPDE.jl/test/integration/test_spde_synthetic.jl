@@ -19,7 +19,7 @@ using Random: MersenneTwister, randn, rand
 using Statistics: cor
 using GMRFs: Generic0GMRF
 using LatentGaussianModels: LatentGaussianModel, GaussianLikelihood,
-    empirical_bayes
+                            empirical_bayes
 
 @testset "M5 — synthetic Matérn recovery via Empirical Bayes" begin
     rng = MersenneTwister(42)
@@ -28,17 +28,17 @@ using LatentGaussianModels: LatentGaussianModel, GaussianLikelihood,
     # effects on the SPDE solution.
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
     mesh = inla_mesh_2d(;
-        boundary = sq, max_edge = 0.1, offset = 0.2, min_angle = 25.0,
+        boundary=sq, max_edge=0.1, offset=0.2, min_angle=25.0
     )
     @test num_vertices(mesh) > 100
 
     # PC-Matérn prior kept wide so the data, not the prior, drives the
     # posterior mode on (ρ, σ).
     pc = PCMatern(
-        range_U = 0.3, range_α = 0.5,
-        sigma_U = 1.0, sigma_α = 0.5,
+        range_U=0.3, range_α=0.5,
+        sigma_U=1.0, sigma_α=0.5
     )
-    spde = SPDE2(mesh; pc = pc)
+    spde = SPDE2(mesh; pc=pc)
 
     # Truth: pick (ρ, σ) comfortably inside the domain diameter.
     ρ_true, σ_true = 0.3, 1.0
@@ -49,7 +49,7 @@ using LatentGaussianModels: LatentGaussianModel, GaussianLikelihood,
     # symmetrize before handing off to the GMRF constructor.
     Q_true = LatentGaussianModels.precision_matrix(spde, θ_true)
     Q_sym = (Q_true + Q_true') / 2
-    x_true = rand(rng, Generic0GMRF(Q_sym; τ = 1.0))
+    x_true = rand(rng, Generic0GMRF(Q_sym; τ=1.0))
 
     # Gaussian observations at random interior locations.
     n_obs = 150

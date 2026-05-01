@@ -23,9 +23,9 @@ element has fields `(name, mean, sd, lower, upper)` with the
 
 Components of length > 1 are surfaced through [`random_effects`](@ref).
 """
-function fixed_effects(m::LatentGaussianModel, res::INLAResult; level::Real = 0.95)
+function fixed_effects(m::LatentGaussianModel, res::INLAResult; level::Real=0.95)
     rows = NamedTuple{(:name, :mean, :sd, :lower, :upper),
-                       Tuple{String, Float64, Float64, Float64, Float64}}[]
+        Tuple{String, Float64, Float64, Float64, Float64}}[]
     α = (1 - level) / 2
     z = _normal_quantile(1 - α)
     for (i, c) in enumerate(m.components)
@@ -33,9 +33,10 @@ function fixed_effects(m::LatentGaussianModel, res::INLAResult; level::Real = 0.
         idx = first(m.latent_ranges[i])
         μ = res.x_mean[idx]
         sd = sqrt(max(res.x_var[idx], 0.0))
-        push!(rows, (name = _component_name(c, i),
-                     mean = μ, sd = sd,
-                     lower = μ - z * sd, upper = μ + z * sd))
+        push!(rows,
+            (name=_component_name(c, i),
+                mean=μ, sd=sd,
+                lower=μ - z * sd, upper=μ + z * sd))
     end
     return rows
 end
@@ -48,19 +49,20 @@ Per-component posterior summaries for vector-valued components (length > 1).
 Each entry is a NamedTuple of vectors — one entry per latent coordinate
 within that component.
 """
-function random_effects(m::LatentGaussianModel, res::INLAResult; level::Real = 0.95)
+function random_effects(m::LatentGaussianModel, res::INLAResult; level::Real=0.95)
     α = (1 - level) / 2
     z = _normal_quantile(1 - α)
-    out = Dict{String, NamedTuple{(:mean, :sd, :lower, :upper),
-                                    NTuple{4, Vector{Float64}}}}()
+    out = Dict{
+        String, NamedTuple{(:mean, :sd, :lower, :upper),
+            NTuple{4, Vector{Float64}}}}()
     for (i, c) in enumerate(m.components)
         length(c) > 1 || continue
         rng = m.latent_ranges[i]
         μ = res.x_mean[rng]
         sd = sqrt.(max.(res.x_var[rng], 0.0))
-        out[_component_name(c, i)] = (mean = μ, sd = sd,
-                                       lower = μ .- z .* sd,
-                                       upper = μ .+ z .* sd)
+        out[_component_name(c, i)] = (mean=μ, sd=sd,
+            lower=μ .- z .* sd,
+            upper=μ .+ z .* sd)
     end
     return out
 end
@@ -74,17 +76,17 @@ scale: one row per entry of `θ`, ordered as (likelihood, component_1, ..).
 Each row has `(name, mean, sd, lower, upper)`. For display on user scale,
 apply the relevant `user_scale` transforms (e.g. `exp` for log-precisions).
 """
-function hyperparameters(m::LatentGaussianModel, res::INLAResult; level::Real = 0.95)
+function hyperparameters(m::LatentGaussianModel, res::INLAResult; level::Real=0.95)
     names = _hyperparameter_names(m)
     α = (1 - level) / 2
     z = _normal_quantile(1 - α)
     rows = NamedTuple{(:name, :mean, :sd, :lower, :upper),
-                       Tuple{String, Float64, Float64, Float64, Float64}}[]
+        Tuple{String, Float64, Float64, Float64, Float64}}[]
     for j in eachindex(res.θ̂)
         μ = res.θ̂[j]
         sd = sqrt(max(res.Σθ[j, j], 0.0))
-        push!(rows, (name = names[j], mean = μ, sd = sd,
-                     lower = μ - z * sd, upper = μ + z * sd))
+        push!(rows, (name=names[j], mean=μ, sd=sd,
+            lower=μ - z * sd, upper=μ + z * sd))
     end
     return rows
 end
@@ -108,8 +110,9 @@ function Base.show(io::IO, ::MIME"text/plain", res::INLAResult)
     print(io, "  θ̂             = ", res.θ̂, "\n")
     print(io, "  #design points= ", length(res.θ_points), "\n")
     print(io, "  log p(y)      = ", res.log_marginal, "\n")
-    print(io, "See fixed_effects, random_effects, hyperparameters, " *
-              "posterior_marginal_x, posterior_marginal_θ.")
+    print(io,
+        "See fixed_effects, random_effects, hyperparameters, " *
+        "posterior_marginal_x, posterior_marginal_θ.")
 end
 
 """
@@ -125,7 +128,7 @@ WAIC / CPO) that require diagnostics — those are computed on demand by
 [`dic`](@ref), [`waic`](@ref), [`cpo`](@ref), [`pit`](@ref).
 """
 function inla_summary(io::IO, m::LatentGaussianModel, res::INLAResult;
-                      level::Real = 0.95)
+        level::Real=0.95)
     pct_lo = Int(round(100 * (1 - level) / 2))
     pct_hi = 100 - pct_lo
 
@@ -135,15 +138,15 @@ function inla_summary(io::IO, m::LatentGaussianModel, res::INLAResult;
     println(io, "  design pts  = ", length(res.θ_points))
     println(io, "  log p(y)    = ", _round6(res.log_marginal))
 
-    fe = fixed_effects(m, res; level = level)
+    fe = fixed_effects(m, res; level=level)
     if !isempty(fe)
         println(io)
         println(io, "Fixed effects:")
         _print_rows(io, fe, ("name", "mean", "sd", "$(pct_lo)%", "$(pct_hi)%"),
-                    (:name, :mean, :sd, :lower, :upper))
+            (:name, :mean, :sd, :lower, :upper))
     end
 
-    re = random_effects(m, res; level = level)
+    re = random_effects(m, res; level=level)
     if !isempty(re)
         println(io)
         println(io, "Random effects (posterior summaries per component):")
@@ -152,24 +155,25 @@ function inla_summary(io::IO, m::LatentGaussianModel, res::INLAResult;
             mmean = Statistics.mean(v.mean)
             msd = Statistics.mean(v.sd)
             println(io, "  ", rpad(name, 24),
-                        "  n=", lpad(string(n), 4),
-                        "  mean(μ)=", _round6(mmean),
-                        "  mean(sd)=", _round6(msd))
+                "  n=", lpad(string(n), 4),
+                "  mean(μ)=", _round6(mmean),
+                "  mean(sd)=", _round6(msd))
         end
     end
 
-    hp = hyperparameters(m, res; level = level)
+    hp = hyperparameters(m, res; level=level)
     if !isempty(hp)
         println(io)
         println(io, "Hyperparameters (internal scale):")
         _print_rows(io, hp, ("name", "mean", "sd", "$(pct_lo)%", "$(pct_hi)%"),
-                    (:name, :mean, :sd, :lower, :upper))
+            (:name, :mean, :sd, :lower, :upper))
     end
     return nothing
 end
 
-inla_summary(m::LatentGaussianModel, res::INLAResult; kwargs...) =
+function inla_summary(m::LatentGaussianModel, res::INLAResult; kwargs...)
     inla_summary(stdout, m, res; kwargs...)
+end
 
 # Table helpers for inla_summary. Kept deliberately small and
 # dependency-free so the summary renders in any IO context.
@@ -190,7 +194,7 @@ function _print_rows(io::IO, rows, headers::Tuple, fields::Tuple)
     end
     println(io)
     # Divider.
-    print(io, "  ", "─" ^ (sum(widths) + 2 * length(widths)))
+    print(io, "  ", "─"^(sum(widths) + 2 * length(widths)))
     println(io)
     # Rows.
     for r in rows
@@ -220,17 +224,17 @@ function _normal_quantile(p::Real)
     p ≤ 0 && return -Inf
     p ≥ 1 && return Inf
     # Coefficients from Peter Acklam's algorithm.
-    a = (-3.969683028665376e+01,  2.209460984245205e+02,
-         -2.759285104469687e+02,  1.383577518672690e+02,
-         -3.066479806614716e+01,  2.506628277459239e+00)
-    b = (-5.447609879822406e+01,  1.615858368580409e+02,
-         -1.556989798598866e+02,  6.680131188771972e+01,
-         -1.328068155288572e+01)
+    a = (-3.969683028665376e+01, 2.209460984245205e+02,
+        -2.759285104469687e+02, 1.383577518672690e+02,
+        -3.066479806614716e+01, 2.506628277459239e+00)
+    b = (-5.447609879822406e+01, 1.615858368580409e+02,
+        -1.556989798598866e+02, 6.680131188771972e+01,
+        -1.328068155288572e+01)
     c = (-7.784894002430293e-03, -3.223964580411365e-01,
-         -2.400758277161838e+00, -2.549732539343734e+00,
-          4.374664141464968e+00,  2.938163982698783e+00)
-    d = ( 7.784695709041462e-03,  3.224671290700398e-01,
-          2.445134137142996e+00,  3.754408661907416e+00)
+        -2.400758277161838e+00, -2.549732539343734e+00,
+        4.374664141464968e+00, 2.938163982698783e+00)
+    d = (7.784695709041462e-03, 3.224671290700398e-01,
+        2.445134137142996e+00, 3.754408661907416e+00)
     plow = 0.02425
     phigh = 1 - plow
     if p < plow
@@ -245,18 +249,32 @@ function _normal_quantile(p::Real)
     else
         q = sqrt(-2 * log(1 - p))
         return -(((((c[1] * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) * q + c[6]) /
-                ((((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1)
+               ((((d[1] * q + d[2]) * q + d[3]) * q + d[4]) * q + 1)
     end
 end
 
-_component_name(c::AbstractLatentComponent, i::Integer) =
+function _component_name(c::AbstractLatentComponent, i::Integer)
     string(nameof(typeof(c)), "[", i, "]")
+end
 
 function _hyperparameter_names(m::LatentGaussianModel)
     names = String[]
-    n_ℓ = nhyperparameters(m.likelihood)
-    for k in 1:n_ℓ
-        push!(names, "likelihood[$k]")
+    K = length(m.likelihoods)
+    if K == 1
+        # Back-compat: single-likelihood models keep the historical
+        # "likelihood[k]" labelling indexed over the (single) block's
+        # hyperparameters.
+        n_ℓ = nhyperparameters(m.likelihoods[1])
+        for k in 1:n_ℓ
+            push!(names, "likelihood[$k]")
+        end
+    else
+        for (b, ℓ) in enumerate(m.likelihoods)
+            n_ℓ = nhyperparameters(ℓ)
+            for j in 1:n_ℓ
+                push!(names, "likelihood[$b][$j]")
+            end
+        end
     end
     for (i, c) in enumerate(m.components)
         n_c = nhyperparameters(c)

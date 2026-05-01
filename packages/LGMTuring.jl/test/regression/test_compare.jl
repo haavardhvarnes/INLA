@@ -1,5 +1,5 @@
 using LatentGaussianModels: GaussianLikelihood, Intercept, LatentGaussianModel,
-    inla
+                            inla
 using LGMTuring: nuts_sample, compare_posteriors
 using Random
 using SparseArrays: sparse
@@ -11,24 +11,24 @@ using Test
     σ_ε = 0.5
     y = 0.3 .+ σ_ε .* randn(rng, n)
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                 sparse(ones(n, 1)))
+        sparse(ones(n, 1)))
 
-    inla_fit = inla(model, y; int_strategy = :grid)
+    inla_fit = inla(model, y; int_strategy=:grid)
     chain = nuts_sample(model, y, 600;
-                         n_adapts        = 300,
-                         init_from_inla  = inla_fit,
-                         rng             = Random.Xoshiro(3),
-                         progress        = false)
+        n_adapts=300,
+        init_from_inla=inla_fit,
+        rng=Random.Xoshiro(3),
+        progress=false)
 
     rows = compare_posteriors(inla_fit, chain;
-                               model    = model,
-                               tol_mean = 0.5,
-                               tol_sd   = 0.5)
+        model=model,
+        tol_mean=0.5,
+        tol_sd=0.5)
     @test length(rows) == 1
     r = rows[1]
     @test r.name == "likelihood[1]"
     @test isfinite(r.inla_mean) && isfinite(r.nuts_mean)
-    @test isfinite(r.inla_sd)   && isfinite(r.nuts_sd)
+    @test isfinite(r.inla_sd) && isfinite(r.nuts_sd)
     # With generous tolerance and a well-behaved model, no flag.
     @test !r.flagged
 end
@@ -40,18 +40,18 @@ end
     n = 300
     y = 0.3 .+ 0.5 .* randn(rng, n)
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                 sparse(ones(n, 1)))
+        sparse(ones(n, 1)))
 
-    inla_fit = inla(model, y; int_strategy = :grid)
+    inla_fit = inla(model, y; int_strategy=:grid)
     chain = nuts_sample(model, y, 200;
-                         n_adapts        = 100,
-                         init_from_inla  = inla_fit,
-                         rng             = Random.Xoshiro(4),
-                         progress        = false)
+        n_adapts=100,
+        init_from_inla=inla_fit,
+        rng=Random.Xoshiro(4),
+        progress=false)
 
     rows = compare_posteriors(inla_fit, chain;
-                               model    = model,
-                               tol_mean = 1.0e-12,
-                               tol_sd   = 1.0e-12)
+        model=model,
+        tol_mean=1.0e-12,
+        tol_sd=1.0e-12)
     @test rows[1].flagged
 end

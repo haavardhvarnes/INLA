@@ -32,11 +32,13 @@ The hard linear constraint `A x = e`, with `A` of shape `k × n` and
 with `r` connected components, `A` has `r` rows — one indicator row
 per component.
 """
-struct LinearConstraint{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <: AbstractConstraint
+struct LinearConstraint{T <: Real, M <: AbstractMatrix{T}, V <: AbstractVector{T}} <:
+       AbstractConstraint
     A::M
     e::V
 
-    function LinearConstraint(A::M, e::V) where {T, M <: AbstractMatrix{T}, V <: AbstractVector{T}}
+    function LinearConstraint(
+            A::M, e::V) where {T, M <: AbstractMatrix{T}, V <: AbstractVector{T}}
         size(A, 1) == length(e) ||
             throw(DimensionMismatch("constraint rows ($(size(A, 1))) must match rhs length ($(length(e)))"))
         return new{T, M, V}(A, e)
@@ -95,7 +97,7 @@ end
 
 # Besag: one sum-to-zero row per connected component.
 function constraints(g::BesagGMRF{T}) where {T <: Real}
-    return sum_to_zero_constraints(g.g; T = T)
+    return sum_to_zero_constraints(g.g; T=T)
 end
 
 # Seasonal: a single sum-to-zero constraint, matching R-INLA's
@@ -122,7 +124,7 @@ rows, one for each component, with `1`s in that component's nodes and
 This is the Freni-Sterrantino et al. (2018) correction for intrinsic
 CAR on disconnected graphs.
 """
-function sum_to_zero_constraints(g::AbstractGMRFGraph; T::Type{<:Real} = Float64)
+function sum_to_zero_constraints(g::AbstractGMRFGraph; T::Type{<:Real}=Float64)
     labels = connected_component_labels(g)
     n = num_nodes(g)
     r = maximum(labels)

@@ -1,19 +1,22 @@
 using LatentGaussianModels: GammaSurvLikelihood, LogLink, IdentityLink,
-    Censoring, NONE, RIGHT, LEFT, INTERVAL,
-    log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density,
-    pointwise_log_density, pointwise_cdf,
-    nhyperparameters, initial_hyperparameters, link, log_hyperprior,
-    GammaPrecision
+                            Censoring, NONE, RIGHT, LEFT, INTERVAL,
+                            log_density, ∇_η_log_density, ∇²_η_log_density,
+                            ∇³_η_log_density,
+                            pointwise_log_density, pointwise_cdf,
+                            nhyperparameters, initial_hyperparameters, link, log_hyperprior,
+                            GammaPrecision
 
 using Distributions: Distributions
 using SpecialFunctions: SpecialFunctions
 
 # Reuses the same FD helper used in test_likelihoods.jl.
-function fd_grad_gs(f, η, h = 1.0e-6)
+function fd_grad_gs(f, η, h=1.0e-6)
     g = similar(η)
     for i in eachindex(η)
-        ep = copy(η); ep[i] += h
-        em = copy(η); em[i] -= h
+        ep = copy(η)
+        ep[i] += h
+        em = copy(η)
+        em[i] -= h
         g[i] = (f(ep) - f(em)) / (2h)
     end
     return g
@@ -35,7 +38,7 @@ const GS_LOG_PHIS = (-0.7, 0.0, 0.7)   # φ ≈ 0.50, 1.00, 2.01
     @test log_hyperprior(ℓ, [-0.5]) isa Real
 
     # Non-LogLink rejected
-    @test_throws ArgumentError GammaSurvLikelihood(link = IdentityLink())
+    @test_throws ArgumentError GammaSurvLikelihood(link=IdentityLink())
 end
 
 @testset "GammaSurvLikelihood — fast path (all uncensored)" begin
@@ -55,24 +58,24 @@ end
         lgamma_φ = SpecialFunctions.loggamma(φ)
         expected = sum(φ * log_φ - φ * η[i] - lgamma_φ +
                        (φ - 1) * log(y[i]) - φ * y[i] * exp(-η[i])
-                       for i in eachindex(y))
+        for i in eachindex(y))
         @test lp ≈ expected
         @test sum(pointwise_log_density(ℓ, y, η, θ)) ≈ lp
 
         g = ∇_η_log_density(ℓ, y, η, θ)
         g_fd = fd_grad_gs(h -> log_density(ℓ, y, h, θ), η)
-        @test g ≈ g_fd atol = 1.0e-4
+        @test g≈g_fd atol=1.0e-4
         # Closed form: φ (y/μ - 1)
         @test g ≈ @. φ * (y * exp(-η) - 1)
 
         H = ∇²_η_log_density(ℓ, y, η, θ)
         H_fd = fd_grad_gs(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
-        @test H ≈ H_fd atol = 1.0e-4
+        @test H≈H_fd atol=1.0e-4
         @test H ≈ @. -φ * y * exp(-η)
 
         T = ∇³_η_log_density(ℓ, y, η, θ)
         T_fd = fd_grad_gs(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
-        @test T ≈ T_fd atol = 1.0e-4
+        @test T≈T_fd atol=1.0e-4
         @test T ≈ @. φ * y * exp(-η)
     end
 end
@@ -84,7 +87,7 @@ end
     censoring = [NONE, RIGHT, LEFT, INTERVAL, NONE, RIGHT, LEFT, INTERVAL]
     time_hi = y_lo .+ abs.(randn(rng, 8)) .+ 0.5
 
-    ℓ = GammaSurvLikelihood(censoring = censoring, time_hi = time_hi)
+    ℓ = GammaSurvLikelihood(censoring=censoring, time_hi=time_hi)
 
     for log_φ in GS_LOG_PHIS
         θ = [log_φ]
@@ -95,15 +98,15 @@ end
 
         g = ∇_η_log_density(ℓ, y_lo, η, θ)
         g_fd = fd_grad_gs(h -> log_density(ℓ, y_lo, h, θ), η)
-        @test g ≈ g_fd atol = 1.0e-4
+        @test g≈g_fd atol=1.0e-4
 
         H = ∇²_η_log_density(ℓ, y_lo, η, θ)
         H_fd = fd_grad_gs(h -> sum(∇_η_log_density(ℓ, y_lo, h, θ)), η)
-        @test H ≈ H_fd atol = 1.0e-4
+        @test H≈H_fd atol=1.0e-4
 
         T = ∇³_η_log_density(ℓ, y_lo, η, θ)
         T_fd = fd_grad_gs(h -> sum(∇²_η_log_density(ℓ, y_lo, h, θ)), η)
-        @test T ≈ T_fd atol = 1.0e-4
+        @test T≈T_fd atol=1.0e-4
     end
 end
 
@@ -113,7 +116,7 @@ end
     η = randn(rng, 6) .* 0.4
 
     ℓ_fast = GammaSurvLikelihood()
-    ℓ_mixed = GammaSurvLikelihood(censoring = fill(NONE, 6))
+    ℓ_mixed = GammaSurvLikelihood(censoring=fill(NONE, 6))
 
     for log_φ in GS_LOG_PHIS
         θ = [log_φ]
@@ -130,14 +133,14 @@ end
 @testset "GammaSurvLikelihood — Symbol coercion" begin
     censoring_sym = [:none, :right, :left, :interval]
     time_hi = [0.0, 0.0, 0.0, 5.0]
-    ℓ = GammaSurvLikelihood(censoring = censoring_sym, time_hi = time_hi)
+    ℓ = GammaSurvLikelihood(censoring=censoring_sym, time_hi=time_hi)
     @test ℓ.censoring isa Vector{Censoring}
     @test ℓ.censoring == [NONE, RIGHT, LEFT, INTERVAL]
 end
 
 @testset "GammaSurvLikelihood — bad censoring type rejected" begin
-    @test_throws ArgumentError GammaSurvLikelihood(censoring = [1, 2, 3])
-    @test_throws ArgumentError GammaSurvLikelihood(censoring = ["none", "right"])
+    @test_throws ArgumentError GammaSurvLikelihood(censoring=[1, 2, 3])
+    @test_throws ArgumentError GammaSurvLikelihood(censoring=["none", "right"])
 end
 
 @testset "GammaSurvLikelihood — RIGHT-only closed form" begin
@@ -148,7 +151,7 @@ end
     log_φ = 0.4
     φ = exp(log_φ)
     θ = [log_φ]
-    ℓ = GammaSurvLikelihood(censoring = fill(RIGHT, 5))
+    ℓ = GammaSurvLikelihood(censoring=fill(RIGHT, 5))
 
     expected = 0.0
     for i in eachindex(y)
@@ -166,7 +169,7 @@ end
     log_φ = 0.4
     φ = exp(log_φ)
     θ = [log_φ]
-    ℓ = GammaSurvLikelihood(censoring = fill(LEFT, 5))
+    ℓ = GammaSurvLikelihood(censoring=fill(LEFT, 5))
 
     expected = 0.0
     for i in eachindex(y)
@@ -186,11 +189,11 @@ end
     φ = exp(log_φ)
     θ = [log_φ]
     ℓ = GammaSurvLikelihood(
-        censoring = fill(INTERVAL, 4), time_hi = time_hi)
+        censoring=fill(INTERVAL, 4), time_hi=time_hi)
 
     expected = 0.0
     for i in eachindex(y_lo)
-        x_lo = φ * y_lo[i]    * exp(-η[i])
+        x_lo = φ * y_lo[i] * exp(-η[i])
         x_hi = φ * time_hi[i] * exp(-η[i])
         P_lo, Q_lo = SpecialFunctions.gamma_inc(φ, x_lo)
         P_hi, Q_hi = SpecialFunctions.gamma_inc(φ, x_hi)
@@ -217,11 +220,11 @@ end
     @test all(0 .≤ cdf_fast .≤ 1)
 
     # All-NONE censored variant: same numbers
-    ℓ_none = GammaSurvLikelihood(censoring = fill(NONE, 4))
+    ℓ_none = GammaSurvLikelihood(censoring=fill(NONE, 4))
     @test pointwise_cdf(ℓ_none, y, η, θ) ≈ cdf_fast
 
     # Censored variant with non-NONE rows: undefined, throws
-    ℓ_cens = GammaSurvLikelihood(censoring = [NONE, RIGHT, NONE, NONE])
+    ℓ_cens = GammaSurvLikelihood(censoring=[NONE, RIGHT, NONE, NONE])
     @test_throws ArgumentError pointwise_cdf(ℓ_cens, y, η, θ)
 end
 
@@ -234,7 +237,7 @@ end
     φ = exp(log_φ)
     θ = [log_φ]
     ℓ = GammaSurvLikelihood(
-        censoring = [NONE, RIGHT, LEFT, INTERVAL], time_hi = time_hi)
+        censoring=[NONE, RIGHT, LEFT, INTERVAL], time_hi=time_hi)
 
     pp = pointwise_log_density(ℓ, y_lo, η, θ)
     lgamma_φ = SpecialFunctions.loggamma(φ)
@@ -255,7 +258,7 @@ end
     @test pp[3] ≈ log(P3)
 
     # INTERVAL
-    x4_lo = φ * y_lo[4]    * exp(-η[4])
+    x4_lo = φ * y_lo[4] * exp(-η[4])
     x4_hi = φ * time_hi[4] * exp(-η[4])
     P_lo, Q_lo = SpecialFunctions.gamma_inc(φ, x4_lo)
     P_hi, Q_hi = SpecialFunctions.gamma_inc(φ, x4_hi)

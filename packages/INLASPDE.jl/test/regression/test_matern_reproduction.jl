@@ -69,12 +69,13 @@ end
     c_i = cld(nvert_side, 2)
     c_j = cld(nvert_side, 2)
     c = indexer(c_i, c_j)                     # central vertex
-    e_c = zeros(size(Q, 1)); e_c[c] = 1.0
+    e_c = zeros(size(Q, 1))
+    e_c[c] = 1.0
     q_inv_col = F \ e_c                        # Q⁻¹[:, c]
 
     # --- marginal variance at the centre ---
     var_center = q_inv_col[c]
-    @test var_center ≈ σ² rtol = 0.05           # ~5% — FE + boundary error
+    @test var_center≈σ² rtol=0.05           # ~5% — FE + boundary error
 
     # --- covariance at a handful of radii ---
     # Sample along the +x axis where exact distances are available.
@@ -83,7 +84,7 @@ end
         r = di * (L / n)
         theoretical = _matern_nu1(r, κ, σ²)
         empirical = q_inv_col[j]
-        @test isapprox(empirical, theoretical; atol = 0.05 * σ², rtol = 0.1)
+        @test isapprox(empirical, theoretical; atol=0.05 * σ², rtol=0.1)
     end
 
     # --- monotone decay along the axis ---
@@ -98,5 +99,5 @@ end
     v_south = q_inv_col[indexer(c_i, c_j - 4)]
     mean_axial = (v_east + v_north + v_west + v_south) / 4
     @test maximum(abs, (v_east, v_north, v_west, v_south) .- mean_axial) <
-        0.02 * σ²
+          0.02 * σ²
 end

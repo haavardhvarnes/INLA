@@ -10,13 +10,14 @@ standard deviation `σ = τ^(-1/2)` with default
 With `IdentityLink`, `η = μ`, which is the common case and admits a
 closed-form posterior when paired with a Gaussian latent field.
 """
-struct GaussianLikelihood{L <: AbstractLinkFunction, P <: AbstractHyperPrior} <: AbstractLikelihood
+struct GaussianLikelihood{L <: AbstractLinkFunction, P <: AbstractHyperPrior} <:
+       AbstractLikelihood
     link::L
     hyperprior::P
 end
 
-function GaussianLikelihood(; link::AbstractLinkFunction = IdentityLink(),
-                            hyperprior::AbstractHyperPrior = PCPrecision(1.0, 0.01))
+function GaussianLikelihood(; link::AbstractLinkFunction=IdentityLink(),
+        hyperprior::AbstractHyperPrior=PCPrecision(1.0, 0.01))
     return GaussianLikelihood(link, hyperprior)
 end
 

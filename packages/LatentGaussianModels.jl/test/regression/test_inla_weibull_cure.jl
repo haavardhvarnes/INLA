@@ -5,29 +5,29 @@
 # moderate-n tolerances.
 
 using LatentGaussianModels: WeibullCureLikelihood, NONE, RIGHT, Censoring,
-    Intercept, FixedEffects, LatentGaussianModel, inla,
-    fixed_effects, hyperparameters
+                            Intercept, FixedEffects, LatentGaussianModel, inla,
+                            fixed_effects, hyperparameters
 
 @testset "INLA — WeibullCure (synthetic recovery, n = 400)" begin
     rng = Random.Xoshiro(20260430)
     n = 400
-    α_true   = 0.3       # intercept (linear predictor)
-    β_true   = 0.6       # covariate slope
+    α_true = 0.3       # intercept (linear predictor)
+    β_true = 0.6       # covariate slope
     α_w_true = 1.2       # Weibull shape
-    p_true   = 0.30      # cure fraction
+    p_true = 0.30      # cure fraction
 
     x = randn(rng, n)
     λ = @. exp(α_true + β_true * x)
     cured = rand(rng, n) .< p_true
     U = rand(rng, n)
-    T_event = @. (-log(U) / λ) ^ (1 / α_w_true)
+    T_event = @. (-log(U) / λ)^(1 / α_w_true)
     T_true = [cured[i] ? Inf : T_event[i] for i in 1:n]
     C = 0.5 .+ 5.5 .* rand(rng, n)
     event = [t ≤ c ? 1 : 0 for (t, c) in zip(T_true, C)]
     y = [min(t, c) for (t, c) in zip(T_true, C)]
 
     cens = Censoring[e == 1 ? NONE : RIGHT for e in event]
-    ℓ = WeibullCureLikelihood(censoring = cens)
+    ℓ = WeibullCureLikelihood(censoring=cens)
     A = sparse(hcat(ones(n), reshape(x, n, 1)))
     model = LatentGaussianModel(ℓ, (Intercept(), FixedEffects(1)), A)
 

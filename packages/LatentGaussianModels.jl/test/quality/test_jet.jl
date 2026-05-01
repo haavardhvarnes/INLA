@@ -8,7 +8,7 @@ using Test
 
 @testset "JET — LatentGaussianModels" begin
     rep = JET.report_package(LatentGaussianModels;
-                              target_modules = (LatentGaussianModels,),
-                              ignore_missing_comparison = true)
+        target_modules=(LatentGaussianModels,),
+        ignore_missing_comparison=true)
     @test isempty(JET.get_reports(rep))
 end

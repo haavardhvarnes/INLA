@@ -16,8 +16,8 @@ const ORACLE_FIXTURE_DIR = joinpath(@__DIR__, "fixtures")
 
 Absolute path to `fixtures/<name>.jld2`.
 """
-oracle_fixture_path(name::AbstractString) =
-    joinpath(ORACLE_FIXTURE_DIR, string(name, ".jld2"))
+oracle_fixture_path(name::AbstractString) = joinpath(
+    ORACLE_FIXTURE_DIR, string(name, ".jld2"))
 
 """
     has_oracle_fixture(name) -> Bool
@@ -33,7 +33,8 @@ first and skip.
 """
 function load_oracle_fixture(name::AbstractString)
     path = oracle_fixture_path(name)
-    isfile(path) || error("oracle fixture not found: $path (run scripts/generate-fixtures/)")
+    isfile(path) ||
+        error("oracle fixture not found: $path (run scripts/generate-fixtures/)")
     return jldopen(path, "r") do f
         return f["fixture"]
     end

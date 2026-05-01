@@ -18,17 +18,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Only packages with a populated `src/`. `LGMFormula.jl` and
+        # `GMRFsPardiso.jl` are 0.1.0-DEV scaffolding without sources;
+        # add them back when they ship.
         package:
           - GMRFs.jl
           - LatentGaussianModels.jl
           - INLASPDE.jl
-          - LGMFormula.jl
           - LGMTuring.jl
-          - GMRFsPardiso.jl
           - INLASPDERasters.jl
         julia-version:
           - '1.10'   # LTS
-          - '1'      # current stable
+          - '1'      # current stable (resolves to 1.12.x)
         os:
           - ubuntu-latest
         include:
@@ -55,13 +56,40 @@ jobs:
           version: ${{ matrix.julia-version }}
       - uses: julia-actions/cache@v2
       - name: Dev-link intra-ecosystem deps
-        shell: julia --color=yes --project=packages/${{ matrix.package }} {0}
+        # `matrix` is not a valid context inside `shell:`; pass the project
+        # via `JULIA_PROJECT` instead so the matrix interpolation lives in
+        # `env:` (where it's allowed). Same payload as before.
+        shell: julia --color=yes {0}
+        env:
+          JULIA_PROJECT: packages/${{ matrix.package }}
         run: |
-          using Pkg
-          # Develop all local packages so intra-ecosystem deps resolve to the
-          # checkout, not the General registry (which may not have them yet).
-          local_pkgs = filter(isdir, readdir("packages", join=true))
-          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          using Pkg, TOML
+          # Dev-link the transitive closure of intra-ecosystem [deps]
+          # rooted at the active project. Direct-only doesn't suffice
+          # (e.g. LGMTuring depends on LatentGaussianModels which depends
+          # on GMRFs; GMRFs isn't on General yet). Restricting to deps
+          # that ARE in the chain keeps Aqua happy — no spurious
+          # `[deps]` entries get added.
+          active = abspath(ENV["JULIA_PROJECT"])
+          local_by_name = Dict{String,String}()
+          for p in readdir("packages", join=true)
+              (isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active) || continue
+              name = TOML.parsefile(joinpath(p, "Project.toml"))["name"]
+              local_by_name[name] = p
+          end
+          to_dev_paths = String[]
+          to_dev_names = Set{String}()
+          queue = collect(keys(get(TOML.parsefile(joinpath(active, "Project.toml")), "deps", Dict{String,Any}())))
+          while !isempty(queue)
+              name = popfirst!(queue)
+              (name in to_dev_names || !haskey(local_by_name, name)) && continue
+              push!(to_dev_names, name)
+              p = local_by_name[name]
+              push!(to_dev_paths, p)
+              sub_deps = get(TOML.parsefile(joinpath(p, "Project.toml")), "deps", Dict{String,Any}())
+              append!(queue, keys(sub_deps))
+          end
+          isempty(to_dev_paths) || Pkg.develop([Pkg.PackageSpec(path=p) for p in to_dev_paths])
           Pkg.instantiate()
       - uses: julia-actions/julia-runtest@v1
         with:
@@ -90,11 +118,34 @@ jobs:
         with:
           version: 'nightly'
       - uses: julia-actions/cache@v2
-      - shell: julia --color=yes --project=packages/${{ matrix.package }} {0}
+      - name: Dev-link intra-ecosystem deps
+        shell: julia --color=yes {0}
+        env:
+          JULIA_PROJECT: packages/${{ matrix.package }}
         run: |
-          using Pkg
-          local_pkgs = filter(isdir, readdir("packages", join=true))
-          Pkg.develop([Pkg.PackageSpec(path=p) for p in local_pkgs])
+          using Pkg, TOML
+          # Transitive closure of intra-ecosystem deps; mirrors the
+          # main `test` job above. See the comment there for why.
+          active = abspath(ENV["JULIA_PROJECT"])
+          local_by_name = Dict{String,String}()
+          for p in readdir("packages", join=true)
+              (isdir(p) && isdir(joinpath(p, "src")) && abspath(p) != active) || continue
+              name = TOML.parsefile(joinpath(p, "Project.toml"))["name"]
+              local_by_name[name] = p
+          end
+          to_dev_paths = String[]
+          to_dev_names = Set{String}()
+          queue = collect(keys(get(TOML.parsefile(joinpath(active, "Project.toml")), "deps", Dict{String,Any}())))
+          while !isempty(queue)
+              name = popfirst!(queue)
+              (name in to_dev_names || !haskey(local_by_name, name)) && continue
+              push!(to_dev_names, name)
+              p = local_by_name[name]
+              push!(to_dev_paths, p)
+              sub_deps = get(TOML.parsefile(joinpath(p, "Project.toml")), "deps", Dict{String,Any}())
+              append!(queue, keys(sub_deps))
+          end
+          isempty(to_dev_paths) || Pkg.develop([Pkg.PackageSpec(path=p) for p in to_dev_paths])
           Pkg.instantiate()
       - uses: julia-actions/julia-runtest@v1
         with:

@@ -9,7 +9,7 @@ using Random
     n = 7
     s = 4
     τ = 2.0
-    g = SeasonalGMRF(n; period = s, τ = τ)
+    g = SeasonalGMRF(n; period=s, τ=τ)
     @test num_nodes(g) == n
     @test rankdef(g) == s - 1
 
@@ -29,7 +29,7 @@ end
     # the null space.
     n = 12
     s = 4
-    g = SeasonalGMRF(n; period = s)
+    g = SeasonalGMRF(n; period=s)
     Q = Matrix(precision_matrix(g))
 
     # Basis: ε_k = e_k - e_s (one period), repeated.
@@ -64,7 +64,7 @@ end
     # τ-coefficient.
     n = 10
     s = 3
-    g = SeasonalGMRF(n; period = s)
+    g = SeasonalGMRF(n; period=s)
     kc = GMRFs.constraints(g)
     @test kc isa LinearConstraint
     C = GMRFs.constraint_matrix(kc)
@@ -82,15 +82,15 @@ end
 @testset "SeasonalGMRF null_space_basis" begin
     n = 12
     s = 4
-    g = SeasonalGMRF(n; period = s)
+    g = SeasonalGMRF(n; period=s)
     V = GMRFs.null_space_basis(g)
     @test size(V) == (n, s - 1)
-    @test V' * V ≈ I(s - 1) atol = 1.0e-12
+    @test V' * V≈I(s - 1) atol=1.0e-12
     Q = Matrix(precision_matrix(g))
     @test maximum(abs, Q * V) < 1.0e-10
 end
 
 @testset "SeasonalGMRF rejects n ≤ period or period < 2" begin
-    @test_throws ArgumentError SeasonalGMRF(4; period = 4)
-    @test_throws ArgumentError SeasonalGMRF(10; period = 1)
+    @test_throws ArgumentError SeasonalGMRF(4; period=4)
+    @test_throws ArgumentError SeasonalGMRF(10; period=1)
 end

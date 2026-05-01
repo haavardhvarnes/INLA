@@ -1,5 +1,5 @@
 using LatentGaussianModels: GaussianLikelihood, Intercept, LatentGaussianModel,
-    EmpiricalBayes, fit, empirical_bayes
+                            EmpiricalBayes, fit, empirical_bayes
 using SparseArrays
 using Random
 using Statistics: mean
@@ -19,8 +19,8 @@ using Statistics: mean
 
     res = empirical_bayes(model, y)
     # Posterior mean of α close to MLE (y̅)
-    @test isapprox(res.laplace.mode[1], mean(y); rtol = 1.0e-3)
+    @test isapprox(res.laplace.mode[1], mean(y); rtol=1.0e-3)
     # Log-precision close to true; EB point estimates have bias for small n
     # but n=200 is plenty.
-    @test isapprox(exp(res.θ̂[1]), τ_true; rtol = 0.2)
+    @test isapprox(exp(res.θ̂[1]), τ_true; rtol=0.2)
 end

@@ -21,7 +21,7 @@ R-INLA equivalent: `model = "besagproper2"` with the convex Leroux
 combination, or `model = "leroux"` in the proprietary `inla` build.
 """
 struct Leroux{Pτ <: AbstractHyperPrior, Pρ <: AbstractHyperPrior,
-              G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
+    G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
     graph::G
     R::SparseMatrixCSC{Float64, Int}      # combinatorial Laplacian D - W
     hyperprior_tau::Pτ
@@ -29,8 +29,8 @@ struct Leroux{Pτ <: AbstractHyperPrior, Pρ <: AbstractHyperPrior,
 end
 
 function Leroux(graph::GMRFs.AbstractGMRFGraph;
-                hyperprior_tau::AbstractHyperPrior = PCPrecision(),
-                hyperprior_rho::AbstractHyperPrior = LogitBeta(1.0, 1.0))
+        hyperprior_tau::AbstractHyperPrior=PCPrecision(),
+        hyperprior_rho::AbstractHyperPrior=LogitBeta(1.0, 1.0))
     R = SparseMatrixCSC{Float64, Int}(GMRFs.laplacian_matrix(graph))
     return Leroux(graph, R, hyperprior_tau, hyperprior_rho)
 end

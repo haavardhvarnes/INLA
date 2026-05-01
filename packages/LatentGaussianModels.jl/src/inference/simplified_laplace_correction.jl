@@ -36,15 +36,12 @@ Cost per call: one multi-RHS sparse triangular solve (`H⁻¹ Aᵀ`,
 roughly one inner Newton iteration per integration point.
 """
 function _sla_mean_shift(lp::LaplaceResult,
-                         model::LatentGaussianModel,
-                         y)
+        model::LatentGaussianModel,
+        y)
     A = as_matrix(model.mapping)
-    ℓ = model.likelihood
-    n_ℓ = nhyperparameters(ℓ)
-    θ_ℓ = n_ℓ > 0 ? lp.θ[1:n_ℓ] : Float64[]
     η̂ = A * lp.mode
 
-    h³ = ∇³_η_log_density(ℓ, y, η̂, θ_ℓ)
+    h³ = joint_∇³_η_log_density(model, y, η̂, lp.θ)
     all(iszero, h³) && return zeros(Float64, length(lp.mode))
 
     # Z = H⁻¹ Aᵀ via multi-RHS sparse Cholesky on the cached factor
@@ -66,7 +63,7 @@ function _sla_mean_shift(lp::LaplaceResult,
     # σ²_η_i = (A H⁻¹ Aᵀ)_ii = Σ_j A_ij Z_ji, computed without forming
     # the full `n_obs × n_obs` matrix `A · Z`. Sparse-times-dense
     # broadcasting respects A's pattern.
-    σ²_η = vec(sum(A .* transpose(Z), dims = 2))
+    σ²_η = vec(sum(A .* transpose(Z), dims=2))
 
     # Δx = ½ H⁻¹ Aᵀ (h³ ⊙ σ²_η). One vector solve, then project onto
     # null(C) so that `C(x̂ + Δx) = C x̂ = e` is preserved exactly.

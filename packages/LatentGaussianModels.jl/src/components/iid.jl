@@ -12,7 +12,7 @@ struct IID{P <: AbstractHyperPrior} <: AbstractLatentComponent
     n::Int
     hyperprior::P
 end
-function IID(n::Integer; hyperprior::AbstractHyperPrior = PCPrecision())
+function IID(n::Integer; hyperprior::AbstractHyperPrior=PCPrecision())
     n > 0 || throw(ArgumentError("IID: n must be positive"))
     return IID(Int(n), hyperprior)
 end

@@ -1,5 +1,5 @@
 using LatentGaussianModels: GaussianLikelihood, Intercept, LatentGaussianModel,
-    INLA, Grid, GaussHermite, CCD, fit, inla, empirical_bayes
+                            INLA, Grid, GaussHermite, CCD, fit, inla, empirical_bayes
 using SparseArrays
 using Random
 using Statistics: mean
@@ -17,16 +17,16 @@ using Statistics: mean
     ℓ = GaussianLikelihood()
     model = LatentGaussianModel(ℓ, (c,), A)
 
-    res = inla(model, y; int_strategy = :grid)
+    res = inla(model, y; int_strategy=:grid)
     @test length(res.θ_points) == 5           # Grid(5) on 1D θ
-    @test isapprox(sum(res.θ_weights), 1.0; atol = 1.0e-12)
+    @test isapprox(sum(res.θ_weights), 1.0; atol=1.0e-12)
 
     # Posterior mean of α should match EB/MLE to close tolerance for Gaussian.
-    @test isapprox(res.x_mean[1], mean(y); rtol = 1.0e-2)
+    @test isapprox(res.x_mean[1], mean(y); rtol=1.0e-2)
     # Variance around the posterior mean should be positive.
     @test res.x_var[1] > 0
     # θ̂ ≈ log τ_true on internal scale.
-    @test isapprox(exp(res.θ̂[1]), τ_true; rtol = 0.2)
+    @test isapprox(exp(res.θ̂[1]), τ_true; rtol=0.2)
     # Σθ > 0.
     @test res.Σθ[1, 1] > 0
     # Log-marginal is finite.
@@ -58,10 +58,10 @@ end
     ℓ = GaussianLikelihood()
     model = LatentGaussianModel(ℓ, (c,), A)
 
-    res_gh = inla(model, y; int_strategy = GaussHermite(n_per_dim = 7))
-    res_gr = inla(model, y; int_strategy = Grid(n_per_dim = 21, span = 4.0))
+    res_gh = inla(model, y; int_strategy=GaussHermite(n_per_dim=7))
+    res_gr = inla(model, y; int_strategy=Grid(n_per_dim=21, span=4.0))
 
     # Posterior mean of the intercept should match across schemes.
-    @test isapprox(res_gh.x_mean[1], res_gr.x_mean[1]; rtol = 1.0e-3)
-    @test isapprox(res_gh.θ_mean[1], res_gr.θ_mean[1]; rtol = 1.0e-2)
+    @test isapprox(res_gh.x_mean[1], res_gr.x_mean[1]; rtol=1.0e-3)
+    @test isapprox(res_gh.θ_mean[1], res_gr.θ_mean[1]; rtol=1.0e-2)
 end

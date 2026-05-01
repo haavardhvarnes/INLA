@@ -1,5 +1,5 @@
 using LatentGaussianModels: GaussianLikelihood, IdentityLink, Intercept,
-    LatentGaussianModel, laplace_mode, Laplace
+                            LatentGaussianModel, laplace_mode, Laplace
 using LinearAlgebra
 using SparseArrays
 using Random
@@ -24,7 +24,7 @@ using Random
     model = LatentGaussianModel(ℓ, (c,), A)
 
     θ = [log(τ_true)]   # only likelihood has hyperparameters (τ); Intercept has none
-    res = laplace_mode(model, y, θ; strategy = Laplace())
+    res = laplace_mode(model, y, θ; strategy=Laplace())
 
     prec = 1.0e-3    # default Intercept prior precision
     α̂_expected = (τ_true * sum(y)) / (prec + n * τ_true)
@@ -32,8 +32,8 @@ using Random
 
     @test res.converged
     @test length(res.mode) == 1
-    @test res.mode[1] ≈ α̂_expected rtol = 1.0e-6
-    @test res.precision[1, 1] ≈ H_expected rtol = 1.0e-8
+    @test res.mode[1]≈α̂_expected rtol=1.0e-6
+    @test res.precision[1, 1]≈H_expected rtol=1.0e-8
 end
 
 @testset "Gaussian+Identity+IID — recover field under tight prior" begin
@@ -55,6 +55,6 @@ end
     # Closed form: posterior precision = (τ_x + τ_obs) I; mean = (τ_obs / (τ_x+τ_obs)) y.
     τ_x = 1.0
     shrink = τ_obs / (τ_x + τ_obs)
-    @test res.mode ≈ shrink .* y rtol = 1.0e-6
-    @test isapprox(diag(res.precision), fill(τ_x + τ_obs, n); rtol = 1.0e-8)
+    @test res.mode≈shrink .* y rtol=1.0e-6
+    @test isapprox(diag(res.precision), fill(τ_x + τ_obs, n); rtol=1.0e-8)
 end

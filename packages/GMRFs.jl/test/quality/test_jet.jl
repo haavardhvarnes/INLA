@@ -12,7 +12,7 @@ using Test
 
 @testset "JET — GMRFs" begin
     rep = JET.report_package(GMRFs;
-                              target_modules = (GMRFs,),
-                              ignore_missing_comparison = true)
+        target_modules=(GMRFs,),
+        ignore_missing_comparison=true)
     @test isempty(JET.get_reports(rep))
 end

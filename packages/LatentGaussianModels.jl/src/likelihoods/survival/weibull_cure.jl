@@ -47,11 +47,11 @@ These reduce to plain Weibull's RIGHT branch as `p → 0`. See ADR-018
 for the contract.
 """
 struct WeibullCureLikelihood{
-        L <: AbstractLinkFunction,
-        C <: Union{Nothing, AbstractVector{Censoring}},
-        V <: Union{Nothing, AbstractVector{<:Real}},
-        Pα <: AbstractHyperPrior,
-        Pp <: AbstractHyperPrior,
+    L <: AbstractLinkFunction,
+    C <: Union{Nothing, AbstractVector{Censoring}},
+    V <: Union{Nothing, AbstractVector{<:Real}},
+    Pα <: AbstractHyperPrior,
+    Pp <: AbstractHyperPrior
 } <: AbstractLikelihood
     link::L
     censoring::C
@@ -60,11 +60,11 @@ struct WeibullCureLikelihood{
     hyperprior_p::Pp
 end
 
-function WeibullCureLikelihood(; link::AbstractLinkFunction = LogLink(),
-        censoring = nothing,
-        time_hi::Union{Nothing, AbstractVector{<:Real}} = nothing,
-        hyperprior_alpha::AbstractHyperPrior = GammaPrecision(1.0, 0.001),
-        hyperprior_p::AbstractHyperPrior     = LogitBeta(1.0, 1.0))
+function WeibullCureLikelihood(; link::AbstractLinkFunction=LogLink(),
+        censoring=nothing,
+        time_hi::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        hyperprior_alpha::AbstractHyperPrior=GammaPrecision(1.0, 0.001),
+        hyperprior_p::AbstractHyperPrior=LogitBeta(1.0, 1.0))
     link isa LogLink ||
         throw(ArgumentError(
             "WeibullCureLikelihood: only LogLink is supported, got $(typeof(link))"))
@@ -82,7 +82,7 @@ initial_hyperparameters(::WeibullCureLikelihood) = [0.0, log(0.1 / 0.9)]
 
 function log_hyperprior(ℓ::WeibullCureLikelihood, θ)
     return log_prior_density(ℓ.hyperprior_alpha, θ[1]) +
-           log_prior_density(ℓ.hyperprior_p,     θ[2])
+           log_prior_density(ℓ.hyperprior_p, θ[2])
 end
 
 # Map internal θ_ℓ = [log α, logit p] → user-scale (α, p).
@@ -185,7 +185,7 @@ function ∇_η_log_density(
         elseif c === RIGHT
             u = exp(η_i) * t_lo_α
             v = exp(-u)
-            D  = p + (1 - p) * v
+            D = p + (1 - p) * v
             Dp = -(1 - p) * u * v
             out[i] = Dp / D
         elseif c === LEFT
@@ -216,9 +216,9 @@ function ∇²_η_log_density(
         elseif c === RIGHT
             u = exp(η_i) * t_lo_α
             v = exp(-u)
-            D   = p + (1 - p) * v
-            Dp  = -(1 - p) * u * v
-            Dpp =  (1 - p) * u * v * (u - 1)
+            D = p + (1 - p) * v
+            Dp = -(1 - p) * u * v
+            Dpp = (1 - p) * u * v * (u - 1)
             out[i] = Dpp / D - (Dp / D)^2
         elseif c === LEFT
             u = exp(η_i) * t_lo_α
@@ -252,10 +252,10 @@ function ∇³_η_log_density(
         elseif c === RIGHT
             u = exp(η_i) * t_lo_α
             v = exp(-u)
-            D    = p + (1 - p) * v
-            Dp   = -(1 - p) * u * v
-            Dpp  =  (1 - p) * u * v * (u - 1)
-            Dppp =  (1 - p) * u * v * (3 * u - 1 - u^2)
+            D = p + (1 - p) * v
+            Dp = -(1 - p) * u * v
+            Dpp = (1 - p) * u * v * (u - 1)
+            Dppp = (1 - p) * u * v * (3 * u - 1 - u^2)
             r1 = Dp / D
             r2 = Dpp / D
             out[i] = Dppp / D - 3 * r1 * r2 + 2 * r1^3

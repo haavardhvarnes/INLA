@@ -19,13 +19,13 @@ precision `Q`.
 - `:dense` — densify `Q` and take a straight inverse. Correctness oracle
   only; slow.
 """
-function marginal_variances(Q::AbstractSparseMatrix; method::Symbol = :selinv)
+function marginal_variances(Q::AbstractSparseMatrix; method::Symbol=:selinv)
     if method === :selinv
         # Route through `cholesky(Symmetric(Q))` so CHOLMOD never sees the
         # raw SparseMatrixCSC (which it inspects with `issymmetric` — this
         # fails at floating-point-level asymmetry from assembly order).
         F = cholesky(Symmetric(SparseMatrixCSC(Q)))
-        Z, p = selinv(F; depermute = false)
+        Z, p = selinv(F; depermute=false)
         d = diag(Z)
         return d[invperm(p)]
     elseif method === :dense
@@ -52,7 +52,7 @@ generalised-inverse diagonal on the non-null subspace,
   (Q is singular).
 - `:dense` — densify. Correctness oracle only.
 """
-function marginal_variances(g::AbstractGMRF; method::Symbol = :auto)
+function marginal_variances(g::AbstractGMRF; method::Symbol=:auto)
     r = rankdef(g)
     Q = precision_matrix(g)
     if method === :auto
@@ -63,7 +63,7 @@ function marginal_variances(g::AbstractGMRF; method::Symbol = :auto)
             "marginal_variances(g; method = :selinv): GMRF is rank-deficient " *
             "(r = $r); selinv requires a PD precision. Use :auto or :dense, or " *
             "augment with the null-space basis explicitly."))
-        return marginal_variances(Q; method = :selinv)
+        return marginal_variances(Q; method=:selinv)
     elseif method === :dense
         Qd = Matrix(Q)
         if r == 0

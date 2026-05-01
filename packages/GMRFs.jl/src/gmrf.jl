@@ -67,7 +67,7 @@ struct IIDGMRF{T <: Real} <: AbstractGMRF
     n::Int
     τ::T
 end
-IIDGMRF(n::Integer; τ::Real = 1.0) = IIDGMRF{typeof(float(τ))}(Int(n), float(τ))
+IIDGMRF(n::Integer; τ::Real=1.0) = IIDGMRF{typeof(float(τ))}(Int(n), float(τ))
 
 num_nodes(g::IIDGMRF) = g.n
 Base.eltype(::Type{<:IIDGMRF{T}}) where {T} = T
@@ -92,7 +92,7 @@ struct RW1GMRF{T <: Real} <: AbstractGMRF
     τ::T
     cyclic::Bool
 end
-function RW1GMRF(n::Integer; τ::Real = 1.0, cyclic::Bool = false)
+function RW1GMRF(n::Integer; τ::Real=1.0, cyclic::Bool=false)
     n ≥ 2 || throw(ArgumentError("RW1GMRF requires n ≥ 2, got $n"))
     return RW1GMRF{typeof(float(τ))}(Int(n), float(τ), cyclic)
 end
@@ -111,17 +111,29 @@ function precision_matrix(g::RW1GMRF{T}) where {T}
         diag_vals[1] = one(T)
         diag_vals[end] = one(T)
     end
-    Is = Int[]; Js = Int[]; Vs = T[]
+    Is = Int[]
+    Js = Int[]
+    Vs = T[]
     for i in 1:n
-        push!(Is, i); push!(Js, i); push!(Vs, τ * diag_vals[i])
+        push!(Is, i)
+        push!(Js, i)
+        push!(Vs, τ * diag_vals[i])
     end
     for i in 1:(n - 1)
-        push!(Is, i); push!(Js, i + 1); push!(Vs, -τ)
-        push!(Is, i + 1); push!(Js, i); push!(Vs, -τ)
+        push!(Is, i)
+        push!(Js, i + 1)
+        push!(Vs, -τ)
+        push!(Is, i + 1)
+        push!(Js, i)
+        push!(Vs, -τ)
     end
     if g.cyclic
-        push!(Is, 1); push!(Js, n); push!(Vs, -τ)
-        push!(Is, n); push!(Js, 1); push!(Vs, -τ)
+        push!(Is, 1)
+        push!(Js, n)
+        push!(Vs, -τ)
+        push!(Is, n)
+        push!(Js, 1)
+        push!(Vs, -τ)
     end
     return sparse(Is, Js, Vs, n, n)
 end
@@ -138,7 +150,7 @@ struct RW2GMRF{T <: Real} <: AbstractGMRF
     τ::T
     cyclic::Bool
 end
-function RW2GMRF(n::Integer; τ::Real = 1.0, cyclic::Bool = false)
+function RW2GMRF(n::Integer; τ::Real=1.0, cyclic::Bool=false)
     n ≥ 3 || throw(ArgumentError("RW2GMRF requires n ≥ 3, got $n"))
     return RW2GMRF{typeof(float(τ))}(Int(n), float(τ), cyclic)
 end
@@ -153,22 +165,38 @@ function precision_matrix(g::RW2GMRF{T}) where {T}
     # Build D (second differences), then R = D' D.
     if g.cyclic
         # cyclic: all n rows
-        Id = Int[]; Jd = Int[]; Vd = T[]
+        Id = Int[]
+        Jd = Int[]
+        Vd = T[]
         for k in 1:n
             im1 = mod1(k - 1, n)
             ip1 = mod1(k + 1, n)
-            push!(Id, k); push!(Jd, im1); push!(Vd, one(T))
-            push!(Id, k); push!(Jd, k);   push!(Vd, -T(2))
-            push!(Id, k); push!(Jd, ip1); push!(Vd, one(T))
+            push!(Id, k)
+            push!(Jd, im1)
+            push!(Vd, one(T))
+            push!(Id, k)
+            push!(Jd, k)
+            push!(Vd, -T(2))
+            push!(Id, k)
+            push!(Jd, ip1)
+            push!(Vd, one(T))
         end
         D = sparse(Id, Jd, Vd, n, n)
     else
         # open: n-2 rows for second differences i=2..n-1 on a length-n signal
-        Id = Int[]; Jd = Int[]; Vd = T[]
+        Id = Int[]
+        Jd = Int[]
+        Vd = T[]
         for (row, k) in enumerate(2:(n - 1))
-            push!(Id, row); push!(Jd, k - 1); push!(Vd, one(T))
-            push!(Id, row); push!(Jd, k);     push!(Vd, -T(2))
-            push!(Id, row); push!(Jd, k + 1); push!(Vd, one(T))
+            push!(Id, row)
+            push!(Jd, k - 1)
+            push!(Vd, one(T))
+            push!(Id, row)
+            push!(Jd, k)
+            push!(Vd, -T(2))
+            push!(Id, row)
+            push!(Jd, k + 1)
+            push!(Vd, one(T))
         end
         D = sparse(Id, Jd, Vd, n - 2, n)
     end
@@ -204,7 +232,7 @@ struct AR1GMRF{T <: Real} <: AbstractGMRF
     ρ::T
     τ::T
 end
-function AR1GMRF(n::Integer; ρ::Real, τ::Real = 1.0)
+function AR1GMRF(n::Integer; ρ::Real, τ::Real=1.0)
     n ≥ 2 || throw(ArgumentError("AR1GMRF requires n ≥ 2, got $n"))
     -1 < ρ < 1 || throw(ArgumentError("AR1GMRF requires ρ ∈ (-1, 1), got ρ=$ρ"))
     τ > 0 || throw(ArgumentError("AR1GMRF requires τ > 0, got τ=$τ"))
@@ -222,17 +250,27 @@ function precision_matrix(g::AR1GMRF{T}) where {T}
     τ = g.τ
     # Rue & Held (2005) Eq. 1.39: AR(1) with Var(x_i) = 1/τ.
     scale = τ / (one(T) - ρ^2)
-    Is = Int[]; Js = Int[]; Vs = T[]
+    Is = Int[]
+    Js = Int[]
+    Vs = T[]
     for i in 1:n
         if i == 1 || i == n
-            push!(Is, i); push!(Js, i); push!(Vs, scale * one(T))
+            push!(Is, i)
+            push!(Js, i)
+            push!(Vs, scale * one(T))
         else
-            push!(Is, i); push!(Js, i); push!(Vs, scale * (one(T) + ρ^2))
+            push!(Is, i)
+            push!(Js, i)
+            push!(Vs, scale * (one(T) + ρ^2))
         end
     end
     for i in 1:(n - 1)
-        push!(Is, i); push!(Js, i + 1); push!(Vs, -scale * ρ)
-        push!(Is, i + 1); push!(Js, i); push!(Vs, -scale * ρ)
+        push!(Is, i)
+        push!(Js, i + 1)
+        push!(Vs, -scale * ρ)
+        push!(Is, i + 1)
+        push!(Js, i)
+        push!(Vs, -scale * ρ)
     end
     return sparse(Is, Js, Vs, n, n)
 end
@@ -270,7 +308,7 @@ struct SeasonalGMRF{T <: Real} <: AbstractGMRF
     period::Int
     τ::T
 end
-function SeasonalGMRF(n::Integer; period::Integer, τ::Real = 1.0)
+function SeasonalGMRF(n::Integer; period::Integer, τ::Real=1.0)
     period ≥ 2 ||
         throw(ArgumentError("SeasonalGMRF requires period ≥ 2, got period=$period"))
     n > period ||
@@ -286,9 +324,13 @@ function precision_matrix(g::SeasonalGMRF{T}) where {T}
     n = g.n
     s = g.period
     nr = n - s + 1
-    Ib = Int[]; Jb = Int[]; Vb = T[]
+    Ib = Int[]
+    Jb = Int[]
+    Vb = T[]
     for t in 1:nr, j in t:(t + s - 1)
-        push!(Ib, t); push!(Jb, j); push!(Vb, one(T))
+        push!(Ib, t)
+        push!(Jb, j)
+        push!(Vb, one(T))
     end
     B = sparse(Ib, Jb, Vb, nr, n)
     R = B' * B
@@ -321,7 +363,7 @@ struct BesagGMRF{T <: Real, G <: AbstractGMRFGraph} <: AbstractGMRF
     scale_model::Bool
 end
 
-function BesagGMRF(g::AbstractGMRFGraph; τ::Real = 1.0, scale_model::Bool = true)
+function BesagGMRF(g::AbstractGMRFGraph; τ::Real=1.0, scale_model::Bool=true)
     n = num_nodes(g)
     c_per_node = if scale_model
         c_k = per_component_scale_factors(g)
@@ -429,7 +471,7 @@ unchanged; otherwise it returns a new `BesagGMRF` with
 """
 function scale_model(g::BesagGMRF)
     g.scale_model && return g
-    return BesagGMRF(g.g; τ = g.τ, scale_model = true)
+    return BesagGMRF(g.g; τ=g.τ, scale_model=true)
 end
 
 # ============================================================
@@ -456,8 +498,8 @@ struct Generic0GMRF{T <: Real} <: AbstractGMRF
     scaled::Bool
 end
 
-function Generic0GMRF(R::AbstractMatrix; τ::Real = 1.0,
-                      rankdef::Integer = 0, scale_model::Bool = false)
+function Generic0GMRF(R::AbstractMatrix; τ::Real=1.0,
+        rankdef::Integer=0, scale_model::Bool=false)
     n, m = size(R)
     n == m || throw(DimensionMismatch("structure matrix must be square, got $n×$m"))
     issymmetric(R) || throw(ArgumentError("structure matrix must be symmetric"))
@@ -506,6 +548,7 @@ function _generic_scale_factor(R::SparseMatrixCSC, rd::Integer)
     Σ = inv(Matrix(R) + V * V') - V * V'
     d = diag(Σ)
     pos = filter(x -> x > 0, d)
-    isempty(pos) && throw(ArgumentError("could not compute scale factor: no positive diagonals of generalised inverse"))
+    isempty(pos) &&
+        throw(ArgumentError("could not compute scale factor: no positive diagonals of generalised inverse"))
     return exp(mean(log.(pos)))
 end

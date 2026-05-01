@@ -42,7 +42,7 @@ struct PCAlphaW{T <: Real} <: AbstractHyperPrior
         return new{T}(λ)
     end
 end
-PCAlphaW(λ::Real = 5.0) = PCAlphaW{typeof(float(λ))}(float(λ))
+PCAlphaW(λ::Real=5.0) = PCAlphaW{typeof(float(λ))}(float(λ))
 
 prior_name(::PCAlphaW) = :pc_alphaw
 

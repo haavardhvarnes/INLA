@@ -44,12 +44,12 @@ equally spaced points spanning `±span · √posterior_var` about the posterior
 mean is generated.
 """
 function posterior_marginal_x(res::INLAResult, i::Integer;
-                              strategy::Symbol = :gaussian,
-                              model::Union{Nothing, LatentGaussianModel} = nothing,
-                              y = nothing,
-                              grid_size::Integer = 75,
-                              span::Real = 5.0,
-                              grid::Union{Nothing, AbstractVector{<:Real}} = nothing)
+        strategy::Symbol=:gaussian,
+        model::Union{Nothing, LatentGaussianModel}=nothing,
+        y=nothing,
+        grid_size::Integer=75,
+        span::Real=5.0,
+        grid::Union{Nothing, AbstractVector{<:Real}}=nothing)
     1 ≤ i ≤ length(res.x_mean) ||
         throw(ArgumentError("posterior_marginal_x: index $i out of bounds (1:$(length(res.x_mean)))"))
     strategy in (:gaussian, :simplified_laplace) ||
@@ -99,7 +99,7 @@ function posterior_marginal_x(res::INLAResult, i::Integer;
             end
         end
     end
-    return (x = xs, pdf = pdf)
+    return (x=xs, pdf=pdf)
 end
 
 """
@@ -113,9 +113,9 @@ centred at `res.θ̂[j]` with standard deviation `√res.Σθ[j,j]`. This is the
 INLA design is a future extension.
 """
 function posterior_marginal_θ(res::INLAResult, j::Integer;
-                              grid_size::Integer = 75,
-                              span::Real = 5.0,
-                              grid::Union{Nothing, AbstractVector{<:Real}} = nothing)
+        grid_size::Integer=75,
+        span::Real=5.0,
+        grid::Union{Nothing, AbstractVector{<:Real}}=nothing)
     1 ≤ j ≤ length(res.θ̂) ||
         throw(ArgumentError("posterior_marginal_θ: index $j out of bounds (1:$(length(res.θ̂)))"))
 
@@ -123,18 +123,17 @@ function posterior_marginal_θ(res::INLAResult, j::Integer;
     σ = sqrt(max(res.Σθ[j, j], 0.0))
     θs = grid === nothing ? _default_grid(μ, σ, grid_size, span) : collect(Float64, grid)
     pdf = [_normal_pdf(θ, μ, σ) for θ in θs]
-    return (θ = θs, pdf = pdf)
+    return (θ=θs, pdf=pdf)
 end
 
 function _default_grid(μ::Real, σ::Real, n::Integer, span::Real)
     σe = σ > 0 ? σ : 1.0
     lo = μ - span * σe
     hi = μ + span * σe
-    return collect(range(lo, hi; length = n))
+    return collect(range(lo, hi; length=n))
 end
 
-_normal_pdf(x::Real, μ::Real, σ::Real) =
-    exp(-0.5 * ((x - μ) / σ)^2) / (σ * sqrt(2π))
+_normal_pdf(x::Real, μ::Real, σ::Real) = exp(-0.5 * ((x - μ) / σ)^2) / (σ * sqrt(2π))
 
 # Posterior skewness of x_i under the Laplace at θ (including constraint
 # correction). Returns `γ = κ_3(x_i) / σ_i³`.
@@ -152,19 +151,16 @@ _normal_pdf(x::Real, μ::Real, σ::Real) =
 #
 # and σ_i² = (u_i)_i = constraint-corrected marginal variance.
 function _latent_skewness(lp::LaplaceResult,
-                          model::LatentGaussianModel,
-                          y,
-                          i::Integer,
-                          var_i::Real)
+        model::LatentGaussianModel,
+        y,
+        i::Integer,
+        var_i::Real)
     σ_i = sqrt(max(var_i, 0.0))
     σ_i == 0 && return 0.0
 
     A = as_matrix(model.mapping)
-    ℓ = model.likelihood
-    n_ℓ = nhyperparameters(ℓ)
-    θ_ℓ = n_ℓ > 0 ? lp.θ[1:n_ℓ] : Float64[]
     η̂ = A * lp.mode
-    c³ = ∇³_η_log_density(ℓ, y, η̂, θ_ℓ)
+    c³ = joint_∇³_η_log_density(model, y, η̂, lp.θ)
     all(iszero, c³) && return 0.0
 
     # u = H⁻¹ e_i (unconstrained). Sparse triangular solve against a unit

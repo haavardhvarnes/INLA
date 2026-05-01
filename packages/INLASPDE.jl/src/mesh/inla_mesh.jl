@@ -24,16 +24,18 @@ struct INLAMesh{T <: Real, TRI}
     dt_to_mesh::Dict{Int, Int}
 end
 
-Base.show(io::IO, mesh::INLAMesh) = print(
-    io,
-    "INLAMesh(",
-    size(mesh.points, 1),
-    " vertices, ",
-    size(mesh.triangles, 1),
-    " triangles, ",
-    length(mesh.boundary),
-    " boundary)",
-)
+function Base.show(io::IO, mesh::INLAMesh)
+    print(
+        io,
+        "INLAMesh(",
+        size(mesh.points, 1),
+        " vertices, ",
+        size(mesh.triangles, 1),
+        " triangles, ",
+        length(mesh.boundary),
+        " boundary)"
+    )
+end
 
 num_vertices(mesh::INLAMesh) = size(mesh.points, 1)
 num_triangles(mesh::INLAMesh) = size(mesh.triangles, 1)
@@ -81,13 +83,13 @@ spde = SPDE2(mesh)
 ```
 """
 function inla_mesh_2d(
-        loc = nothing;
-        boundary = nothing,
+        loc=nothing;
+        boundary=nothing,
         max_edge::Real,
-        offset::Real = 0.0,
-        cutoff::Real = 0.0,
-        min_angle::Real = 21.0,
-    )
+        offset::Real=0.0,
+        cutoff::Real=0.0,
+        min_angle::Real=21.0
+)
     max_edge > 0 ||
         throw(ArgumentError("max_edge must be positive; got $max_edge"))
     min_angle > 0 ||
@@ -125,8 +127,8 @@ function inla_mesh_2d(
     # since edges in the output are typically below the bound.
     max_area = sqrt(3.0) / 4.0 * max_edge^2
 
-    tri = DelaunayTriangulation.triangulate(all_pts; boundary_nodes = boundary_nodes)
-    DelaunayTriangulation.refine!(tri; min_angle = Float64(min_angle), max_area = max_area)
+    tri = DelaunayTriangulation.triangulate(all_pts; boundary_nodes=boundary_nodes)
+    DelaunayTriangulation.refine!(tri; min_angle=Float64(min_angle), max_area=max_area)
 
     return _build_inla_mesh(tri)
 end
@@ -195,8 +197,8 @@ end
 
 Rows of `pts` strictly inside `hull`; rows on the hull are dropped.
 """
-_strip_hull_points(pts::AbstractMatrix{<:Real}, hull::AbstractMatrix{<:Real}) =
-    _interior_only(pts, hull)
+_strip_hull_points(pts::AbstractMatrix{<:Real}, hull::AbstractMatrix{<:Real}) = _interior_only(
+    pts, hull)
 
 # Standard ray-casting / half-plane test for a CCW polygon. Returns
 # true iff (x, y) is strictly inside.
@@ -204,8 +206,10 @@ function _point_strictly_inside(x::Real, y::Real, polygon::AbstractMatrix{<:Real
     n = size(polygon, 1)
     for i in 1:n
         j = i == n ? 1 : i + 1
-        ax = polygon[i, 1]; ay = polygon[i, 2]
-        bx = polygon[j, 1]; by = polygon[j, 2]
+        ax = polygon[i, 1]
+        ay = polygon[i, 2]
+        bx = polygon[j, 1]
+        by = polygon[j, 2]
         cross = (bx - ax) * (y - ay) - (by - ay) * (x - ax)
         cross > 0 || return false
     end
@@ -283,5 +287,5 @@ FEMMatrices(mesh::INLAMesh) = FEMMatrices(mesh.points, mesh.triangles)
 
 Assemble an [`SPDE2`](@ref) component directly on an INLA mesh.
 """
-SPDE2(mesh::INLAMesh; α::Integer = 2, pc::PCMatern = PCMatern()) =
-    SPDE2(mesh.points, mesh.triangles; α = α, pc = pc)
+SPDE2(mesh::INLAMesh; α::Integer=2, pc::PCMatern=PCMatern()) = SPDE2(
+    mesh.points, mesh.triangles; α=α, pc=pc)

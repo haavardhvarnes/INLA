@@ -36,9 +36,9 @@ function predict_raster(
         values::AbstractVector{<:Real},
         mesh::INLAMesh,
         template::Raster;
-        outside::Symbol = :missing,
-        missingval::Real = NaN,
-    )
+        outside::Symbol=:missing,
+        missingval::Real=NaN
+)
     length(values) == num_vertices(mesh) || throw(ArgumentError(
         "values has length $(length(values)) but mesh has $(num_vertices(mesh)) vertices",
     ))
@@ -69,7 +69,7 @@ function predict_raster(
     # interior points, so an all-zero row is an unambiguous outside
     # marker under :zero).
     proj_outside = outside === :error ? :error : :zero
-    P = INLASPDE.MeshProjector(mesh, locs; outside = proj_outside)
+    P = INLASPDE.MeshProjector(mesh, locs; outside=proj_outside)
     projected = P.A * Vector{Float64}(values)
 
     out = similar(template, Float64)
@@ -78,7 +78,7 @@ function predict_raster(
         i, j = cell_ij[k]
         row = @view P.A[k, :]
         if !iszero(row)
-            out[X = i, Y = j] = projected[k]
+            out[X=i, Y=j] = projected[k]
         end
     end
     return out
@@ -129,10 +129,10 @@ function quantile_rasters(
         sd::AbstractVector{<:Real},
         mesh::INLAMesh,
         template::Raster;
-        z::Real = 1.959963984540054,
-        outside::Symbol = :missing,
-        missingval::Real = NaN,
-    )
+        z::Real=1.959963984540054,
+        outside::Symbol=:missing,
+        missingval::Real=NaN
+)
     n = num_vertices(mesh)
     length(mean) == n ||
         throw(ArgumentError("mean has length $(length(mean)) but mesh has $n vertices"))
@@ -148,10 +148,10 @@ function quantile_rasters(
     lo_v = m .- z .* s
     up_v = m .+ z .* s
 
-    mean_r = predict_raster(m, mesh, template; outside = outside, missingval = missingval)
-    sd_r = predict_raster(s, mesh, template; outside = outside, missingval = missingval)
-    lower_r = predict_raster(lo_v, mesh, template; outside = outside, missingval = missingval)
-    upper_r = predict_raster(up_v, mesh, template; outside = outside, missingval = missingval)
+    mean_r = predict_raster(m, mesh, template; outside=outside, missingval=missingval)
+    sd_r = predict_raster(s, mesh, template; outside=outside, missingval=missingval)
+    lower_r = predict_raster(lo_v, mesh, template; outside=outside, missingval=missingval)
+    upper_r = predict_raster(up_v, mesh, template; outside=outside, missingval=missingval)
 
-    return (mean = mean_r, sd = sd_r, lower = lower_r, upper = upper_r)
+    return (mean=mean_r, sd=sd_r, lower=lower_r, upper=upper_r)
 end

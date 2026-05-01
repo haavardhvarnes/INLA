@@ -40,9 +40,9 @@ const GI = GeoInterface
         # ordering; seed before each call so the two meshes are
         # byte-identical rather than just equivalent.
         Random.seed!(42)
-        mesh_from_poly = inla_mesh_2d(; boundary = square_poly, max_edge = 0.3)
+        mesh_from_poly = inla_mesh_2d(; boundary=square_poly, max_edge=0.3)
         Random.seed!(42)
-        mesh_from_mat  = inla_mesh_2d(; boundary = square_mat,  max_edge = 0.3)
+        mesh_from_mat = inla_mesh_2d(; boundary=square_mat, max_edge=0.3)
         @test num_vertices(mesh_from_poly) == num_vertices(mesh_from_mat)
         @test num_triangles(mesh_from_poly) == num_triangles(mesh_from_mat)
         @test mesh_from_poly.points ≈ mesh_from_mat.points
@@ -86,7 +86,7 @@ const GI = GeoInterface
     end
 
     @testset "MeshProjector — MultiPoint equivalent to matrix" begin
-        mesh = inla_mesh_2d(; boundary = square_mat, max_edge = 0.3)
+        mesh = inla_mesh_2d(; boundary=square_mat, max_edge=0.3)
         mp = GI.Wrappers.MultiPoint(pts)
         P_geo = MeshProjector(mesh, mp)
         P_mat = MeshProjector(mesh, pts_mat)

@@ -24,7 +24,7 @@ struct LogitBeta{T <: Real} <: AbstractHyperPrior
         return new{T}(a, b)
     end
 end
-function LogitBeta(a::Real = 1.0, b::Real = 1.0)
+function LogitBeta(a::Real=1.0, b::Real=1.0)
     T = typeof(float(a * b))
     return LogitBeta{T}(T(a), T(b))
 end
@@ -36,7 +36,7 @@ user_scale(::LogitBeta, θ) = inv(one(θ) + exp(-θ))
 _softplus(x) = x > 0 ? x + log1p(exp(-x)) : log1p(exp(x))
 
 function log_prior_density(p::LogitBeta, θ)
-    log_ρ   = -_softplus(-θ)
+    log_ρ = -_softplus(-θ)
     log_1mρ = -_softplus(θ)
     log_B = Distributions.loggamma(p.a) + Distributions.loggamma(p.b) -
             Distributions.loggamma(p.a + p.b)

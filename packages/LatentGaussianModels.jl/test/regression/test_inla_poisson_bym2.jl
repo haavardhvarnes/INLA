@@ -1,6 +1,6 @@
 using LatentGaussianModels: PoissonLikelihood, Intercept, IID, BYM2,
-    LatentGaussianModel, inla, PCPrecision,
-    fixed_effects, random_effects, hyperparameters
+                            LatentGaussianModel, inla, PCPrecision,
+                            fixed_effects, random_effects, hyperparameters
 using GMRFs: GMRFGraph, BesagGMRF, num_nodes
 using Distributions: Poisson
 using SparseArrays
@@ -42,12 +42,12 @@ end
     y = [rand(rng, Poisson(exp(η_true[i]))) for i in 1:n]
 
     c_int = Intercept()
-    c_iid = IID(n; hyperprior = PCPrecision(1.0, 0.01))
-    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    c_iid = IID(n; hyperprior=PCPrecision(1.0, 0.01))
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
     ℓ = PoissonLikelihood()
     model = LatentGaussianModel(ℓ, (c_int, c_iid), A)
 
-    res = inla(model, y; int_strategy = :grid)
+    res = inla(model, y; int_strategy=:grid)
 
     fe = fixed_effects(model, res)
     @test length(fe) == 1
@@ -84,7 +84,7 @@ end
     τ_true = 4.0
     φ_true = 0.7
 
-    besag = BesagGMRF(g; τ = 1.0, scale_model = true)
+    besag = BesagGMRF(g; τ=1.0, scale_model=true)
     u_star = rand(rng, besag)
     v = randn(rng, n)
     b_true = (sqrt(1 - φ_true) .* v .+ sqrt(φ_true) .* u_star) ./ sqrt(τ_true)
@@ -94,12 +94,12 @@ end
     y = [rand(rng, Poisson(exp(η_true[i]))) for i in 1:n]
 
     c_int = Intercept()
-    c_bym2 = BYM2(g; hyperprior_prec = PCPrecision(1.0, 0.01))
-    A = sparse([ones(n) Matrix{Float64}(I, n, n) zeros(n, n)])
-    ℓ = PoissonLikelihood(; E = E)
+    c_bym2 = BYM2(g; hyperprior_prec=PCPrecision(1.0, 0.01))
+    A = sparse([ones(n) Matrix{Float64}(I, n,n) zeros(n, n)])
+    ℓ = PoissonLikelihood(; E=E)
     model = LatentGaussianModel(ℓ, (c_int, c_bym2), A)
 
-    res = inla(model, y; int_strategy = :grid)
+    res = inla(model, y; int_strategy=:grid)
 
     # Intercept recovery: within 3σ.
     fe = fixed_effects(model, res)

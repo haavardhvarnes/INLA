@@ -1,16 +1,19 @@
 using LatentGaussianModels: ExponentialLikelihood, LogLink,
-    Censoring, NONE, RIGHT, LEFT, INTERVAL,
-    log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density,
-    pointwise_log_density, pointwise_cdf,
-    nhyperparameters, link
+                            Censoring, NONE, RIGHT, LEFT, INTERVAL,
+                            log_density, ∇_η_log_density, ∇²_η_log_density,
+                            ∇³_η_log_density,
+                            pointwise_log_density, pointwise_cdf,
+                            nhyperparameters, link
 using LatentGaussianModels: validate_censoring, logsubexp
 
 # Reuses the same FD helper used in test_likelihoods.jl.
-function fd_grad_exp(f, η, h = 1.0e-6)
+function fd_grad_exp(f, η, h=1.0e-6)
     g = similar(η)
     for i in eachindex(η)
-        ep = copy(η); ep[i] += h
-        em = copy(η); em[i] -= h
+        ep = copy(η)
+        ep[i] += h
+        em = copy(η)
+        em[i] -= h
         g[i] = (f(ep) - f(em)) / (2h)
     end
     return g
@@ -65,17 +68,17 @@ end
 
     g = ∇_η_log_density(ℓ, y, η, θ)
     g_fd = fd_grad_exp(h -> log_density(ℓ, y, h, θ), η)
-    @test g ≈ g_fd atol = 1.0e-4
+    @test g≈g_fd atol=1.0e-4
     @test g ≈ 1 .- exp.(η) .* y
 
     H = ∇²_η_log_density(ℓ, y, η, θ)
     H_fd = fd_grad_exp(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
-    @test H ≈ H_fd atol = 1.0e-4
+    @test H≈H_fd atol=1.0e-4
     @test H ≈ -exp.(η) .* y
 
     T = ∇³_η_log_density(ℓ, y, η, θ)
     T_fd = fd_grad_exp(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
-    @test T ≈ T_fd atol = 1.0e-4
+    @test T≈T_fd atol=1.0e-4
 end
 
 @testset "ExponentialLikelihood — mixed censoring" begin
@@ -86,7 +89,7 @@ end
     censoring = [NONE, RIGHT, LEFT, INTERVAL, NONE, RIGHT, LEFT, INTERVAL]
     time_hi = y_lo .+ abs.(randn(rng, 8)) .+ 0.1
 
-    ℓ = ExponentialLikelihood(censoring = censoring, time_hi = time_hi)
+    ℓ = ExponentialLikelihood(censoring=censoring, time_hi=time_hi)
 
     lp = log_density(ℓ, y_lo, η, θ)
     @test isfinite(lp)
@@ -94,15 +97,15 @@ end
 
     g = ∇_η_log_density(ℓ, y_lo, η, θ)
     g_fd = fd_grad_exp(h -> log_density(ℓ, y_lo, h, θ), η)
-    @test g ≈ g_fd atol = 1.0e-4
+    @test g≈g_fd atol=1.0e-4
 
     H = ∇²_η_log_density(ℓ, y_lo, η, θ)
     H_fd = fd_grad_exp(h -> sum(∇_η_log_density(ℓ, y_lo, h, θ)), η)
-    @test H ≈ H_fd atol = 1.0e-4
+    @test H≈H_fd atol=1.0e-4
 
     T = ∇³_η_log_density(ℓ, y_lo, η, θ)
     T_fd = fd_grad_exp(h -> sum(∇²_η_log_density(ℓ, y_lo, h, θ)), η)
-    @test T ≈ T_fd atol = 1.0e-4
+    @test T≈T_fd atol=1.0e-4
 end
 
 @testset "ExponentialLikelihood — fast vs mixed agree on all-NONE" begin
@@ -112,7 +115,7 @@ end
     θ = Float64[]
 
     ℓ_fast = ExponentialLikelihood()
-    ℓ_mixed = ExponentialLikelihood(censoring = fill(NONE, 6))
+    ℓ_mixed = ExponentialLikelihood(censoring=fill(NONE, 6))
 
     @test log_density(ℓ_fast, y, η, θ) ≈ log_density(ℓ_mixed, y, η, θ)
     @test ∇_η_log_density(ℓ_fast, y, η, θ) ≈
@@ -126,15 +129,15 @@ end
 @testset "ExponentialLikelihood — Symbol coercion" begin
     censoring_sym = [:none, :right, :left, :interval]
     time_hi = [0.0, 0.0, 0.0, 5.0]
-    ℓ = ExponentialLikelihood(censoring = censoring_sym, time_hi = time_hi)
+    ℓ = ExponentialLikelihood(censoring=censoring_sym, time_hi=time_hi)
     @test ℓ.censoring isa Vector{Censoring}
     @test ℓ.censoring == [NONE, RIGHT, LEFT, INTERVAL]
 end
 
 @testset "ExponentialLikelihood — bad censoring type rejected" begin
-    @test_throws ArgumentError ExponentialLikelihood(censoring = [1, 2, 3])
+    @test_throws ArgumentError ExponentialLikelihood(censoring=[1, 2, 3])
     @test_throws ArgumentError ExponentialLikelihood(
-        censoring = ["none", "right"])
+        censoring=["none", "right"])
 end
 
 @testset "ExponentialLikelihood — RIGHT-only closed form" begin
@@ -142,7 +145,7 @@ end
     y = abs.(randn(rng, 5)) .+ 0.1
     η = randn(rng, 5) .* 0.5
     θ = Float64[]
-    ℓ = ExponentialLikelihood(censoring = fill(RIGHT, 5))
+    ℓ = ExponentialLikelihood(censoring=fill(RIGHT, 5))
     @test log_density(ℓ, y, η, θ) ≈ -sum(exp.(η) .* y)
     @test ∇_η_log_density(ℓ, y, η, θ) ≈ -exp.(η) .* y
     @test ∇²_η_log_density(ℓ, y, η, θ) ≈ -exp.(η) .* y
@@ -157,7 +160,7 @@ end
     η = randn(rng, 4) .* 0.3
     θ = Float64[]
     ℓ = ExponentialLikelihood(
-        censoring = fill(INTERVAL, 4), time_hi = time_hi)
+        censoring=fill(INTERVAL, 4), time_hi=time_hi)
 
     λ = exp.(η)
     u_lo = λ .* y_lo
@@ -179,11 +182,11 @@ end
     @test all(0 .≤ cdf_fast .≤ 1)
 
     # All-NONE censored variant: same numbers
-    ℓ_none = ExponentialLikelihood(censoring = fill(NONE, 4))
+    ℓ_none = ExponentialLikelihood(censoring=fill(NONE, 4))
     @test pointwise_cdf(ℓ_none, y, η, θ) ≈ cdf_fast
 
     # Censored variant with non-NONE rows: undefined, throws
-    ℓ_cens = ExponentialLikelihood(censoring = [NONE, RIGHT, NONE, NONE])
+    ℓ_cens = ExponentialLikelihood(censoring=[NONE, RIGHT, NONE, NONE])
     @test_throws ArgumentError pointwise_cdf(ℓ_cens, y, η, θ)
 end
 
@@ -194,7 +197,7 @@ end
     η = randn(rng, 4) .* 0.4
     θ = Float64[]
     ℓ = ExponentialLikelihood(
-        censoring = [NONE, RIGHT, LEFT, INTERVAL], time_hi = time_hi)
+        censoring=[NONE, RIGHT, LEFT, INTERVAL], time_hi=time_hi)
 
     pp = pointwise_log_density(ℓ, y_lo, η, θ)
     λ = exp.(η)

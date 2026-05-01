@@ -1,8 +1,8 @@
 using LatentGaussianModels
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
-    LogLink, IdentityLink, Intercept, IID, BYM2, PCPrecision,
-    LatentGaussianModel, inla, laplace_mode,
-    ∇³_η_log_density
+                            LogLink, IdentityLink, Intercept, IID, BYM2, PCPrecision,
+                            LatentGaussianModel, inla, laplace_mode,
+                            ∇³_η_log_density
 using GMRFs: GMRFGraph, num_nodes
 using Distributions: Poisson
 using SparseArrays
@@ -44,12 +44,12 @@ end
     A = sparse(reshape(ones(n), n, 1))
     model = LatentGaussianModel(ℓ, (Intercept(),), A)
 
-    res_g = inla(model, y; int_strategy = :grid)
-    res_sl = inla(model, y; int_strategy = :grid,
-                  latent_strategy = :simplified_laplace)
+    res_g = inla(model, y; int_strategy=:grid)
+    res_sl = inla(model, y; int_strategy=:grid,
+        latent_strategy=:simplified_laplace)
 
     @test maximum(abs, res_g.x_mean .- res_sl.x_mean) < 1.0e-12
-    @test maximum(abs, res_g.x_var  .- res_sl.x_var)  < 1.0e-12
+    @test maximum(abs, res_g.x_var .- res_sl.x_var) < 1.0e-12
 end
 
 @testset "SLA mean-shift — formula matches dense linear algebra" begin
@@ -59,9 +59,9 @@ end
     rng = Random.Xoshiro(20260428)
     n = 8
     E = fill(1.5, n)
-    ℓ = PoissonLikelihood(; E = E)
+    ℓ = PoissonLikelihood(; E=E)
     y = rand(rng, Poisson(2.0), n)
-    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
     model = LatentGaussianModel(ℓ, (Intercept(), IID(n)), A)
 
     θ = [-1.0]                                     # log-precision for IID
@@ -103,9 +103,9 @@ end
     y = [rand(rng, Poisson(exp(η_true[i]))) for i in 1:n]
 
     c_int = Intercept()
-    c_bym2 = BYM2(g; hyperprior_prec = PCPrecision(1.0, 0.01))
-    A = sparse([ones(n) Matrix{Float64}(I, n, n) zeros(n, n)])
-    ℓ = PoissonLikelihood(; E = E)
+    c_bym2 = BYM2(g; hyperprior_prec=PCPrecision(1.0, 0.01))
+    A = sparse([ones(n) Matrix{Float64}(I, n,n) zeros(n, n)])
+    ℓ = PoissonLikelihood(; E=E)
     model = LatentGaussianModel(ℓ, (c_int, c_bym2), A)
 
     # Use a single Laplace fit so we can pick up `lp.constraint` directly.
@@ -118,13 +118,13 @@ end
     e = lp.constraint.e
     # Newton mode already satisfies `C x̂ = e` (laplace_mode projects on
     # exit). Δx must lie in null(C) so the shifted mode does too.
-    @test maximum(abs, C * Δx)            < 1.0e-8
+    @test maximum(abs, C * Δx) < 1.0e-8
     @test maximum(abs, C * (lp.mode .+ Δx) .- e) < 1.0e-8
 
     # End-to-end: full INLA run with `:simplified_laplace` runs cleanly
     # on this BYM2 model and produces a finite, sane summary.
-    res_sl = inla(model, y; int_strategy = :grid,
-                  latent_strategy = :simplified_laplace)
+    res_sl = inla(model, y; int_strategy=:grid,
+        latent_strategy=:simplified_laplace)
     @test all(isfinite, res_sl.x_mean)
     @test all(res_sl.x_var .≥ 0)
     @test isfinite(res_sl.log_marginal)

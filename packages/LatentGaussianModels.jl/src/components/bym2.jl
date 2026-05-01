@@ -33,7 +33,7 @@ subspace. Defaults match Riebler et al. (2016); see
 `plans/defaults-parity.md` for the ⚠ unverified-default note on `α`.
 """
 struct BYM2{Pτ <: AbstractHyperPrior, Pφ <: AbstractHyperPrior,
-            G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
+    G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
     graph::G
     c::Vector{Float64}           # per-node Sørbye-Rue scaling constants
     γ::Vector{Float64}           # non-null eigenvalues of R_scaled (per-CC blocks)
@@ -42,9 +42,9 @@ struct BYM2{Pτ <: AbstractHyperPrior, Pφ <: AbstractHyperPrior,
 end
 
 function BYM2(graph::GMRFs.AbstractGMRFGraph;
-              hyperprior_prec::AbstractHyperPrior = PCPrecision(),
-              hyperprior_phi::Union{Nothing, AbstractHyperPrior} = nothing,
-              U::Real = 0.5, α::Real = DEFAULT_BYM2_PHI_ALPHA)
+        hyperprior_prec::AbstractHyperPrior=PCPrecision(),
+        hyperprior_phi::Union{Nothing, AbstractHyperPrior}=nothing,
+        U::Real=0.5, α::Real=DEFAULT_BYM2_PHI_ALPHA)
     # Per-CC Sørbye-Rue scaling (Freni-Sterrantino et al. 2018): each
     # connected component is scaled independently. The scaled structure
     # matrix is block-diagonal, R_scaled[idx_k, idx_k] = c_k · L_k, so
@@ -105,26 +105,38 @@ function precision_matrix(c::BYM2, θ)
     d = φ / (1 - φ)                 # adds to Q_22 diagonal
 
     # Assemble 2n × 2n sparse block matrix via COO construction.
-    Is = Int[]; Js = Int[]; Vs = Float64[]
+    Is = Int[]
+    Js = Int[]
+    Vs = Float64[]
     # Q_11 = a·I_n  (block rows 1:n, cols 1:n)
     for i in 1:n
-        push!(Is, i); push!(Js, i); push!(Vs, a)
+        push!(Is, i)
+        push!(Js, i)
+        push!(Vs, a)
     end
     # Q_12 = b·I_n, Q_21 = b·I_n (blocks (1:n, n+1:2n) and (n+1:2n, 1:n))
     for i in 1:n
-        push!(Is, i);     push!(Js, n + i); push!(Vs, b)
-        push!(Is, n + i); push!(Js, i);     push!(Vs, b)
+        push!(Is, i)
+        push!(Js, n + i)
+        push!(Vs, b)
+        push!(Is, n + i)
+        push!(Js, i)
+        push!(Vs, b)
     end
     # Q_22 = R_scaled + d·I_n (block rows n+1:2n, cols n+1:2n)
     rows = rowvals(R_scaled)
     vals = nonzeros(R_scaled)
     for col in 1:n
         for k in nzrange(R_scaled, col)
-            push!(Is, n + rows[k]); push!(Js, n + col); push!(Vs, vals[k])
+            push!(Is, n + rows[k])
+            push!(Js, n + col)
+            push!(Vs, vals[k])
         end
     end
     for i in 1:n
-        push!(Is, n + i); push!(Js, n + i); push!(Vs, d)
+        push!(Is, n + i)
+        push!(Js, n + i)
+        push!(Vs, d)
     end
 
     return sparse(Is, Js, Vs, 2n, 2n)

@@ -45,10 +45,10 @@ value per vertex, ordered by vertex index.
 function extract_at_mesh(
         raster::Raster,
         mesh::INLAMesh;
-        method::Symbol = :bilinear,
-        outside::Symbol = :error,
-        missingval::Real = NaN,
-    )
+        method::Symbol=:bilinear,
+        outside::Symbol=:error,
+        missingval::Real=NaN
+)
     method ∈ (:bilinear, :nearest) ||
         throw(ArgumentError("method must be :bilinear or :nearest; got $method"))
     outside ∈ (:error, :missing) ||
@@ -132,18 +132,18 @@ end
 # Bilinear interpolation inside the cell (i, j) ↔ (i+1, j+1).
 # Keyword-dim indexing makes this independent of raster dim order.
 function _bilinear_sample(raster, i, j, tx, ty)
-    v00 = Float64(raster[X = i,     Y = j])
-    v10 = Float64(raster[X = i + 1, Y = j])
-    v01 = Float64(raster[X = i,     Y = j + 1])
-    v11 = Float64(raster[X = i + 1, Y = j + 1])
+    v00 = Float64(raster[X=i, Y=j])
+    v10 = Float64(raster[X=i + 1, Y=j])
+    v01 = Float64(raster[X=i, Y=j + 1])
+    v11 = Float64(raster[X=i + 1, Y=j + 1])
     return (1 - tx) * (1 - ty) * v00 +
-        tx * (1 - ty) * v10 +
-        (1 - tx) * ty * v01 +
-        tx * ty * v11
+           tx * (1 - ty) * v10 +
+           (1 - tx) * ty * v01 +
+           tx * ty * v11
 end
 
 function _nearest_sample(raster, i, j, tx, ty)
     ii = tx < 0.5 ? i : i + 1
     jj = ty < 0.5 ? j : j + 1
-    return Float64(raster[X = ii, Y = jj])
+    return Float64(raster[X=ii, Y=jj])
 end

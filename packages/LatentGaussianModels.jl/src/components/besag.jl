@@ -10,15 +10,16 @@ mean scaling is applied, matching R-INLA ≥ 17.06. Carries one
 sum-to-zero constraint per connected component of `graph`
 (Freni-Sterrantino et al. 2018).
 """
-struct Besag{P <: AbstractHyperPrior, G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
+struct Besag{P <: AbstractHyperPrior, G <: GMRFs.AbstractGMRFGraph} <:
+       AbstractLatentComponent
     graph::G
     hyperprior::P
     scale_model::Bool
 end
 
 function Besag(graph::GMRFs.AbstractGMRFGraph;
-               hyperprior::AbstractHyperPrior = PCPrecision(),
-               scale_model::Bool = true)
+        hyperprior::AbstractHyperPrior=PCPrecision(),
+        scale_model::Bool=true)
     return Besag(graph, hyperprior, scale_model)
 end
 
@@ -29,7 +30,7 @@ nhyperparameters(::Besag) = 1
 initial_hyperparameters(::Besag) = [0.0]
 
 function gmrf(c::Besag, θ)
-    return GMRFs.BesagGMRF(c.graph; τ = exp(θ[1]), scale_model = c.scale_model)
+    return GMRFs.BesagGMRF(c.graph; τ=exp(θ[1]), scale_model=c.scale_model)
 end
 
 precision_matrix(c::Besag, θ) = GMRFs.precision_matrix(gmrf(c, θ))

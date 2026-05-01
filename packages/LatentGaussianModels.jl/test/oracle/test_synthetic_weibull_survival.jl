@@ -29,14 +29,14 @@ using Test
 using SparseArrays
 using LinearAlgebra
 using LatentGaussianModels: WeibullLikelihood, NONE, RIGHT, Censoring,
-    Intercept, FixedEffects, LatentGaussianModel, inla,
-    fixed_effects, hyperparameters
+                            Intercept, FixedEffects, LatentGaussianModel, inla,
+                            fixed_effects, hyperparameters
 
 const WB_SURV_FIXTURE = "synthetic_weibull_survival"
 
-const WB_SURV_FE_MEAN_TOL  = 0.05   # |Δmean| / max(|R|, 1)
-const WB_SURV_FE_SD_TOL    = 0.10   # |Δsd|  / R-sd
-const WB_SURV_SHAPE_TOL    = 0.10   # |Δα_w| / R-mean
+const WB_SURV_FE_MEAN_TOL = 0.05   # |Δmean| / max(|R|, 1)
+const WB_SURV_FE_SD_TOL = 0.10   # |Δsd|  / R-sd
+const WB_SURV_SHAPE_TOL = 0.10   # |Δα_w| / R-mean
 const WB_SURV_SHAPE_SD_TOL = 0.20   # |Δsd_α_w| / R-sd
 
 _rel_wb(a, b) = abs(a - b) / max(abs(b), 1.0)
@@ -64,13 +64,13 @@ end
             @test_skip "fixture has no `input` field — regenerate"
         else
             inp = fx["input"]
-            time  = Float64.(inp["time"])
+            time = Float64.(inp["time"])
             event = Int.(inp["event"])
-            xcov  = Float64.(inp["x"])
+            xcov = Float64.(inp["x"])
             n = length(time)
 
             cens = Censoring[e == 1 ? NONE : RIGHT for e in event]
-            ℓ = WeibullLikelihood(censoring = cens)
+            ℓ = WeibullLikelihood(censoring=cens)
             A = sparse(hcat(ones(n), reshape(xcov, n, 1)))
             model = LatentGaussianModel(ℓ, (Intercept(), FixedEffects(1)), A)
 
@@ -78,10 +78,10 @@ end
 
             # --- Fixed effects: posterior mean + sd --------------------------
             sf = fx["summary_fixed"]
-            α_R   = _wb_row(sf, "(Intercept)", "mean")
-            β_R   = _wb_row(sf, "x",           "mean")
+            α_R = _wb_row(sf, "(Intercept)", "mean")
+            β_R = _wb_row(sf, "x", "mean")
             α_sd_R = _wb_row(sf, "(Intercept)", "sd")
-            β_sd_R = _wb_row(sf, "x",           "sd")
+            β_sd_R = _wb_row(sf, "x", "sd")
 
             fe = fixed_effects(model, res)
             @test length(fe) == 2
@@ -92,15 +92,15 @@ end
 
             # --- Shape α_w: posterior mean + sd on user scale ---------------
             sh = fx["summary_hyperpar"]
-            α_w_R    = _wb_row(sh, "alpha parameter for weibullsurv", "mean")
+            α_w_R = _wb_row(sh, "alpha parameter for weibullsurv", "mean")
             α_w_sd_R = _wb_row(sh, "alpha parameter for weibullsurv", "sd")
 
             # Mean on user scale via delta method around θ̂ = log α̂.
             # E[α_w] ≈ exp(θ_mean), Var[α_w] ≈ Σθ * (exp θ̂)².
-            α_w_J     = exp(res.θ_mean[1])
-            α_w_sd_J  = sqrt(res.Σθ[1, 1]) * exp(res.θ̂[1])
-            @test _rel_wb(α_w_J, α_w_R)         < WB_SURV_SHAPE_TOL
-            @test _rel_wb(α_w_sd_J, α_w_sd_R)   < WB_SURV_SHAPE_SD_TOL
+            α_w_J = exp(res.θ_mean[1])
+            α_w_sd_J = sqrt(res.Σθ[1, 1]) * exp(res.θ̂[1])
+            @test _rel_wb(α_w_J, α_w_R) < WB_SURV_SHAPE_TOL
+            @test _rel_wb(α_w_sd_J, α_w_sd_R) < WB_SURV_SHAPE_SD_TOL
 
             # --- mlik ---------------------------------------------------------
             # Skipped (see header comment): R-INLA `weibullsurv` reports a

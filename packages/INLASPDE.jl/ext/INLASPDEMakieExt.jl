@@ -57,9 +57,12 @@ function MakieCore.convert_arguments(::Type{<:MakieCore.LineSegments}, mesh::INL
         pa = (mesh.points[a, 1], mesh.points[a, 2])
         pb = (mesh.points[b, 1], mesh.points[b, 2])
         pc = (mesh.points[c, 1], mesh.points[c, 2])
-        segs[k + 1] = pa; segs[k + 2] = pb
-        segs[k + 3] = pb; segs[k + 4] = pc
-        segs[k + 5] = pc; segs[k + 6] = pa
+        segs[k + 1] = pa
+        segs[k + 2] = pb
+        segs[k + 3] = pb
+        segs[k + 4] = pc
+        segs[k + 5] = pc
+        segs[k + 6] = pa
         k += 6
     end
     return (segs,)

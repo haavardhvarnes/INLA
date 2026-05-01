@@ -28,7 +28,7 @@ using LinearAlgebra: I
 using SparseArrays: sparse
 using Random
 using LatentGaussianModels: PoissonLikelihood, Intercept, FixedEffects,
-    BYM2, LatentGaussianModel, inla, PCPrecision
+                            BYM2, LatentGaussianModel, inla, PCPrecision
 using GMRFs: GMRFGraph
 using LGMTuring: nuts_sample, compare_posteriors
 
@@ -54,38 +54,38 @@ const LGM_FIXTURE_PATH = joinpath(@__DIR__, "..", "..", "..",
             W = inp["W"]
             n = length(y)
 
-            ℓ = PoissonLikelihood(; E = E)
-            c_int  = Intercept()
+            ℓ = PoissonLikelihood(; E=E)
+            c_int = Intercept()
             c_beta = FixedEffects(1)
-            c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec = PCPrecision(1.0, 0.01))
+            c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec=PCPrecision(1.0, 0.01))
             A = sparse(hcat(
                 ones(n),
                 reshape(x, n, 1),
                 Matrix{Float64}(I, n, n),
-                zeros(n, n),
+                zeros(n, n)
             ))
             model = LatentGaussianModel(ℓ, (c_int, c_beta, c_bym2), A)
 
-            inla_fit = inla(model, y; int_strategy = :grid)
+            inla_fit = inla(model, y; int_strategy=:grid)
 
             # Short chain: each leapfrog step is a Laplace fit on a
             # 112-wide latent. 200 post-warmup samples after 100
             # warmup is enough to bound the posterior mean within
             # 2 SDs in 2-D θ.
             chain = nuts_sample(model, y, 200;
-                                 n_adapts        = 100,
-                                 init_from_inla  = inla_fit,
-                                 rng             = Random.Xoshiro(20260426),
-                                 progress        = false)
+                n_adapts=100,
+                init_from_inla=inla_fit,
+                rng=Random.Xoshiro(20260426),
+                progress=false)
 
             rows = compare_posteriors(inla_fit, chain;
-                                       model    = model,
-                                       tol_mean = 2.0,
-                                       tol_sd   = 0.30)
+                model=model,
+                tol_mean=2.0,
+                tol_sd=0.30)
             @test length(rows) == 2  # log τ, logit φ
             for r in rows
                 @test isfinite(r.inla_mean) && isfinite(r.nuts_mean)
-                @test isfinite(r.inla_sd)   && isfinite(r.nuts_sd)
+                @test isfinite(r.inla_sd) && isfinite(r.nuts_sd)
                 @test !r.flagged
             end
         end

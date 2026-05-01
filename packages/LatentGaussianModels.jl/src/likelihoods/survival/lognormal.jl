@@ -36,10 +36,10 @@ derivatives). Stable evaluation in both tails uses
 ```
 """
 struct LognormalSurvLikelihood{
-        L <: AbstractLinkFunction,
-        C <: Union{Nothing, AbstractVector{Censoring}},
-        V <: Union{Nothing, AbstractVector{<:Real}},
-        P <: AbstractHyperPrior,
+    L <: AbstractLinkFunction,
+    C <: Union{Nothing, AbstractVector{Censoring}},
+    V <: Union{Nothing, AbstractVector{<:Real}},
+    P <: AbstractHyperPrior
 } <: AbstractLikelihood
     link::L
     censoring::C
@@ -48,10 +48,10 @@ struct LognormalSurvLikelihood{
 end
 
 function LognormalSurvLikelihood(;
-        link::AbstractLinkFunction = IdentityLink(),
-        censoring = nothing,
-        time_hi::Union{Nothing, AbstractVector{<:Real}} = nothing,
-        hyperprior::AbstractHyperPrior = PCPrecision(1.0, 0.01))
+        link::AbstractLinkFunction=IdentityLink(),
+        censoring=nothing,
+        time_hi::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        hyperprior::AbstractHyperPrior=PCPrecision(1.0, 0.01))
     link isa IdentityLink ||
         throw(ArgumentError(
             "LognormalSurvLikelihood: only IdentityLink is supported, got $(typeof(link))"))
@@ -266,7 +266,7 @@ function ∇³_η_log_density(
             #        D''' = -τ · [√τ φ_hi (w_hi² - 1) - √τ φ_lo (w_lo² - 1)]
             #             = -τ^(3/2) [Δwwφ - Δφ] = τ^(3/2) (Δφ - Δwwφ)
             Δwwφ = w_hi^2 * φ_hi - w_lo^2 * φ_lo
-            Dp  = -sqrt_τ * Δφ
+            Dp = -sqrt_τ * Δφ
             Dpp = τ * Δwφ
             Dppp = τ_32 * (Δφ - Δwwφ)
             # (log D)''' = D'''/D - 3 D' D'' / D² + 2 (D'/D)³

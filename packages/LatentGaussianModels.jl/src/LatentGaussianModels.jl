@@ -69,6 +69,7 @@ include("observation_mapping.jl")
 
 # --- model + inference ------------------------------------------------
 include("model.jl")
+include("joint_likelihood.jl")
 include("inference/abstract.jl")
 include("inference/constraints.jl")
 include("inference/laplace.jl")
@@ -120,8 +121,11 @@ export AbstractObservationMapping, IdentityMapping, LinearProjector,
 export apply!, apply_adjoint!, nrows, ncols, likelihood_for, as_matrix
 
 # Model + inference
-export LatentGaussianModel, n_latent, n_observations, n_hyperparameters
+export LatentGaussianModel, n_latent, n_observations, n_hyperparameters,
+       n_likelihoods, n_likelihood_hyperparameters
 export joint_precision
+export joint_log_density, joint_∇_η_log_density, joint_∇²_η_log_density,
+       joint_∇³_η_log_density, joint_pointwise_log_density, joint_pointwise_cdf
 export AbstractInferenceStrategy, AbstractInferenceResult
 export AbstractIntegrationScheme, Grid, GaussHermite, CCD
 export Laplace, LaplaceResult, laplace_mode

@@ -17,8 +17,8 @@ using SparseArrays
 using LinearAlgebra
 using Statistics
 using LatentGaussianModels: inla_coxph, coxph_design,
-    PoissonLikelihood, FixedEffects, RW1, PCPrecision,
-    LatentGaussianModel, inla, fixed_effects, random_effects
+                            PoissonLikelihood, FixedEffects, RW1, PCPrecision,
+                            LatentGaussianModel, inla, fixed_effects, random_effects
 
 # Inverse-CDF sampler for the piecewise-exponential survival distribution
 # with covariate-shifted hazards `λ_i(t) = exp(γ_k + xᵀβ)` on
@@ -46,9 +46,9 @@ end
     rng = MersenneTwister(20260430)
 
     # --- Truth -----------------------------------------------------------
-    n  = 400
-    bp = collect(range(0.0, 5.0; length = 11))   # 10 intervals
-    K  = length(bp) - 1
+    n = 400
+    bp = collect(range(0.0, 5.0; length=11))   # 10 intervals
+    K = length(bp) - 1
     γ_true = [-1.0, -0.7, -0.4, -0.1, 0.1, 0.0, -0.2, -0.5, -0.8, -1.1]
     β_true = [0.50, -0.30]
 
@@ -63,7 +63,7 @@ end
     # simulated event time exceeds this, observe the censoring time and
     # set δ = 0; otherwise observe the event time with δ = 1.
     cens_time = 2.5 .+ 4.0 .* rand(rng, n)
-    time  = min.(time_event, cens_time)
+    time = min.(time_event, cens_time)
     event = Int.(time_event .≤ cens_time)
     # Numerical safety: avoid t = 0 exactly.
     time .= max.(time, 1e-6)
@@ -71,17 +71,17 @@ end
     @test count(==(1), event) > n / 4   # ≥25% events — sanity
 
     # --- Augmentation ----------------------------------------------------
-    aug = inla_coxph(time, event; breakpoints = bp)
+    aug = inla_coxph(time, event; breakpoints=bp)
     @test aug.n_intervals == K
     @test aug.n_subjects == n
-    @test sum(aug.E) ≈ sum(time) atol = 1e-8
+    @test sum(aug.E)≈sum(time) atol=1e-8
 
     # --- Fit -------------------------------------------------------------
-    ℓ          = PoissonLikelihood(E = aug.E)
-    c_baseline = RW1(aug.n_intervals; hyperprior = PCPrecision(1.0, 0.01))
-    c_beta     = FixedEffects(2)
-    A          = coxph_design(aug, X)
-    model      = LatentGaussianModel(ℓ, (c_baseline, c_beta), A)
+    ℓ = PoissonLikelihood(E=aug.E)
+    c_baseline = RW1(aug.n_intervals; hyperprior=PCPrecision(1.0, 0.01))
+    c_beta = FixedEffects(2)
+    A = coxph_design(aug, X)
+    model = LatentGaussianModel(ℓ, (c_baseline, c_beta), A)
 
     res = inla(model, aug.y)
 
@@ -92,7 +92,7 @@ end
     re = random_effects(model, res)
     β_block = re["FixedEffects[2]"]
     β_hat = β_block.mean
-    β_sd  = β_block.sd
+    β_sd = β_block.sd
     @test length(β_hat) == 2
     @test all(β_sd .> 0)
 
