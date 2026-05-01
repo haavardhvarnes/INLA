@@ -83,7 +83,8 @@ for T in (:ZeroInflatedNegativeBinomialLikelihood0,
             hyperprior_size::AbstractHyperPrior=GammaPrecision(1.0, 0.1),
             hyperprior_zi::AbstractHyperPrior=GaussianPrior(0.0, 1.0))
         link isa LogLink ||
-            throw(ArgumentError(string($(QuoteNode(T)), ": only LogLink is supported, got $(typeof(link))")))
+            throw(ArgumentError(string(
+                $(QuoteNode(T)), ": only LogLink is supported, got $(typeof(link))")))
         return $T(link, E, hyperprior_size, hyperprior_zi)
     end
 

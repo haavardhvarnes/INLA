@@ -71,7 +71,8 @@ for T in (:ZeroInflatedBinomialLikelihood0,
             link::AbstractLinkFunction=LogitLink(),
             hyperprior::AbstractHyperPrior=GaussianPrior(0.0, 1.0))
         link isa LogitLink ||
-            throw(ArgumentError(string($(QuoteNode(T)), ": only LogitLink is supported, got $(typeof(link))")))
+            throw(ArgumentError(string(
+                $(QuoteNode(T)), ": only LogitLink is supported, got $(typeof(link))")))
         all(>(0), n_trials) || throw(ArgumentError("n_trials must be strictly positive"))
         return $T(link, n_trials, hyperprior)
     end

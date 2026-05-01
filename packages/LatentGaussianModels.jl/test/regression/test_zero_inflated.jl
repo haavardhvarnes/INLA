@@ -12,7 +12,7 @@ using LatentGaussianModels: ZeroInflatedPoissonLikelihood0,
                             initial_hyperparameters, pointwise_log_density
 
 # Reuse the FD helper from test_likelihoods.jl style.
-function _fd_grad(f, η, h = 1.0e-6)
+function _fd_grad(f, η, h=1.0e-6)
     g = similar(η)
     for i in eachindex(η)
         ep = copy(η)
@@ -38,12 +38,12 @@ const _ZI_E = [1.0, 1.5, 0.8, 2.0, 1.0, 1.2, 0.9]
 
 @testset "ZeroInflatedPoisson — types 0/1/2" begin
     for (T, name, θ) in (
-            (ZeroInflatedPoissonLikelihood0, "ZIP0", [-0.5]),
-            (ZeroInflatedPoissonLikelihood1, "ZIP1", [-0.5]),
-            (ZeroInflatedPoissonLikelihood2, "ZIP2", [0.4]),
-        )
+        (ZeroInflatedPoissonLikelihood0, "ZIP0", [-0.5]),
+        (ZeroInflatedPoissonLikelihood1, "ZIP1", [-0.5]),
+        (ZeroInflatedPoissonLikelihood2, "ZIP2", [0.4])
+    )
         @testset "$name" begin
-            ℓ = T(; E = _ZI_E)
+            ℓ = T(; E=_ZI_E)
             @test nhyperparameters(ℓ) == 1
             @test length(initial_hyperparameters(ℓ)) == 1
             lp = log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
@@ -51,11 +51,11 @@ const _ZI_E = [1.0, 1.5, 0.8, 2.0, 1.0, 1.2, 0.9]
 
             g = ∇_η_log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
             g_fd = _fd_grad(h -> log_density(ℓ, _ZI_Y_COUNT, h, θ), _ZI_η)
-            @test g ≈ g_fd atol = ZI_TOL_GRAD
+            @test g≈g_fd atol=ZI_TOL_GRAD
 
             H = ∇²_η_log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
             H_fd = _fd_grad(h -> sum(∇_η_log_density(ℓ, _ZI_Y_COUNT, h, θ)), _ZI_η)
-            @test H ≈ H_fd atol = ZI_TOL_HESS
+            @test H≈H_fd atol=ZI_TOL_HESS
 
             pw = pointwise_log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
             @test sum(pw) ≈ lp
@@ -65,20 +65,20 @@ const _ZI_E = [1.0, 1.5, 0.8, 2.0, 1.0, 1.2, 0.9]
 
     # Type 1 has a closed-form ∇³.
     @testset "ZIP1 ∇³" begin
-        ℓ = ZeroInflatedPoissonLikelihood1(; E = _ZI_E)
+        ℓ = ZeroInflatedPoissonLikelihood1(; E=_ZI_E)
         θ = [-0.5]
         H3 = ∇³_η_log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
         H3_fd = _fd_grad(h -> sum(∇²_η_log_density(ℓ, _ZI_Y_COUNT, h, θ)), _ZI_η)
-        @test H3 ≈ H3_fd atol = ZI_TOL_TRIPLE
+        @test H3≈H3_fd atol=ZI_TOL_TRIPLE
     end
 end
 
 @testset "ZeroInflatedBinomial — types 0/1/2" begin
     for (T, name, θ) in (
-            (ZeroInflatedBinomialLikelihood0, "ZIB0", [-0.5]),
-            (ZeroInflatedBinomialLikelihood1, "ZIB1", [-0.5]),
-            (ZeroInflatedBinomialLikelihood2, "ZIB2", [0.4]),
-        )
+        (ZeroInflatedBinomialLikelihood0, "ZIB0", [-0.5]),
+        (ZeroInflatedBinomialLikelihood1, "ZIB1", [-0.5]),
+        (ZeroInflatedBinomialLikelihood2, "ZIB2", [0.4])
+    )
         @testset "$name" begin
             ℓ = T(_ZI_N_TRIALS)
             @test nhyperparameters(ℓ) == 1
@@ -87,11 +87,11 @@ end
 
             g = ∇_η_log_density(ℓ, _ZI_Y_BIN, _ZI_η, θ)
             g_fd = _fd_grad(h -> log_density(ℓ, _ZI_Y_BIN, h, θ), _ZI_η)
-            @test g ≈ g_fd atol = ZI_TOL_GRAD
+            @test g≈g_fd atol=ZI_TOL_GRAD
 
             H = ∇²_η_log_density(ℓ, _ZI_Y_BIN, _ZI_η, θ)
             H_fd = _fd_grad(h -> sum(∇_η_log_density(ℓ, _ZI_Y_BIN, h, θ)), _ZI_η)
-            @test H ≈ H_fd atol = ZI_TOL_HESS
+            @test H≈H_fd atol=ZI_TOL_HESS
 
             pw = pointwise_log_density(ℓ, _ZI_Y_BIN, _ZI_η, θ)
             @test sum(pw) ≈ lp
@@ -103,18 +103,18 @@ end
         θ = [-0.5]
         H3 = ∇³_η_log_density(ℓ, _ZI_Y_BIN, _ZI_η, θ)
         H3_fd = _fd_grad(h -> sum(∇²_η_log_density(ℓ, _ZI_Y_BIN, h, θ)), _ZI_η)
-        @test H3 ≈ H3_fd atol = ZI_TOL_TRIPLE
+        @test H3≈H3_fd atol=ZI_TOL_TRIPLE
     end
 end
 
 @testset "ZeroInflatedNegativeBinomial — types 0/1/2" begin
     for (T, name, θ) in (
-            (ZeroInflatedNegativeBinomialLikelihood0, "ZINB0", [0.5, -0.5]),
-            (ZeroInflatedNegativeBinomialLikelihood1, "ZINB1", [0.5, -0.5]),
-            (ZeroInflatedNegativeBinomialLikelihood2, "ZINB2", [0.5, 0.4]),
-        )
+        (ZeroInflatedNegativeBinomialLikelihood0, "ZINB0", [0.5, -0.5]),
+        (ZeroInflatedNegativeBinomialLikelihood1, "ZINB1", [0.5, -0.5]),
+        (ZeroInflatedNegativeBinomialLikelihood2, "ZINB2", [0.5, 0.4])
+    )
         @testset "$name" begin
-            ℓ = T(; E = _ZI_E)
+            ℓ = T(; E=_ZI_E)
             @test nhyperparameters(ℓ) == 2
             @test length(initial_hyperparameters(ℓ)) == 2
             lp = log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
@@ -122,11 +122,11 @@ end
 
             g = ∇_η_log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
             g_fd = _fd_grad(h -> log_density(ℓ, _ZI_Y_COUNT, h, θ), _ZI_η)
-            @test g ≈ g_fd atol = ZI_TOL_GRAD
+            @test g≈g_fd atol=ZI_TOL_GRAD
 
             H = ∇²_η_log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
             H_fd = _fd_grad(h -> sum(∇_η_log_density(ℓ, _ZI_Y_COUNT, h, θ)), _ZI_η)
-            @test H ≈ H_fd atol = ZI_TOL_HESS
+            @test H≈H_fd atol=ZI_TOL_HESS
 
             pw = pointwise_log_density(ℓ, _ZI_Y_COUNT, _ZI_η, θ)
             @test sum(pw) ≈ lp
@@ -143,13 +143,13 @@ end
     η = [0.2, -0.4, 0.7, 0.0]
 
     for ℓ in (
-            ZeroInflatedPoissonLikelihood0(),
-            ZeroInflatedPoissonLikelihood1(),
-            ZeroInflatedPoissonLikelihood2(),
-            ZeroInflatedNegativeBinomialLikelihood0(),
-            ZeroInflatedNegativeBinomialLikelihood1(),
-            ZeroInflatedNegativeBinomialLikelihood2(),
-        )
+        ZeroInflatedPoissonLikelihood0(),
+        ZeroInflatedPoissonLikelihood1(),
+        ZeroInflatedPoissonLikelihood2(),
+        ZeroInflatedNegativeBinomialLikelihood0(),
+        ZeroInflatedNegativeBinomialLikelihood1(),
+        ZeroInflatedNegativeBinomialLikelihood2()
+    )
         θ_extreme = nhyperparameters(ℓ) == 1 ? [10.0] : [0.5, 10.0]
         @test isfinite(log_density(ℓ, y_zero, η, θ_extreme))
         θ_low = nhyperparameters(ℓ) == 1 ? [-10.0] : [0.5, -10.0]
@@ -158,10 +158,10 @@ end
 
     n_trials = [10, 12, 8, 10]
     for ℓ in (
-            ZeroInflatedBinomialLikelihood0(n_trials),
-            ZeroInflatedBinomialLikelihood1(n_trials),
-            ZeroInflatedBinomialLikelihood2(n_trials),
-        )
+        ZeroInflatedBinomialLikelihood0(n_trials),
+        ZeroInflatedBinomialLikelihood1(n_trials),
+        ZeroInflatedBinomialLikelihood2(n_trials)
+    )
         @test isfinite(log_density(ℓ, [0, 3, 0, 5], η, [10.0]))
         @test isfinite(log_density(ℓ, [0, 3, 0, 5], η, [-10.0]))
     end

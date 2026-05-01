@@ -91,7 +91,8 @@ for T in (:ZeroInflatedPoissonLikelihood0,
             E::Union{Nothing, AbstractVector}=nothing,
             hyperprior::AbstractHyperPrior=GaussianPrior(0.0, 1.0))
         link isa LogLink ||
-            throw(ArgumentError(string($(QuoteNode(T)), ": only LogLink is supported, got $(typeof(link))")))
+            throw(ArgumentError(string(
+                $(QuoteNode(T)), ": only LogLink is supported, got $(typeof(link))")))
         return $T(link, E, hyperprior)
     end
 
