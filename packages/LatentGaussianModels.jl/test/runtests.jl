@@ -116,6 +116,7 @@ using GMRFs
         include("oracle/test_synthetic_gamma_survival.jl")
         include("oracle/test_synthetic_coxph.jl")
         include("oracle/test_synthetic_joint_gauss_pois.jl")
+        include("oracle/test_synthetic_zip1.jl")
     end
     @testset "Quality" begin
         include("quality/test_aqua.jl")
