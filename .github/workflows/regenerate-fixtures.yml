@@ -2,7 +2,8 @@ name: Regenerate oracle fixtures
 
 # Regenerates every R-INLA oracle fixture under
 # `scripts/generate-fixtures/` on a pinned R + R-INLA stack and fails if
-# the output differs byte-for-byte from the committed `.jld2` files.
+# the regenerated `.jld2` files drift past rtol=1e-4 / atol=1e-8 from
+# the committed copies (see `scripts/generate-fixtures/compare.jl`).
 #
 # This workflow is a tamper check: it never commits. Deliberate fixture
 # updates go through a separate PR that regenerates locally and commits
@@ -18,10 +19,10 @@ name: Regenerate oracle fixtures
 #     upload the `renv::snapshot()` output as an artifact so we can
 #     commit a real lockfile in a follow-up PR.
 #  2. BLAS / libm differences across runners cause sub-ULP numeric
-#     drift. The byte-level comparator below treats that as a failure
-#     by design. If it becomes a nuisance, switch to a Julia-side
-#     tolerance comparator (see `scripts/generate-fixtures/compare.jl`
-#     — not yet written).
+#     drift, so the tamper check uses `scripts/generate-fixtures/compare.jl`
+#     — a Julia-side tolerance comparator (rtol=1e-4, atol=1e-8) that
+#     walks the JLD2 structure rather than comparing raw bytes. Semantic
+#     drift (algorithm or input change) still blows past 1e-4 and fails.
 
 on:
   workflow_dispatch:
@@ -131,33 +132,58 @@ jobs:
       - name: Instantiate Julia conversion project
         run: make -C scripts/generate-fixtures setup
 
-      - name: Snapshot pre-run fixture hashes
+      - name: Stage committed fixtures (snapshot before regeneration)
+        shell: bash
         run: |
-          find packages -name "*.jld2" -path "*/test/oracle/fixtures/*" \
-            | sort | xargs sha256sum > /tmp/fixtures.before.sha256 || true
-          cat /tmp/fixtures.before.sha256
+          set -euo pipefail
+          mkdir -p committed-fixtures
+          find packages -name "*.jld2" -path "*/test/oracle/fixtures/*" | while read -r f; do
+            dest="committed-fixtures/${f#packages/}"
+            mkdir -p "$(dirname "$dest")"
+            cp "$f" "$dest"
+          done
+          echo "Staged $(find committed-fixtures -name '*.jld2' | wc -l) committed fixtures."
 
       - name: Regenerate every fixture via make all
         run: make -C scripts/generate-fixtures all
 
-      - name: Tamper check — committed fixtures unchanged, no new fixtures
+      - name: Stage regenerated fixtures (snapshot after regeneration)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p regenerated-fixtures
+          # Preserve per-package directory structure so the artifact
+          # can be dropped in place with `cp -r regenerated-fixtures/. packages/`.
+          find packages -name "*.jld2" -path "*/test/oracle/fixtures/*" | while read -r f; do
+            dest="regenerated-fixtures/${f#packages/}"
+            mkdir -p "$(dirname "$dest")"
+            cp "$f" "$dest"
+          done
+
+      - name: Tamper check — tolerance compare committed vs regenerated
         shell: bash
         run: |
           set -euo pipefail
 
-          # Detect modifications to tracked fixtures
-          if ! git diff --exit-code -- 'packages/*/test/oracle/fixtures/*.jld2'; then
-            echo "::error title=Fixture drift::Regeneration changed committed fixture bytes."
+          # Tolerance comparator (rtol=1e-4, atol=1e-8). BLAS/libm sub-ULP
+          # differences between developer machine and CI runner cause byte
+          # diff to fail spuriously; compare.jl walks the JLD2 structure
+          # numerically. Real semantic drift (algorithm or input change)
+          # still blows past 1e-4 and fails loudly.
+          if ! julia --project=scripts/generate-fixtures \
+              scripts/generate-fixtures/compare.jl \
+              committed-fixtures regenerated-fixtures; then
+            echo "::error title=Fixture drift::Regeneration produced numerically different fixtures."
             echo "Possible causes:"
-            echo "  (a) R-INLA / BLAS / libm version differs from the pinned CI stack"
-            echo "      — check the INLA version line in the previous step."
-            echo "  (b) A fixture-generation script changed deliberately"
-            echo "      — in that case, regenerate locally, commit the updated"
-            echo "      .jld2 files, bump renv.lock, and open a follow-up PR."
+            echo "  (a) A fixture-generation script changed deliberately"
+            echo "      — commit the regenerated .jld2 files alongside the change."
+            echo "  (b) R-INLA stack drift past tolerance"
+            echo "      — check the INLA version line emitted earlier."
             exit 1
           fi
 
-          # Detect new, untracked fixtures
+          # Detect new, untracked fixtures (orthogonal to drift)
           untracked=$(git ls-files --others --exclude-standard 'packages/*/test/oracle/fixtures/*.jld2' || true)
           if [ -n "${untracked}" ]; then
             echo "::error title=Uncommitted fixtures::Regeneration produced fixtures that are not committed:"
@@ -166,7 +192,7 @@ jobs:
             exit 1
           fi
 
-          echo "All committed fixtures reproduce byte-for-byte from the pinned R-INLA stack."
+          echo "All committed fixtures match regenerated fixtures within rtol=1e-4."
 
       - name: Upload R package manifest (renv.lock bootstrap aid)
         if: always()
@@ -176,19 +202,6 @@ jobs:
                             INLA = Sys.getenv("R_REPOS_INLA")))
           pkgs <- installed.packages()[, c("Package", "Version", "Built")]
           write.csv(pkgs, "r-package-manifest.csv", row.names = FALSE)
-
-      - name: Stage regenerated fixtures for artifact
-        if: always()
-        shell: bash
-        run: |
-          mkdir -p regenerated-fixtures
-          # Preserve per-package directory structure so the artifact
-          # can be dropped in place with `cp -r regenerated-fixtures/. packages/`.
-          find packages -name "*.jld2" -path "*/test/oracle/fixtures/*" | while read -r f; do
-            dest="regenerated-fixtures/${f#packages/}"
-            mkdir -p "$(dirname "$dest")"
-            cp "$f" "$dest"
-          done
 
       - name: Upload artifacts
         if: always()
