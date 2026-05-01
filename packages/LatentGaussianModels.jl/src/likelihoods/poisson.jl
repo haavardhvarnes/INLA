@@ -7,13 +7,14 @@ to `1`. With the canonical `LogLink`, the mean is `E · exp(η)`.
 
 No likelihood hyperparameters. `θ` is ignored.
 """
-struct PoissonLikelihood{L <: AbstractLinkFunction, V <: Union{Nothing, AbstractVector}} <: AbstractLikelihood
+struct PoissonLikelihood{L <: AbstractLinkFunction, V <: Union{Nothing, AbstractVector}} <:
+       AbstractLikelihood
     link::L
     E::V
 end
 
-function PoissonLikelihood(; link::AbstractLinkFunction = LogLink(),
-                           E::Union{Nothing, AbstractVector} = nothing)
+function PoissonLikelihood(; link::AbstractLinkFunction=LogLink(),
+        E::Union{Nothing, AbstractVector}=nothing)
     return PoissonLikelihood(link, E)
 end
 

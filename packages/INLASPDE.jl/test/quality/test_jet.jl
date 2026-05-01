@@ -8,7 +8,7 @@ using Test
 
 @testset "JET — INLASPDE" begin
     rep = JET.report_package(INLASPDE;
-                              target_modules = (INLASPDE,),
-                              ignore_missing_comparison = true)
+        target_modules=(INLASPDE,),
+        ignore_missing_comparison=true)
     @test isempty(JET.get_reports(rep))
 end

@@ -35,9 +35,9 @@ stack declared hard linear constraints, the kriging correction is
 applied to each draw so that `C x = e` to working precision.
 """
 function posterior_samples_η(rng::Random.AbstractRNG,
-                             res::INLAResult,
-                             model::LatentGaussianModel;
-                             n_samples::Integer = 1000)
+        res::INLAResult,
+        model::LatentGaussianModel;
+        n_samples::Integer=1000)
     n_samples ≥ 1 || throw(ArgumentError("n_samples must be ≥ 1"))
     A = as_matrix(model.mapping)
     n_obs = size(A, 1)
@@ -60,7 +60,7 @@ function posterior_samples_η(rng::Random.AbstractRNG,
             @views θℓ_samples[:, s] .= res.θ_points[k][1:n_ℓ]
         end
     end
-    return (η = η_samples, θℓ = θℓ_samples)
+    return (η=η_samples, θℓ=θℓ_samples)
 end
 
 # Draw one sample from N(lp.mode, lp.precision^{-1}) with optional
@@ -126,7 +126,7 @@ function dic(res::INLAResult, model::LatentGaussianModel, y)
     end
 
     pD = D_bar - D_mode
-    return (DIC = D_bar + pD, pD = pD, D_bar = D_bar, D_mode = D_mode)
+    return (DIC=D_bar + pD, pD=pD, D_bar=D_bar, D_mode=D_mode)
 end
 
 # Diagonal of `A H^{-1} A'` with the constraint correction.
@@ -190,10 +190,10 @@ with
 Expectations are Monte-Carlo under the posterior samples.
 """
 function waic(rng::Random.AbstractRNG,
-              res::INLAResult,
-              model::LatentGaussianModel,
-              y;
-              n_samples::Integer = 1000)
+        res::INLAResult,
+        model::LatentGaussianModel,
+        y;
+        n_samples::Integer=1000)
     samples = posterior_samples_η(rng, res, model; n_samples)
     logp = _pointwise_log_density_matrix(model, y, samples)
     n_obs = size(logp, 1)
@@ -203,14 +203,15 @@ function waic(rng::Random.AbstractRNG,
     @inbounds for i in 1:n_obs
         row = @view logp[i, :]
         lpd[i] = _logsumexp(row) - log(n_samples)
-        pw[i] = Statistics.var(row; corrected = true)
+        pw[i] = Statistics.var(row; corrected=true)
     end
     elpd = sum(lpd) - sum(pw)
-    return (WAIC = -2 * elpd, lpd = lpd, pWAIC = pw, elpd_WAIC = elpd)
+    return (WAIC=-2 * elpd, lpd=lpd, pWAIC=pw, elpd_WAIC=elpd)
 end
 
-waic(res::INLAResult, model::LatentGaussianModel, y; kwargs...) =
+function waic(res::INLAResult, model::LatentGaussianModel, y; kwargs...)
     waic(Random.default_rng(), res, model, y; kwargs...)
+end
 
 # ---------------------------------------------------------------------
 # CPO — conditional predictive ordinate
@@ -235,10 +236,10 @@ yet — outliers will produce large `log_CPO_i` variance across RNG
 seeds. Increasing `n_samples` stabilises the estimator.
 """
 function cpo(rng::Random.AbstractRNG,
-             res::INLAResult,
-             model::LatentGaussianModel,
-             y;
-             n_samples::Integer = 1000)
+        res::INLAResult,
+        model::LatentGaussianModel,
+        y;
+        n_samples::Integer=1000)
     samples = posterior_samples_η(rng, res, model; n_samples)
     logp = _pointwise_log_density_matrix(model, y, samples)
     n_obs = size(logp, 1)
@@ -249,12 +250,13 @@ function cpo(rng::Random.AbstractRNG,
         neg_row = -(@view logp[i, :])
         log_cpo[i] = log(n_samples) - _logsumexp(neg_row)
     end
-    return (CPO = exp.(log_cpo), log_CPO = log_cpo,
-            log_pseudo_marginal = sum(log_cpo))
+    return (CPO=exp.(log_cpo), log_CPO=log_cpo,
+        log_pseudo_marginal=sum(log_cpo))
 end
 
-cpo(res::INLAResult, model::LatentGaussianModel, y; kwargs...) =
+function cpo(res::INLAResult, model::LatentGaussianModel, y; kwargs...)
     cpo(Random.default_rng(), res, model, y; kwargs...)
+end
 
 # ---------------------------------------------------------------------
 # PIT — probability integral transform
@@ -277,10 +279,10 @@ miscalibration.
 Requires the likelihood to implement [`pointwise_cdf`](@ref).
 """
 function pit(rng::Random.AbstractRNG,
-             res::INLAResult,
-             model::LatentGaussianModel,
-             y;
-             n_samples::Integer = 1000)
+        res::INLAResult,
+        model::LatentGaussianModel,
+        y;
+        n_samples::Integer=1000)
     samples = posterior_samples_η(rng, res, model; n_samples)
     n_ℓ = n_likelihood_hyperparameters(model)
     n_obs = length(y)
@@ -293,15 +295,16 @@ function pit(rng::Random.AbstractRNG,
     return acc ./ n_samples
 end
 
-pit(res::INLAResult, model::LatentGaussianModel, y; kwargs...) =
+function pit(res::INLAResult, model::LatentGaussianModel, y; kwargs...)
     pit(Random.default_rng(), res, model, y; kwargs...)
+end
 
 # ---------------------------------------------------------------------
 # Shared helper: matrix of pointwise log-densities across MC samples.
 # ---------------------------------------------------------------------
 
 function _pointwise_log_density_matrix(model::LatentGaussianModel, y,
-                                       samples::NamedTuple)
+        samples::NamedTuple)
     n_ℓ = n_likelihood_hyperparameters(model)
     n_obs = length(y)
     n_samples = size(samples.η, 2)

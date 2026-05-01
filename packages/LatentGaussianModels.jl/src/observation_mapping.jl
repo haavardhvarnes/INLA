@@ -231,8 +231,9 @@ struct StackedMapping{T <: Tuple} <: AbstractObservationMapping
     end
 end
 
-StackedMapping(blocks::Tuple, rows::Vector{UnitRange{Int}}) =
+function StackedMapping(blocks::Tuple, rows::Vector{UnitRange{Int}})
     StackedMapping{typeof(blocks)}(blocks, rows)
+end
 
 function nrows(m::StackedMapping)
     isempty(m.rows) && return 0
@@ -283,7 +284,7 @@ exists so the type hierarchy is closed; `apply!` / `apply_adjoint!`
 implementations land in Phase M (non-stationary SPDE expansion).
 """
 struct KroneckerMapping{S <: AbstractObservationMapping,
-                        T <: AbstractObservationMapping} <: AbstractObservationMapping
+    T <: AbstractObservationMapping} <: AbstractObservationMapping
     A_space::S
     A_time::T
 end

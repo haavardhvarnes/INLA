@@ -1,6 +1,6 @@
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood, Intercept,
-    IID, BYM2, LatentGaussianModel, inla, inla_summary,
-    fixed_effects, random_effects, hyperparameters
+                            IID, BYM2, LatentGaussianModel, inla, inla_summary,
+                            fixed_effects, random_effects, hyperparameters
 using GMRFs: GMRFGraph
 using LinearAlgebra: I
 using Printf: @sprintf
@@ -43,9 +43,9 @@ using Random
 # per CLAUDE.md "diagnostics are computed on demand".
 # ---------------------------------------------------------------------
 
-function _capture_summary(model, res; level::Real = 0.95)
+function _capture_summary(model, res; level::Real=0.95)
     io = IOBuffer()
-    inla_summary(io, model, res; level = level)
+    inla_summary(io, model, res; level=level)
     return String(take!(io))
 end
 
@@ -57,8 +57,8 @@ end
     y = α_true .+ σ .* randn(rng, n)
 
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                sparse(ones(n, 1)))
-    res = inla(model, y; int_strategy = :grid)
+        sparse(ones(n, 1)))
+    res = inla(model, y; int_strategy=:grid)
     out = _capture_summary(model, res)
 
     # --- header block ---
@@ -97,9 +97,9 @@ end
 
     c_int = Intercept()
     c_iid = IID(n)
-    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
     model = LatentGaussianModel(GaussianLikelihood(), (c_int, c_iid), A)
-    res = inla(model, y; int_strategy = :grid)
+    res = inla(model, y; int_strategy=:grid)
     out = _capture_summary(model, res)
 
     @test occursin("Fixed effects:", out)
@@ -127,8 +127,8 @@ end
     y = 0.5 .+ 0.4 .* randn(rng, n)
 
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                sparse(ones(n, 1)))
-    res = inla(model, y; int_strategy = :grid)
+        sparse(ones(n, 1)))
+    res = inla(model, y; int_strategy=:grid)
     out = _capture_summary(model, res)
 
     fe = fixed_effects(model, res)
@@ -153,8 +153,8 @@ end
     n = 50
     y = randn(rng, n)
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                sparse(ones(n, 1)))
-    res = inla(model, y; int_strategy = :grid)
+        sparse(ones(n, 1)))
+    res = inla(model, y; int_strategy=:grid)
 
     io = IOBuffer()
     show(io, MIME"text/plain"(), res)

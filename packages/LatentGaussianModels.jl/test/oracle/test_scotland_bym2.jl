@@ -17,16 +17,16 @@ using Test
 using SparseArrays
 using LinearAlgebra: I
 using LatentGaussianModels: PoissonLikelihood, Intercept, FixedEffects,
-    BYM2, LatentGaussianModel, inla, PCPrecision,
-    fixed_effects, hyperparameters, log_marginal_likelihood
+                            BYM2, LatentGaussianModel, inla, PCPrecision,
+                            fixed_effects, hyperparameters, log_marginal_likelihood
 using GMRFs: GMRFGraph
 
 const FIXTURE = "scotland_bym2"
 
 # Tolerance constants (see plans/testing-strategy.md).
 const FIXED_EFFECT_TOL = 0.07   # |Δμ| / max(|μ_R|, 1)
-const TAU_REL_TOL      = 0.10   # |Δτ| / τ_R
-const MLIK_REL_TOL     = 0.02   # |Δmlik| / |mlik_R|
+const TAU_REL_TOL = 0.10   # |Δτ| / τ_R
+const MLIK_REL_TOL = 0.02   # |Δmlik| / |mlik_R|
 # mlik now passes within 2% of R-INLA's integration estimate after
 # `Intercept()` was switched to the improper-by-default convention to
 # match R-INLA's `prec.intercept = 0`; the previous proper-Normal
@@ -89,19 +89,19 @@ end
             # Build the Julia model. Latent layout: [α; β; b; u].
             # Predictor η_i = α + β x_i + b_i; u is constrained and does
             # not enter the predictor.
-            ℓ = PoissonLikelihood(; E = E)
-            c_int  = Intercept()
+            ℓ = PoissonLikelihood(; E=E)
+            c_int = Intercept()
             c_beta = FixedEffects(1)
-            c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec = PCPrecision(1.0, 0.01))
+            c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec=PCPrecision(1.0, 0.01))
             A = sparse(hcat(
                 ones(n),                        # intercept → α
                 reshape(x, n, 1),               # AFF slope → β
                 Matrix{Float64}(I, n, n),       # per-obs pick of b_i
-                zeros(n, n),                    # u does not enter η
+                zeros(n, n)                    # u does not enter η
             ))
             model = LatentGaussianModel(ℓ, (c_int, c_beta, c_bym2), A)
 
-            res = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Fixed effects: intercept + AFF slope --------------------
             fe = fixed_effects(model, res)

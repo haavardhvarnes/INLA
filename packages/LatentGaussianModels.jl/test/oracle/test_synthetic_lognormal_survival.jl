@@ -21,15 +21,15 @@ using Test
 using SparseArrays
 using LinearAlgebra
 using LatentGaussianModels: LognormalSurvLikelihood, NONE, RIGHT, Censoring,
-    Intercept, FixedEffects, LatentGaussianModel, inla,
-    fixed_effects, hyperparameters
+                            Intercept, FixedEffects, LatentGaussianModel, inla,
+                            fixed_effects, hyperparameters
 
 const LNS_SURV_FIXTURE = "synthetic_lognormal_survival"
 
-const LNS_SURV_FE_MEAN_TOL  = 0.05    # |Δmean| / max(|R|, 1)
-const LNS_SURV_FE_SD_TOL    = 0.10    # |Δsd|  / R-sd
-const LNS_SURV_PREC_TOL     = 0.10    # |Δτ|   / R-mean
-const LNS_SURV_PREC_SD_TOL  = 0.20    # |Δsd_τ| / R-sd
+const LNS_SURV_FE_MEAN_TOL = 0.05    # |Δmean| / max(|R|, 1)
+const LNS_SURV_FE_SD_TOL = 0.10    # |Δsd|  / R-sd
+const LNS_SURV_PREC_TOL = 0.10    # |Δτ|   / R-mean
+const LNS_SURV_PREC_SD_TOL = 0.20    # |Δsd_τ| / R-sd
 
 _rel_lns(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -56,13 +56,13 @@ end
             @test_skip "fixture has no `input` field — regenerate"
         else
             inp = fx["input"]
-            time  = Float64.(inp["time"])
+            time = Float64.(inp["time"])
             event = Int.(inp["event"])
-            xcov  = Float64.(inp["x"])
+            xcov = Float64.(inp["x"])
             n = length(time)
 
             cens = Censoring[e == 1 ? NONE : RIGHT for e in event]
-            ℓ = LognormalSurvLikelihood(censoring = cens)
+            ℓ = LognormalSurvLikelihood(censoring=cens)
             A = sparse(hcat(ones(n), reshape(xcov, n, 1)))
             model = LatentGaussianModel(ℓ, (Intercept(), FixedEffects(1)), A)
 
@@ -70,10 +70,10 @@ end
 
             # --- Fixed effects: posterior mean + sd --------------------------
             sf = fx["summary_fixed"]
-            α_R   = _lns_row(sf, "(Intercept)", "mean")
-            β_R   = _lns_row(sf, "x",           "mean")
+            α_R = _lns_row(sf, "(Intercept)", "mean")
+            β_R = _lns_row(sf, "x", "mean")
             α_sd_R = _lns_row(sf, "(Intercept)", "sd")
-            β_sd_R = _lns_row(sf, "x",           "sd")
+            β_sd_R = _lns_row(sf, "x", "sd")
 
             fe = fixed_effects(model, res)
             @test length(fe) == 2
@@ -84,17 +84,17 @@ end
 
             # --- Precision τ: posterior mean + sd on user scale -------------
             sh = fx["summary_hyperpar"]
-            τ_R    = _lns_row(sh, "Precision for the lognormalsurv observations",
-                              "mean")
+            τ_R = _lns_row(sh, "Precision for the lognormalsurv observations",
+                "mean")
             τ_sd_R = _lns_row(sh, "Precision for the lognormalsurv observations",
-                              "sd")
+                "sd")
 
             # Mean on user scale via delta method around θ̂ = log τ̂.
             # E[τ] ≈ exp(θ_mean), Var[τ] ≈ Σθ * (exp θ̂)².
-            τ_J     = exp(res.θ_mean[1])
-            τ_sd_J  = sqrt(res.Σθ[1, 1]) * exp(res.θ̂[1])
-            @test _rel_lns(τ_J, τ_R)         < LNS_SURV_PREC_TOL
-            @test _rel_lns(τ_sd_J, τ_sd_R)   < LNS_SURV_PREC_SD_TOL
+            τ_J = exp(res.θ_mean[1])
+            τ_sd_J = sqrt(res.Σθ[1, 1]) * exp(res.θ̂[1])
+            @test _rel_lns(τ_J, τ_R) < LNS_SURV_PREC_TOL
+            @test _rel_lns(τ_sd_J, τ_sd_R) < LNS_SURV_PREC_SD_TOL
 
             # --- mlik ---------------------------------------------------------
             # Exposed but not asserted with a tight tolerance: R-INLA's

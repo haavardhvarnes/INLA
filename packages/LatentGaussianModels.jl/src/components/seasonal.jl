@@ -17,10 +17,11 @@ struct Seasonal{P <: AbstractHyperPrior} <: AbstractLatentComponent
 end
 
 function Seasonal(n::Integer;
-                  period::Integer,
-                  hyperprior::AbstractHyperPrior = PCPrecision())
+        period::Integer,
+        hyperprior::AbstractHyperPrior=PCPrecision())
     period ≥ 2 || throw(ArgumentError("Seasonal: period must be ≥ 2, got $period"))
-    n > period || throw(ArgumentError("Seasonal: n must be > period, got n=$n, period=$period"))
+    n > period ||
+        throw(ArgumentError("Seasonal: n must be > period, got n=$n, period=$period"))
     return Seasonal(Int(n), Int(period), hyperprior)
 end
 
@@ -29,7 +30,7 @@ nhyperparameters(::Seasonal) = 1
 initial_hyperparameters(::Seasonal) = [0.0]
 
 function gmrf(c::Seasonal, θ)
-    return GMRFs.SeasonalGMRF(c.n; period = c.period, τ = exp(θ[1]))
+    return GMRFs.SeasonalGMRF(c.n; period=c.period, τ=exp(θ[1]))
 end
 
 precision_matrix(c::Seasonal, θ) = GMRFs.precision_matrix(gmrf(c, θ))

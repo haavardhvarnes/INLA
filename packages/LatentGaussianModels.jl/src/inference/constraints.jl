@@ -98,7 +98,7 @@ function _kriging_correction(cache::GMRFs.FactorCache, C::AbstractMatrix)
 end
 
 function _project_to_constraint!(x::AbstractVector, C::AbstractMatrix,
-                                 e::AbstractVector, U::AbstractMatrix, W_fact)
+        e::AbstractVector, U::AbstractMatrix, W_fact)
     Δ = U * (W_fact \ (C * x .- e))
     x .-= Δ
     return x
@@ -116,7 +116,7 @@ unchanged. `H_reg` must be PD; callers supply the regularised
 posterior precision produced by `laplace_mode`.
 """
 function _constrained_marginal_variances(H_reg::AbstractSparseMatrix,
-                                         constraint_data)
+        constraint_data)
     base = GMRFs.marginal_variances(H_reg)
     constraint_data === nothing && return base
     U = constraint_data.U

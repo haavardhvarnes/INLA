@@ -1,5 +1,5 @@
 using LatentGaussianModels: GaussianLikelihood, Intercept, IID, LatentGaussianModel,
-    inla, initial_hyperparameters, n_hyperparameters
+                            inla, initial_hyperparameters, n_hyperparameters
 using LGMTuring: nuts_sample
 using LinearAlgebra: I
 using MCMCChains: Chains
@@ -13,12 +13,12 @@ using Test
     σ_ε = 0.5
     y = 0.3 .+ σ_ε .* randn(rng, n)
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                 sparse(ones(n, 1)))
+        sparse(ones(n, 1)))
 
     chain = nuts_sample(model, y, 200;
-                         n_adapts = 100,
-                         rng      = Random.Xoshiro(1),
-                         progress = false)
+        n_adapts=100,
+        rng=Random.Xoshiro(1),
+        progress=false)
     @test chain isa Chains
     @test size(chain, 1) == 200
     @test size(chain, 2) == n_hyperparameters(model) == 1
@@ -34,20 +34,20 @@ end
     n = 60
     y = randn(rng, n)
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(),),
-                                 sparse(ones(n, 1)))
+        sparse(ones(n, 1)))
 
     # init_θ wrong length errors loudly.
     @test_throws DimensionMismatch nuts_sample(model, y, 5;
-                                                init_θ   = [0.0, 0.0],
-                                                n_adapts = 0,
-                                                rng      = Random.Xoshiro(1))
+        init_θ=[0.0, 0.0],
+        n_adapts=0,
+        rng=Random.Xoshiro(1))
 
     # Argument validation.
     @test_throws ArgumentError nuts_sample(model, y, 0;
-                                            rng = Random.Xoshiro(1))
+        rng=Random.Xoshiro(1))
     @test_throws ArgumentError nuts_sample(model, y, 5;
-                                            target_acceptance = 1.5,
-                                            rng = Random.Xoshiro(1))
+        target_acceptance=1.5,
+        rng=Random.Xoshiro(1))
 end
 
 @testset "nuts_sample — init_from_inla uses INLAResult.θ̂" begin
@@ -60,17 +60,17 @@ end
     x_true = σ_x .* randn(rng, n)
     y = α_true .+ x_true .+ σ_ε .* randn(rng, n)
 
-    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
     model = LatentGaussianModel(GaussianLikelihood(), (Intercept(), IID(n)), A)
 
-    inla_fit = inla(model, y; int_strategy = :grid)
+    inla_fit = inla(model, y; int_strategy=:grid)
     @test n_hyperparameters(model) == 2
 
     chain = nuts_sample(model, y, 100;
-                         n_adapts        = 50,
-                         init_from_inla  = inla_fit,
-                         rng             = Random.Xoshiro(2),
-                         progress        = false)
+        n_adapts=50,
+        init_from_inla=inla_fit,
+        rng=Random.Xoshiro(2),
+        progress=false)
     @test chain isa Chains
     @test size(chain, 1) == 100
     @test size(chain, 2) == 2

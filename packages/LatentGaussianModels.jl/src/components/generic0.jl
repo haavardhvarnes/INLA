@@ -23,17 +23,17 @@ is `loggamma(1, 5e-5)` — pass `hyperprior = GammaPrecision(1.0, 5.0e-5)`
 to match.
 """
 struct Generic0{T <: Real, P <: AbstractHyperPrior,
-                C <: Union{NoConstraint, LinearConstraint}} <: AbstractLatentComponent
+    C <: Union{NoConstraint, LinearConstraint}} <: AbstractLatentComponent
     R::SparseMatrixCSC{T, Int}    # structure matrix (after scaling, if any)
     rd::Int
     hyperprior::P
     constraint::C
 end
 
-function Generic0(R::AbstractMatrix; rankdef::Integer = 0,
-                  scale_model::Bool = false,
-                  hyperprior::AbstractHyperPrior = PCPrecision(),
-                  constraint::Union{Nothing, LinearConstraint} = nothing)
+function Generic0(R::AbstractMatrix; rankdef::Integer=0,
+        scale_model::Bool=false,
+        hyperprior::AbstractHyperPrior=PCPrecision(),
+        constraint::Union{Nothing, LinearConstraint}=nothing)
     n, m = size(R)
     n == m || throw(DimensionMismatch("Generic0: R must be square, got $n×$m"))
     issymmetric(R) || throw(ArgumentError("Generic0: R must be symmetric"))
@@ -41,8 +41,8 @@ function Generic0(R::AbstractMatrix; rankdef::Integer = 0,
     # Apply Sørbye-Rue scaling via the public Generic0GMRF API so we
     # store the (possibly scaled) R once. Use τ = 1 and read back the
     # structure matrix; downstream we multiply by exp(θ[1]).
-    g = GMRFs.Generic0GMRF(R; τ = 1.0, rankdef = rankdef,
-                            scale_model = scale_model)
+    g = GMRFs.Generic0GMRF(R; τ=1.0, rankdef=rankdef,
+        scale_model=scale_model)
     Rs = SparseMatrixCSC{Float64, Int}(GMRFs.precision_matrix(g))
     con = constraint === nothing ? NoConstraint() : constraint
     return Generic0(Rs, Int(rankdef), hyperprior, con)
@@ -74,6 +74,6 @@ end
 function gmrf(c::Generic0, θ)
     # `c.R` is already (optionally) scaled at construction; pass it
     # through with `scale_model = false` to avoid double scaling.
-    return GMRFs.Generic0GMRF(c.R; τ = exp(θ[1]), rankdef = c.rd,
-                               scale_model = false)
+    return GMRFs.Generic0GMRF(c.R; τ=exp(θ[1]), rankdef=c.rd,
+        scale_model=false)
 end

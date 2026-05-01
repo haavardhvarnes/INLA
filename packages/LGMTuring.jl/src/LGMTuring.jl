@@ -1,11 +1,11 @@
 module LGMTuring
 
 using LatentGaussianModels: LatentGaussianModels, LatentGaussianModel,
-    INLAResult, INLALogDensity, Laplace, initial_hyperparameters,
-    n_hyperparameters, hyperparameters
+                            INLAResult, INLALogDensity, Laplace, initial_hyperparameters,
+                            n_hyperparameters, hyperparameters
 using AdvancedHMC: AdvancedHMC, DiagEuclideanMetric, Hamiltonian, Leapfrog,
-    GeneralisedNoUTurn, StanHMCAdaptor, MassMatrixAdaptor, StepSizeAdaptor,
-    find_good_stepsize
+                   GeneralisedNoUTurn, StanHMCAdaptor, MassMatrixAdaptor, StepSizeAdaptor,
+                   find_good_stepsize
 using LogDensityProblems: LogDensityProblems
 using MCMCChains: Chains
 using Random: AbstractRNG, default_rng

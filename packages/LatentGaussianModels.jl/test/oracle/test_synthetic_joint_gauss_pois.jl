@@ -12,9 +12,9 @@ using Test
 using SparseArrays
 using LinearAlgebra: I
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
-    Intercept, IID, LinearProjector, StackedMapping,
-    LatentGaussianModel, inla, fixed_effects, hyperparameters,
-    log_marginal_likelihood, n_likelihoods
+                            Intercept, IID, LinearProjector, StackedMapping,
+                            LatentGaussianModel, inla, fixed_effects, hyperparameters,
+                            log_marginal_likelihood, n_likelihoods
 
 const JOINT_FIXTURE = "synthetic_joint_gauss_pois"
 
@@ -24,9 +24,9 @@ const JOINT_FIXTURE = "synthetic_joint_gauss_pois"
 # posterior mean). For asymmetric log-precision posteriors these differ
 # systematically — the τ_g band is widened to absorb that gap on n = 50.
 const JOINT_FIXED_EFFECT_TOL = 0.10
-const JOINT_TAU_G_REL_TOL    = 0.35
-const JOINT_TAU_U_REL_TOL    = 0.10
-const JOINT_MLIK_REL_TOL     = 0.05
+const JOINT_TAU_G_REL_TOL = 0.35
+const JOINT_TAU_U_REL_TOL = 0.10
+const JOINT_MLIK_REL_TOL = 0.05
 
 _rel_joint(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -63,11 +63,11 @@ end
             A_p = sparse(hcat(ones(n), Matrix{Float64}(I, n, n)))
             mapping = StackedMapping(
                 (LinearProjector(A_g), LinearProjector(A_p)),
-                [1:n, (n + 1):(2n)],
+                [1:n, (n + 1):(2n)]
             )
 
             ℓ_g = GaussianLikelihood()
-            ℓ_p = PoissonLikelihood(; E = fill(1.0, n))
+            ℓ_p = PoissonLikelihood(; E=fill(1.0, n))
             model = LatentGaussianModel((ℓ_g, ℓ_p), (Intercept(), IID(n)), mapping)
             @test n_likelihoods(model) == 2
 
@@ -75,7 +75,7 @@ end
             y = vcat(y_g, Float64.(y_p))
 
             # dim(θ) = 2 (τ_g + τ_u) → :auto picks Grid.
-            res = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Fixed effects ------------------------------------------------
             sf = fx["summary_fixed"]

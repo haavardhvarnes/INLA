@@ -58,8 +58,8 @@ Find the mode `x̂` of `log p(x | θ, y) ∝ log p(y | A x, θ_ℓ) - ½ x' Q(θ
 by Newton iteration. Returns a `LaplaceResult`.
 """
 function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
-                      strategy::Laplace = Laplace(),
-                      x0::Union{Nothing, AbstractVector{<:Real}} = nothing)
+        strategy::Laplace=Laplace(),
+        x0::Union{Nothing, AbstractVector{<:Real}}=nothing)
     Q = joint_precision(m, θ)
     A = as_matrix(m.mapping)
 
@@ -89,7 +89,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 
     converged = false
     iter = 0
-    for k in 1:strategy.maxiter
+    for k in 1:(strategy.maxiter)
         iter = k
         η = A * x
         ∇η = joint_∇_η_log_density(m, y, η, θ)
@@ -144,7 +144,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         U_final, W_final = _kriging_correction(cache, C)
         _project_to_constraint!(x, C, e_c, U_final, W_final)
         η = A * x
-        constraint_data = (C = C, e = e_c, U = U_final, W_fact = W_final)
+        constraint_data = (C=C, e=e_c, U=U_final, W_fact=W_final)
     else
         constraint_data = nothing
     end
@@ -172,7 +172,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
                    log_normc_total
 
     return LaplaceResult(x, H, cache, collect(θ), log_joint, log_marginal,
-                         iter, converged, constraint_data)
+        iter, converged, constraint_data)
 end
 
 # Constrained-Hessian log-determinant (Marriott-Van Loan):

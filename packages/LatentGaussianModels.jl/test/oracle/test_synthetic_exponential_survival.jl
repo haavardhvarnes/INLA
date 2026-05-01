@@ -19,13 +19,13 @@ using Test
 using SparseArrays
 using LinearAlgebra
 using LatentGaussianModels: ExponentialLikelihood, NONE, RIGHT, Censoring,
-    Intercept, FixedEffects, LatentGaussianModel, laplace
+                            Intercept, FixedEffects, LatentGaussianModel, laplace
 
 const EXP_SURV_FIXTURE = "synthetic_exponential_survival"
 
 const EXP_SURV_FIXED_EFFECT_TOL = 0.05   # |Δmean| / max(|R|, 1)
-const EXP_SURV_SD_REL_TOL       = 0.10   # |Δsd|  / R-sd
-const EXP_SURV_MLIK_REL_TOL     = 0.01   # |Δmlik| / |R-mlik|
+const EXP_SURV_SD_REL_TOL = 0.10   # |Δsd|  / R-sd
+const EXP_SURV_MLIK_REL_TOL = 0.01   # |Δmlik| / |R-mlik|
 
 _rel_exp(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -53,15 +53,15 @@ end
             @test_skip "fixture has no `input` field — regenerate"
         else
             inp = fx["input"]
-            time  = Float64.(inp["time"])
+            time = Float64.(inp["time"])
             event = Int.(inp["event"])
-            xcov  = Float64.(inp["x"])
+            xcov = Float64.(inp["x"])
             n = length(time)
 
             # event = 1 → uncensored (NONE); event = 0 → right-censored
             censoring = Censoring[e == 1 ? NONE : RIGHT for e in event]
-            ℓ = ExponentialLikelihood(censoring = censoring)
-            c_int  = Intercept()
+            ℓ = ExponentialLikelihood(censoring=censoring)
+            c_int = Intercept()
             c_beta = FixedEffects(1)
             A = sparse(hcat(ones(n), reshape(xcov, n, 1)))
             model = LatentGaussianModel(ℓ, (c_int, c_beta), A)

@@ -27,12 +27,12 @@ const FIXTURE = "qinv_rw2"
         # internally; we tolerate 1% relative error per testing-strategy.md.
         our_diag = marginal_variances(Q)
         @test length(our_diag) == length(ref_diag)
-        @test isapprox(our_diag, ref_diag; rtol = 1.0e-2)
+        @test isapprox(our_diag, ref_diag; rtol=1.0e-2)
 
         if ref_logdet !== nothing
             eig = eigvals(Symmetric(Matrix(Q)))
             our_logdet = sum(log, filter(>(1.0e-10), eig))
-            @test isapprox(our_logdet, ref_logdet; rtol = 1.0e-8)
+            @test isapprox(our_logdet, ref_logdet; rtol=1.0e-8)
         end
     end
 end

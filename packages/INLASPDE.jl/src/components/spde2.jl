@@ -45,9 +45,9 @@ end
 function SPDE2(
         points::AbstractMatrix{<:Real},
         triangles::AbstractMatrix{<:Integer};
-        α::Integer = 2,
-        pc::PCMatern = PCMatern(),
-    )
+        α::Integer=2,
+        pc::PCMatern=PCMatern()
+)
     α == 2 ||
         throw(ArgumentError("SPDE2: only α = 2 is supported in v0.1; got α=$α. " *
                             "α = 1 (ν = 0 in 2D) is invalid for the PC-Matern prior."))
@@ -69,11 +69,13 @@ function _mesh_graph_from_C(C::AbstractSparseMatrix)
     n = size(C, 1)
     rvs = rowvals(C)
     vals = nonzeros(C)
-    Is = Int[]; Js = Int[]
+    Is = Int[]
+    Js = Int[]
     for j in 1:n, k in nzrange(C, j)
         i = rvs[k]
         if i != j && !iszero(vals[k])
-            push!(Is, i); push!(Js, j)
+            push!(Is, i)
+            push!(Js, j)
         end
     end
     W = sparse(Is, Js, trues(length(Is)), n, n)

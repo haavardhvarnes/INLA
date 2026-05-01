@@ -21,8 +21,8 @@ using Test
 using SparseArrays
 using LinearAlgebra: I
 using LatentGaussianModels: PoissonLikelihood, Intercept, FixedEffects,
-    BYM, LatentGaussianModel, inla, PCPrecision,
-    fixed_effects, hyperparameters, log_marginal_likelihood
+                            BYM, LatentGaussianModel, inla, PCPrecision,
+                            fixed_effects, hyperparameters, log_marginal_likelihood
 using GMRFs: GMRFGraph
 
 const BYM_FIXTURE = "scotland_bym"
@@ -47,7 +47,7 @@ const BYM_FIXED_EFFECT_TOL = 0.07
 # is being compared. Per-CC Sørbye-Rue scaling (Freni-Sterrantino
 # et al. 2018) is implemented and is c-invariant under PCPrecision
 # priors, so it doesn't shift τ_b on its own.
-const BYM_MLIK_REL_TOL     = 0.02
+const BYM_MLIK_REL_TOL = 0.02
 
 _rel_bym(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -78,21 +78,21 @@ end
             n = length(y)
 
             # Latent layout: [α; β; v; b]. Predictor η_i = α + β x_i + v_i + b_i.
-            ℓ = PoissonLikelihood(; E = E)
-            c_int  = Intercept()
+            ℓ = PoissonLikelihood(; E=E)
+            c_int = Intercept()
             c_beta = FixedEffects(1)
-            c_bym  = BYM(GMRFGraph(W);
-                         hyperprior_iid   = PCPrecision(1.0, 0.01),
-                         hyperprior_besag = PCPrecision(1.0, 0.01))
+            c_bym = BYM(GMRFGraph(W);
+                hyperprior_iid=PCPrecision(1.0, 0.01),
+                hyperprior_besag=PCPrecision(1.0, 0.01))
             A = sparse(hcat(
                 ones(n),                        # intercept → α
                 reshape(x, n, 1),               # AFF slope → β
                 Matrix{Float64}(I, n, n),       # v_i contribution
-                Matrix{Float64}(I, n, n),       # b_i contribution
+                Matrix{Float64}(I, n, n)       # b_i contribution
             ))
             model = LatentGaussianModel(ℓ, (c_int, c_beta, c_bym), A)
 
-            res = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Fixed effects --------------------------------------------
             sf = fx["summary_fixed"]
@@ -111,8 +111,10 @@ end
             # See the BYM_TAU_B notes above for why a sharper assertion
             # is deferred to v0.2.
             sh = fx["summary_hyperpar"]
-            τ_b_R_lo = _bym_row(sh, "Precision for region (spatial component)", "0.025quant")
-            τ_b_R_hi = _bym_row(sh, "Precision for region (spatial component)", "0.975quant")
+            τ_b_R_lo = _bym_row(
+                sh, "Precision for region (spatial component)", "0.025quant")
+            τ_b_R_hi = _bym_row(
+                sh, "Precision for region (spatial component)", "0.975quant")
             τ_b_J = exp(res.θ̂[2])
             @test τ_b_R_lo ≤ τ_b_J ≤ τ_b_R_hi
 

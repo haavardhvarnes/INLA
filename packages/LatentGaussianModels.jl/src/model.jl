@@ -38,8 +38,8 @@ hyperparameters first (in block order), component hyperparameters
 after.
 """
 struct LatentGaussianModel{L <: Tuple{Vararg{AbstractLikelihood}},
-                           C <: Tuple{Vararg{AbstractLatentComponent}},
-                           M <: AbstractObservationMapping}
+    C <: Tuple{Vararg{AbstractLatentComponent}},
+    M <: AbstractObservationMapping}
     likelihoods::L
     components::C
     mapping::M
@@ -52,8 +52,8 @@ struct LatentGaussianModel{L <: Tuple{Vararg{AbstractLikelihood}},
 end
 
 function LatentGaussianModel(likelihoods::Tuple{Vararg{AbstractLikelihood}},
-                             components::Tuple{Vararg{AbstractLatentComponent}},
-                             mapping::AbstractObservationMapping)
+        components::Tuple{Vararg{AbstractLatentComponent}},
+        mapping::AbstractObservationMapping)
     isempty(likelihoods) &&
         throw(ArgumentError("LatentGaussianModel needs at least one likelihood"))
 
@@ -100,8 +100,7 @@ end
 
 # Block-row layout. Single-block mappings own all rows; StackedMapping
 # carries its own per-block ranges.
-_build_block_rows(m::AbstractObservationMapping, ℓs::Tuple) =
-    _single_block_rows(m, ℓs)
+_build_block_rows(m::AbstractObservationMapping, ℓs::Tuple) = _single_block_rows(m, ℓs)
 
 function _single_block_rows(m::AbstractObservationMapping, ℓs::Tuple)
     length(ℓs) == 1 ||
@@ -119,32 +118,37 @@ function _build_block_rows(m::StackedMapping, ℓs::Tuple)
 end
 
 # v0.1 compatibility: scalar likelihood is wrapped in a 1-tuple.
-LatentGaussianModel(likelihood::AbstractLikelihood,
-                    components::Tuple{Vararg{AbstractLatentComponent}},
-                    mapping::AbstractObservationMapping) =
+function LatentGaussianModel(likelihood::AbstractLikelihood,
+        components::Tuple{Vararg{AbstractLatentComponent}},
+        mapping::AbstractObservationMapping)
     LatentGaussianModel((likelihood,), components, mapping)
+end
 
 # v0.1 compatibility: AbstractMatrix wraps in LinearProjector. Existing
 # `LatentGaussianModel(ℓ, components, A)` calls keep working unchanged.
-LatentGaussianModel(likelihoods::Tuple{Vararg{AbstractLikelihood}},
-                    components::Tuple{Vararg{AbstractLatentComponent}},
-                    A::AbstractMatrix) =
+function LatentGaussianModel(likelihoods::Tuple{Vararg{AbstractLikelihood}},
+        components::Tuple{Vararg{AbstractLatentComponent}},
+        A::AbstractMatrix)
     LatentGaussianModel(likelihoods, components, LinearProjector(A))
+end
 
-LatentGaussianModel(likelihood::AbstractLikelihood,
-                    components::Tuple{Vararg{AbstractLatentComponent}},
-                    A::AbstractMatrix) =
+function LatentGaussianModel(likelihood::AbstractLikelihood,
+        components::Tuple{Vararg{AbstractLatentComponent}},
+        A::AbstractMatrix)
     LatentGaussianModel((likelihood,), components, LinearProjector(A))
+end
 
 # Convenience: single component, mapping or matrix supplied.
-LatentGaussianModel(ℓ::AbstractLikelihood, c::AbstractLatentComponent,
-                    mapping_or_A::Union{AbstractObservationMapping, AbstractMatrix}) =
+function LatentGaussianModel(ℓ::AbstractLikelihood, c::AbstractLatentComponent,
+        mapping_or_A::Union{AbstractObservationMapping, AbstractMatrix})
     LatentGaussianModel((ℓ,), (c,), mapping_or_A)
+end
 
-LatentGaussianModel(ℓs::Tuple{Vararg{AbstractLikelihood}},
-                    c::AbstractLatentComponent,
-                    mapping_or_A::Union{AbstractObservationMapping, AbstractMatrix}) =
+function LatentGaussianModel(ℓs::Tuple{Vararg{AbstractLikelihood}},
+        c::AbstractLatentComponent,
+        mapping_or_A::Union{AbstractObservationMapping, AbstractMatrix})
     LatentGaussianModel(ℓs, (c,), mapping_or_A)
+end
 
 # Back-compat property accessor: `m.likelihood` resolves to the single
 # block's likelihood. Errors on multi-likelihood models. The struct
@@ -193,8 +197,8 @@ n_likelihoods(m::LatentGaussianModel) = length(m.likelihoods)
 
 Total number of likelihood-attached hyperparameters across all blocks.
 """
-n_likelihood_hyperparameters(m::LatentGaussianModel) =
-    isempty(m.likelihood_θ_ranges) ? 0 : last(last(m.likelihood_θ_ranges))
+n_likelihood_hyperparameters(m::LatentGaussianModel) = isempty(m.likelihood_θ_ranges) ? 0 :
+                                                       last(last(m.likelihood_θ_ranges))
 
 """
     initial_hyperparameters(m::LatentGaussianModel) -> Vector{Float64}

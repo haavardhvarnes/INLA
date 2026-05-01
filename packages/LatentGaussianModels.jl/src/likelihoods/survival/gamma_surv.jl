@@ -31,10 +31,10 @@ analogous `h(x) = x · δ(x) / γ(a, x)` covers the `LEFT`/`INTERVAL`
 branches. See ADR-018 for the contract.
 """
 struct GammaSurvLikelihood{
-        L <: AbstractLinkFunction,
-        C <: Union{Nothing, AbstractVector{Censoring}},
-        V <: Union{Nothing, AbstractVector{<:Real}},
-        P <: AbstractHyperPrior,
+    L <: AbstractLinkFunction,
+    C <: Union{Nothing, AbstractVector{Censoring}},
+    V <: Union{Nothing, AbstractVector{<:Real}},
+    P <: AbstractHyperPrior
 } <: AbstractLikelihood
     link::L
     censoring::C
@@ -43,10 +43,10 @@ struct GammaSurvLikelihood{
 end
 
 function GammaSurvLikelihood(;
-        link::AbstractLinkFunction = LogLink(),
-        censoring = nothing,
-        time_hi::Union{Nothing, AbstractVector{<:Real}} = nothing,
-        hyperprior::AbstractHyperPrior = GammaPrecision(1.0, 5.0e-5))
+        link::AbstractLinkFunction=LogLink(),
+        censoring=nothing,
+        time_hi::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        hyperprior::AbstractHyperPrior=GammaPrecision(1.0, 5.0e-5))
     link isa LogLink ||
         throw(ArgumentError(
             "GammaSurvLikelihood: only LogLink is supported, got $(typeof(link))"))
@@ -208,7 +208,7 @@ function ∇_η_log_density(
             P_lo, Q_lo = SpecialFunctions.gamma_inc(φ, x)
             P_hi, Q_hi = SpecialFunctions.gamma_inc(φ, x_hi)
             D = Q_lo > 0.5 ? P_hi - P_lo : Q_lo - Q_hi
-            N_lo = x    * exp(_gamma_logδ(φ, lgamma_φ, x))
+            N_lo = x * exp(_gamma_logδ(φ, lgamma_φ, x))
             N_hi = x_hi * exp(_gamma_logδ(φ, lgamma_φ, x_hi))
             out[i] = (N_lo - N_hi) / D
         end
@@ -241,12 +241,12 @@ function ∇²_η_log_density(
             P_lo, Q_lo = SpecialFunctions.gamma_inc(φ, x)
             P_hi, Q_hi = SpecialFunctions.gamma_inc(φ, x_hi)
             D = Q_lo > 0.5 ? P_hi - P_lo : Q_lo - Q_hi
-            N_lo = x    * exp(_gamma_logδ(φ, lgamma_φ, x))
+            N_lo = x * exp(_gamma_logδ(φ, lgamma_φ, x))
             N_hi = x_hi * exp(_gamma_logδ(φ, lgamma_φ, x_hi))
             # ∂η Ñ(x) = x δ_norm (x - a)
-            M_lo = N_lo * (x    - φ)
+            M_lo = N_lo * (x - φ)
             M_hi = N_hi * (x_hi - φ)
-            Dp  = N_lo - N_hi
+            Dp = N_lo - N_hi
             Dpp = M_lo - M_hi
             out[i] = Dpp / D - (Dp / D)^2
         end
@@ -279,15 +279,15 @@ function ∇³_η_log_density(
             P_lo, Q_lo = SpecialFunctions.gamma_inc(φ, x)
             P_hi, Q_hi = SpecialFunctions.gamma_inc(φ, x_hi)
             D = Q_lo > 0.5 ? P_hi - P_lo : Q_lo - Q_hi
-            N_lo = x    * exp(_gamma_logδ(φ, lgamma_φ, x))
+            N_lo = x * exp(_gamma_logδ(φ, lgamma_φ, x))
             N_hi = x_hi * exp(_gamma_logδ(φ, lgamma_φ, x_hi))
             # ∂η[x δ_norm (x - a)] = x δ_norm ((x-a)² - x).
-            M_lo = N_lo * (x    - φ)
+            M_lo = N_lo * (x - φ)
             M_hi = N_hi * (x_hi - φ)
-            K_lo = N_lo * ((x    - φ)^2 - x)
+            K_lo = N_lo * ((x - φ)^2 - x)
             K_hi = N_hi * ((x_hi - φ)^2 - x_hi)
-            Dp   = N_lo - N_hi
-            Dpp  = M_lo - M_hi
+            Dp = N_lo - N_hi
+            Dpp = M_lo - M_hi
             Dppp = K_lo - K_hi
             out[i] = Dppp / D - 3 * Dp * Dpp / D^2 + 2 * (Dp / D)^3
         end

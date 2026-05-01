@@ -26,5 +26,5 @@ is computed by central finite differences (each evaluation is already
 `O(Laplace)`-bounded), which is enough for NUTS at typical hyperparameter
 dimensions.
 """
-inla_log_density(model::LatentGaussianModel, y; laplace::Laplace = Laplace()) =
-    INLALogDensity(model, y; laplace = laplace)
+inla_log_density(model::LatentGaussianModel, y; laplace::Laplace=Laplace()) = INLALogDensity(
+    model, y; laplace=laplace)

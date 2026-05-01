@@ -8,10 +8,10 @@ using Test
 # is what locks down GMRFs's surface.
 @testset "Aqua — GMRFs" begin
     Aqua.test_all(GMRFs;
-                   ambiguities = false,
-                   piracies    = (treat_as_own = [],),
-                   stale_deps  = true,
-                   deps_compat = (check_extras = false,))
+        ambiguities=false,
+        piracies=(treat_as_own=[],),
+        stale_deps=true,
+        deps_compat=(check_extras=false,))
     @testset "ambiguities (own package only)" begin
         Aqua.test_ambiguities(GMRFs)
     end

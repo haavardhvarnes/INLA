@@ -1,9 +1,10 @@
 using LatentGaussianModels: WeibullCureLikelihood, WeibullLikelihood, LogLink,
-    Censoring, NONE, RIGHT, LEFT, INTERVAL,
-    log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density,
-    pointwise_log_density, pointwise_cdf,
-    nhyperparameters, initial_hyperparameters, link, log_hyperprior,
-    GammaPrecision, LogitBeta
+                            Censoring, NONE, RIGHT, LEFT, INTERVAL,
+                            log_density, ∇_η_log_density, ∇²_η_log_density,
+                            ∇³_η_log_density,
+                            pointwise_log_density, pointwise_cdf,
+                            nhyperparameters, initial_hyperparameters, link, log_hyperprior,
+                            GammaPrecision, LogitBeta
 
 using DifferentiationInterface: gradient, AutoForwardDiff
 using ForwardDiff: ForwardDiff   # required by `AutoForwardDiff()` extension on Julia 1.10
@@ -35,7 +36,7 @@ const WC_LOGIT_PS = (-2.197, -0.847, 0.0)     # p ≈ 0.10, 0.30, 0.50
 
     # Non-LogLink rejected
     struct _DummyLinkWC <: LatentGaussianModels.AbstractLinkFunction end
-    @test_throws ArgumentError WeibullCureLikelihood(link = _DummyLinkWC())
+    @test_throws ArgumentError WeibullCureLikelihood(link=_DummyLinkWC())
 end
 
 @testset "WeibullCureLikelihood — fast path (all uncensored)" begin
@@ -61,19 +62,19 @@ end
         @test g ≈ @. 1 - exp(η) * y^α
         # AD cross-check
         g_ad = ad_grad_wc(h -> log_density(ℓ, y, h, θ), η)
-        @test g ≈ g_ad rtol = 1.0e-10
+        @test g≈g_ad rtol=1.0e-10
 
         # Closed-form Hessian diagonal: -exp(η) y^α
         H = ∇²_η_log_density(ℓ, y, η, θ)
         @test H ≈ @. -exp(η) * y^α
         H_ad = ad_hess_diag_wc(ℓ, y, θ)(η)
-        @test H ≈ H_ad rtol = 1.0e-10
+        @test H≈H_ad rtol=1.0e-10
 
         # Closed-form ∇³: -exp(η) y^α
         T = ∇³_η_log_density(ℓ, y, η, θ)
         @test T ≈ @. -exp(η) * y^α
         T_ad = ad_third_diag_wc(ℓ, y, θ)(η)
-        @test T ≈ T_ad rtol = 1.0e-10
+        @test T≈T_ad rtol=1.0e-10
     end
 end
 
@@ -84,7 +85,7 @@ end
     censoring = [NONE, RIGHT, LEFT, INTERVAL, NONE, RIGHT, LEFT, INTERVAL]
     time_hi = y_lo .+ abs.(randn(rng, 8)) .+ 0.5
 
-    ℓ = WeibullCureLikelihood(censoring = censoring, time_hi = time_hi)
+    ℓ = WeibullCureLikelihood(censoring=censoring, time_hi=time_hi)
 
     for log_α in WC_LOG_ALPHAS, logit_p in WC_LOGIT_PS
         θ = [log_α, logit_p]
@@ -95,15 +96,15 @@ end
 
         g = ∇_η_log_density(ℓ, y_lo, η, θ)
         g_ad = ad_grad_wc(h -> log_density(ℓ, y_lo, h, θ), η)
-        @test g ≈ g_ad rtol = 1.0e-10
+        @test g≈g_ad rtol=1.0e-10
 
         H = ∇²_η_log_density(ℓ, y_lo, η, θ)
         H_ad = ad_hess_diag_wc(ℓ, y_lo, θ)(η)
-        @test H ≈ H_ad rtol = 1.0e-10
+        @test H≈H_ad rtol=1.0e-10
 
         T = ∇³_η_log_density(ℓ, y_lo, η, θ)
         T_ad = ad_third_diag_wc(ℓ, y_lo, θ)(η)
-        @test T ≈ T_ad rtol = 1.0e-9
+        @test T≈T_ad rtol=1.0e-9
     end
 end
 
@@ -113,7 +114,7 @@ end
     η = randn(rng, 6) .* 0.3
 
     ℓ_fast = WeibullCureLikelihood()
-    ℓ_mixed = WeibullCureLikelihood(censoring = fill(NONE, 6))
+    ℓ_mixed = WeibullCureLikelihood(censoring=fill(NONE, 6))
 
     for log_α in WC_LOG_ALPHAS, logit_p in WC_LOGIT_PS
         θ = [log_α, logit_p]
@@ -139,8 +140,8 @@ end
     time_hi = y_lo .+ abs.(randn(rng, n)) .+ 0.5
     censoring = [NONE, LEFT, INTERVAL, NONE, LEFT, INTERVAL]
 
-    ℓ_w = WeibullLikelihood(censoring = censoring, time_hi = time_hi)
-    ℓ_wc = WeibullCureLikelihood(censoring = censoring, time_hi = time_hi)
+    ℓ_w = WeibullLikelihood(censoring=censoring, time_hi=time_hi)
+    ℓ_wc = WeibullCureLikelihood(censoring=censoring, time_hi=time_hi)
 
     for log_α in WC_LOG_ALPHAS, logit_p in WC_LOGIT_PS
         θ_w = [log_α]
@@ -167,7 +168,7 @@ end
     for logit_p in WC_LOGIT_PS
         p = inv(1 + exp(-logit_p))
         θ = [log_α, logit_p]
-        ℓ = WeibullCureLikelihood(censoring = fill(RIGHT, 5))
+        ℓ = WeibullCureLikelihood(censoring=fill(RIGHT, 5))
 
         u = @. exp(η) * y^α
         v = @. exp(-u)
@@ -180,9 +181,9 @@ end
         # Hessian + ∇³ via AD (chain rule too unwieldy to hand-code as an
         # *independent* oracle — closed form would just retrace production).
         H_ad = ad_hess_diag_wc(ℓ, y, θ)(η)
-        @test ∇²_η_log_density(ℓ, y, η, θ) ≈ H_ad rtol = 1.0e-10
+        @test ∇²_η_log_density(ℓ, y, η, θ)≈H_ad rtol=1.0e-10
         T_ad = ad_third_diag_wc(ℓ, y, θ)(η)
-        @test ∇³_η_log_density(ℓ, y, η, θ) ≈ T_ad rtol = 1.0e-9
+        @test ∇³_η_log_density(ℓ, y, η, θ)≈T_ad rtol=1.0e-9
     end
 end
 
@@ -198,29 +199,29 @@ end
     θ_wc = [log_α, logit_p_small]
     θ_w = [log_α]
 
-    ℓ_wc = WeibullCureLikelihood(censoring = fill(RIGHT, 5))
-    ℓ_w  = WeibullLikelihood(censoring = fill(RIGHT, 5))
+    ℓ_wc = WeibullCureLikelihood(censoring=fill(RIGHT, 5))
+    ℓ_w = WeibullLikelihood(censoring=fill(RIGHT, 5))
 
     g_wc = ∇_η_log_density(ℓ_wc, y, η, θ_wc)
-    g_w  = ∇_η_log_density(ℓ_w,  y, η, θ_w)
+    g_w = ∇_η_log_density(ℓ_w, y, η, θ_w)
     @test maximum(abs, g_wc .- g_w) < 1.0e-6
 
     H_wc = ∇²_η_log_density(ℓ_wc, y, η, θ_wc)
-    H_w  = ∇²_η_log_density(ℓ_w,  y, η, θ_w)
+    H_w = ∇²_η_log_density(ℓ_w, y, η, θ_w)
     @test maximum(abs, H_wc .- H_w) < 1.0e-6
 end
 
 @testset "WeibullCureLikelihood — Symbol coercion" begin
     censoring_sym = [:none, :right, :left, :interval]
     time_hi = [0.0, 0.0, 0.0, 5.0]
-    ℓ = WeibullCureLikelihood(censoring = censoring_sym, time_hi = time_hi)
+    ℓ = WeibullCureLikelihood(censoring=censoring_sym, time_hi=time_hi)
     @test ℓ.censoring isa Vector{Censoring}
     @test ℓ.censoring == [NONE, RIGHT, LEFT, INTERVAL]
 end
 
 @testset "WeibullCureLikelihood — bad censoring type rejected" begin
-    @test_throws ArgumentError WeibullCureLikelihood(censoring = [1, 2, 3])
-    @test_throws ArgumentError WeibullCureLikelihood(censoring = ["none", "right"])
+    @test_throws ArgumentError WeibullCureLikelihood(censoring=[1, 2, 3])
+    @test_throws ArgumentError WeibullCureLikelihood(censoring=["none", "right"])
 end
 
 @testset "WeibullCureLikelihood — pointwise_log_density per-mode" begin
@@ -234,7 +235,7 @@ end
     p = inv(1 + exp(-logit_p))
     θ = [log_α, logit_p]
     ℓ = WeibullCureLikelihood(
-        censoring = [NONE, RIGHT, LEFT, INTERVAL], time_hi = time_hi)
+        censoring=[NONE, RIGHT, LEFT, INTERVAL], time_hi=time_hi)
 
     pp = pointwise_log_density(ℓ, y_lo, η, θ)
 
@@ -274,10 +275,10 @@ end
     @test all(0 .≤ cdf_fast .≤ 1 - p + 1.0e-12)
 
     # All-NONE censored variant: same numbers
-    ℓ_none = WeibullCureLikelihood(censoring = fill(NONE, 4))
+    ℓ_none = WeibullCureLikelihood(censoring=fill(NONE, 4))
     @test pointwise_cdf(ℓ_none, y, η, θ) ≈ cdf_fast
 
     # Non-NONE rows: undefined under censoring, throws
-    ℓ_cens = WeibullCureLikelihood(censoring = [NONE, RIGHT, NONE, NONE])
+    ℓ_cens = WeibullCureLikelihood(censoring=[NONE, RIGHT, NONE, NONE])
     @test_throws ArgumentError pointwise_cdf(ℓ_cens, y, η, θ)
 end

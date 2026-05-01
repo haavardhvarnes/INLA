@@ -13,10 +13,10 @@ using Test
 # the comment in this package's Project.toml.
 @testset "Aqua — INLASPDERasters" begin
     Aqua.test_all(INLASPDERasters;
-                   ambiguities = false,
-                   piracies    = (treat_as_own = [],),
-                   stale_deps  = false,
-                   deps_compat = (check_extras = false,))
+        ambiguities=false,
+        piracies=(treat_as_own=[],),
+        stale_deps=false,
+        deps_compat=(check_extras=false,))
     @testset "ambiguities (own package only)" begin
         Aqua.test_ambiguities(INLASPDERasters)
     end

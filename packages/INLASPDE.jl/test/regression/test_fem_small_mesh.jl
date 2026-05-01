@@ -15,16 +15,12 @@
 
 using SparseArrays
 
-const POINTS_SQ = Float64[
-    0.0 0.0
-    1.0 0.0
-    1.0 1.0
-    0.0 1.0
-]
-const TRIS_SQ = [
-    1 2 3
-    1 3 4
-]
+const POINTS_SQ = Float64[0.0 0.0
+                          1.0 0.0
+                          1.0 1.0
+                          0.0 1.0]
+const TRIS_SQ = [1 2 3
+                 1 3 4]
 
 @testset "assemble_fem_matrices — 2-triangle unit square" begin
     C, G1 = assemble_fem_matrices(POINTS_SQ, TRIS_SQ)
@@ -46,10 +42,10 @@ const TRIS_SQ = [
     C_ref[3, 4] = C_ref[4, 3] = 1 / 24
     C_ref[1, 4] = C_ref[4, 1] = 1 / 24
     # (2,4) are not adjacent (diagonal of the square on the other side)
-    @test Matrix(C) ≈ C_ref rtol = 1.0e-12
+    @test Matrix(C)≈C_ref rtol=1.0e-12
 
     # Conservation: total integral of constant 1 over the unit square.
-    @test sum(C) ≈ 1.0 rtol = 1.0e-12
+    @test sum(C)≈1.0 rtol=1.0e-12
 
     # --- stiffness matrix reference ---
     G1_ref = zeros(4, 4)
@@ -64,7 +60,7 @@ const TRIS_SQ = [
     # Off-diagonal (1,3) and (2,4): the two triangles contribute equal and
     # opposite values that would cancel at (1,3) — but actually (1,3) share
     # one triangle in each (T₁ contributes, T₂ contributes), summing to 0.
-    @test Matrix(G1) ≈ G1_ref rtol = 1.0e-12
+    @test Matrix(G1)≈G1_ref rtol=1.0e-12
 
     # Constant-function in the kernel of G₁ (rows sum to zero).
     @test maximum(abs, G1 * ones(4)) < 1.0e-12
@@ -81,8 +77,8 @@ end
     C_a, G_a = assemble_fem_matrices(POINTS_SQ, TRIS_SQ)
     C_b, G_b = assemble_fem_matrices(POINTS_SQ, tris_reversed)
 
-    @test Matrix(C_a) ≈ Matrix(C_b) rtol = 1.0e-12
-    @test Matrix(G_a) ≈ Matrix(G_b) rtol = 1.0e-12
+    @test Matrix(C_a)≈Matrix(C_b) rtol=1.0e-12
+    @test Matrix(G_a)≈Matrix(G_b) rtol=1.0e-12
 end
 
 @testset "assemble_fem_matrices — argument validation" begin

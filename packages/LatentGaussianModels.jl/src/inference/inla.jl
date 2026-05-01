@@ -54,11 +54,11 @@ struct INLA{I, S <: Laplace} <: AbstractInferenceStrategy
     optim_options::NamedTuple
 end
 
-function INLA(; int_strategy = :auto,
-              laplace::Laplace = Laplace(),
-              latent_strategy::Symbol = :gaussian,
-              θ0::Union{Nothing, AbstractVector{<:Real}} = nothing,
-              optim_options::NamedTuple = NamedTuple())
+function INLA(; int_strategy=:auto,
+        laplace::Laplace=Laplace(),
+        latent_strategy::Symbol=:gaussian,
+        θ0::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        optim_options::NamedTuple=NamedTuple())
     latent_strategy in (:gaussian, :simplified_laplace) ||
         throw(ArgumentError("unknown latent_strategy :$latent_strategy; " *
                             "use :gaussian or :simplified_laplace"))
@@ -119,7 +119,7 @@ function _neg_log_posterior_θ(m::LatentGaussianModel, y, laplace::Laplace)
     return function (θ, _p)
         local res
         try
-            res = laplace_mode(m, y, θ; strategy = laplace)
+            res = laplace_mode(m, y, θ; strategy=laplace)
         catch
             return Inf
         end
@@ -140,7 +140,7 @@ function _θ_mode_and_hessian(m::LatentGaussianModel, y, strategy::INLA)
     optf = Optimization.OptimizationFunction(f, Optimization.AutoFiniteDiff())
     prob = Optimization.OptimizationProblem(optf, θ0, nothing)
     opt_res = Optimization.solve(prob, OptimizationOptimJL.LBFGS();
-                                 strategy.optim_options...)
+        strategy.optim_options...)
     θ̂ = collect(opt_res.u)
 
     # Hessian at the mode. Use FiniteDiff with a two-arg wrapper.
@@ -182,7 +182,7 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
         θ_k = points[k]
         local res
         try
-            res = laplace_mode(m, y, θ_k; strategy = strategy.laplace)
+            res = laplace_mode(m, y, θ_k; strategy=strategy.laplace)
         catch
             keep_mask[k] = false
             continue
@@ -201,7 +201,7 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     if !all(keep_mask)
         keep = findall(keep_mask)
         isempty(keep) && error("INLA: Laplace failed at every integration " *
-                               "point; reduce span/n_per_dim or check the model")
+              "point; reduce span/n_per_dim or check the model")
         n_dropped = length(points) - length(keep)
         @warn "INLA: $(n_dropped) of $(length(points)) integration " *
               "points discarded (Laplace failure or non-finite log-marginal)"
@@ -255,7 +255,7 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     end
 
     return INLAResult(θ̂, Σθ, points, w, laplaces,
-                      x_mean, x_var, θ_mean, log_marginal, opt_res)
+        x_mean, x_var, θ_mean, log_marginal, opt_res)
 end
 
 """
@@ -288,4 +288,3 @@ function _logsumexp(x::AbstractVector{<:Real})
     isfinite(m) || return m
     return m + log(sum(xi -> exp(xi - m), x))
 end
-

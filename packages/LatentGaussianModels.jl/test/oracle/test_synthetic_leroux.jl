@@ -8,17 +8,18 @@ include("load_fixture.jl")
 using Test
 using SparseArrays
 using LatentGaussianModels: GaussianLikelihood, Intercept, Leroux,
-    GammaPrecision, LogitBeta, PCPrecision, LatentGaussianModel, inla,
-    hyperparameters, fixed_effects, log_marginal_likelihood
+                            GammaPrecision, LogitBeta, PCPrecision, LatentGaussianModel,
+                            inla,
+                            hyperparameters, fixed_effects, log_marginal_likelihood
 using GMRFs: GMRFGraph
 
 const LRX_FIXTURE = "synthetic_leroux"
 
 const LRX_FIXED_REL_TOL = 0.10
-const LRX_PREC_REL_TOL  = 0.20
-const LRX_LIK_REL_TOL   = 0.20
-const LRX_LAMBDA_TOL    = 0.20
-const LRX_MLIK_REL_TOL  = 0.05
+const LRX_PREC_REL_TOL = 0.20
+const LRX_LIK_REL_TOL = 0.20
+const LRX_LAMBDA_TOL = 0.20
+const LRX_MLIK_REL_TOL = 0.05
 
 _rel_lrx(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -41,31 +42,31 @@ end
         if !haskey(fx, "input")
             @test_skip "fixture has no `input` field — regenerate with the current R script"
         else
-            inp     = fx["input"]
-            n       = Int(inp["n"])
-            n_obs   = Int(inp["n_obs"])
-            y       = Float64.(inp["y"])
-            region  = Int.(inp["region"])
-            W       = SparseMatrixCSC{Float64, Int}(inp["W"])
+            inp = fx["input"]
+            n = Int(inp["n"])
+            n_obs = Int(inp["n_obs"])
+            y = Float64.(inp["y"])
+            region = Int.(inp["region"])
+            W = SparseMatrixCSC{Float64, Int}(inp["W"])
 
-            ℓ = GaussianLikelihood(hyperprior = GammaPrecision(1.0, 5.0e-5))
+            ℓ = GaussianLikelihood(hyperprior=GammaPrecision(1.0, 5.0e-5))
             α = Intercept()
             lrx = Leroux(GMRFGraph(W);
-                         hyperprior_tau = PCPrecision(1.0, 0.01),
-                         hyperprior_rho = LogitBeta(1.0, 1.0))
+                hyperprior_tau=PCPrecision(1.0, 0.01),
+                hyperprior_rho=LogitBeta(1.0, 1.0))
 
             # A: column of ones for the intercept; identity-on-region for
             # Leroux. Row i has a 1 at α and at region[i].
-            rows_α    = collect(1:n_obs)
-            cols_α    = ones(Int, n_obs)
-            A_α       = sparse(rows_α, cols_α, ones(Float64, n_obs), n_obs, 1)
-            rows_lrx  = collect(1:n_obs)
-            cols_lrx  = region
-            A_lrx     = sparse(rows_lrx, cols_lrx, ones(Float64, n_obs), n_obs, n)
-            A         = hcat(A_α, A_lrx)
+            rows_α = collect(1:n_obs)
+            cols_α = ones(Int, n_obs)
+            A_α = sparse(rows_α, cols_α, ones(Float64, n_obs), n_obs, 1)
+            rows_lrx = collect(1:n_obs)
+            cols_lrx = region
+            A_lrx = sparse(rows_lrx, cols_lrx, ones(Float64, n_obs), n_obs, n)
+            A = hcat(A_α, A_lrx)
 
             model = LatentGaussianModel(ℓ, (α, lrx), A)
-            res   = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Fixed effect ----------------------------------------------
             sf = fx["summary_fixed"]
@@ -87,7 +88,7 @@ end
 
             @test _rel_lrx(τ_lik_J, τ_lik_R) < LRX_LIK_REL_TOL
             @test _rel_lrx(τ_lrx_J, τ_lrx_R) < LRX_PREC_REL_TOL
-            @test abs(ρ_lrx_J - λ_lrx_R)     < LRX_LAMBDA_TOL
+            @test abs(ρ_lrx_J - λ_lrx_R) < LRX_LAMBDA_TOL
 
             hp = hyperparameters(model, res)
             @test length(hp) == 3

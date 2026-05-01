@@ -1,6 +1,7 @@
 using LatentGaussianModels: GaussianLikelihood, Intercept, IID, LatentGaussianModel,
-    inla, posterior_marginal_x, posterior_marginal_θ,
-    fixed_effects, random_effects, hyperparameters, log_marginal_likelihood
+                            inla, posterior_marginal_x, posterior_marginal_θ,
+                            fixed_effects, random_effects, hyperparameters,
+                            log_marginal_likelihood
 using SparseArrays
 using Random
 using Statistics: mean
@@ -15,8 +16,8 @@ using Statistics: mean
     ℓ = GaussianLikelihood()
     model = LatentGaussianModel(ℓ, (c,), A)
 
-    res = inla(model, y; int_strategy = :grid)
-    m = posterior_marginal_x(res, 1; grid_size = 121, span = 6.0)
+    res = inla(model, y; int_strategy=:grid)
+    m = posterior_marginal_x(res, 1; grid_size=121, span=6.0)
 
     @test length(m.x) == 121
     @test all(≥(0), m.pdf)
@@ -25,7 +26,7 @@ using Statistics: mean
     # Trapezoidal integration over the grid — should be ≈ 1.
     Δ = m.x[2] - m.x[1]
     area = (sum(m.pdf) - 0.5 * (m.pdf[1] + m.pdf[end])) * Δ
-    @test isapprox(area, 1.0; atol = 0.01)
+    @test isapprox(area, 1.0; atol=0.01)
 end
 
 @testset "posterior_marginal_θ — Gaussian at (θ̂, Σθ)" begin
@@ -39,14 +40,14 @@ end
     model = LatentGaussianModel(ℓ, (c,), A)
 
     res = inla(model, y)
-    m = posterior_marginal_θ(res, 1; grid_size = 201, span = 6.0)
+    m = posterior_marginal_θ(res, 1; grid_size=201, span=6.0)
     Δ = m.θ[2] - m.θ[1]
     area = (sum(m.pdf) - 0.5 * (m.pdf[1] + m.pdf[end])) * Δ
-    @test isapprox(area, 1.0; atol = 1.0e-3)
+    @test isapprox(area, 1.0; atol=1.0e-3)
 
     # Mode of the grid-evaluated pdf should sit at θ̂.
     j_star = argmax(m.pdf)
-    @test isapprox(m.θ[j_star], res.θ̂[1]; atol = Δ)
+    @test isapprox(m.θ[j_star], res.θ̂[1]; atol=Δ)
 end
 
 @testset "fixed_effects / hyperparameters accessor shapes" begin
@@ -78,7 +79,7 @@ end
     n = 40
     k = 8
     # Crude group index: each group i has n/k rows, not important for shape test.
-    grp = repeat(1:k, inner = n ÷ k)
+    grp = repeat(1:k, inner=n ÷ k)
     Acols = [Float64(j == gi) for gi in grp, j in 1:k]
     A = sparse([ones(n) Acols])
 

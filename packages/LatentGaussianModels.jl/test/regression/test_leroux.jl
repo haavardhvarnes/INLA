@@ -1,6 +1,6 @@
 using LatentGaussianModels: Leroux, LogitBeta, PCPrecision,
-    precision_matrix, log_hyperprior, log_prior_density,
-    nhyperparameters, initial_hyperparameters
+                            precision_matrix, log_hyperprior, log_prior_density,
+                            nhyperparameters, initial_hyperparameters
 using GMRFs: GMRFs, GMRFGraph, num_nodes, NoConstraint, constraints
 using LinearAlgebra: I, Symmetric, eigvals
 using SparseArrays
@@ -75,8 +75,8 @@ end
 @testset "Leroux — log_hyperprior factorises" begin
     W = [0 1; 1 0]
     c = Leroux(GMRFGraph(W);
-               hyperprior_tau = PCPrecision(),
-               hyperprior_rho = LogitBeta(1.0, 1.0))
+        hyperprior_tau=PCPrecision(),
+        hyperprior_rho=LogitBeta(1.0, 1.0))
     θ = [0.3, -0.5]
     expected = log_prior_density(PCPrecision(), θ[1]) +
                log_prior_density(LogitBeta(1.0, 1.0), θ[2])

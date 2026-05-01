@@ -56,19 +56,19 @@ function expand_polygon(polygon::AbstractMatrix{<:Real}, offset::Real)
     for i in 1:n
         prev = i == 1 ? n : i - 1
         nxt = i == n ? 1 : i + 1
-        pc = (Float64(polygon[i, 1]),    Float64(polygon[i, 2]))
+        pc = (Float64(polygon[i, 1]), Float64(polygon[i, 2]))
         pp = (Float64(polygon[prev, 1]), Float64(polygon[prev, 2]))
-        pn = (Float64(polygon[nxt, 1]),  Float64(polygon[nxt, 2]))
+        pn = (Float64(polygon[nxt, 1]), Float64(polygon[nxt, 2]))
 
         # Outward normals of edges (pp → pc) and (pc → pn) on a CCW polygon
         # are (dy, -dx) of each edge direction.
-        e_in  = (pc[1] - pp[1], pc[2] - pp[2])
+        e_in = (pc[1] - pp[1], pc[2] - pp[2])
         e_out = (pn[1] - pc[1], pn[2] - pc[2])
-        len_in  = hypot(e_in[1],  e_in[2])
+        len_in = hypot(e_in[1], e_in[2])
         len_out = hypot(e_out[1], e_out[2])
         (len_in > 0 && len_out > 0) ||
             throw(ArgumentError("polygon has coincident consecutive vertices"))
-        n_in  = (e_in[2]  / len_in,  -e_in[1]  / len_in)
+        n_in = (e_in[2] / len_in, -e_in[1] / len_in)
         n_out = (e_out[2] / len_out, -e_out[1] / len_out)
 
         # Shift along the sum-of-normals direction by the magnitude that
@@ -106,7 +106,8 @@ function cutoff_dedup(points::AbstractMatrix{<:Real}, cutoff::Real)
     kept = Int[]
     n = size(points, 1)
     for i in 1:n
-        xi = Float64(points[i, 1]); yi = Float64(points[i, 2])
+        xi = Float64(points[i, 1])
+        yi = Float64(points[i, 2])
         ok = true
         for j in kept
             if hypot(xi - points[j, 1], yi - points[j, 2]) < cutoff

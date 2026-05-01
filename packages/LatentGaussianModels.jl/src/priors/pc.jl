@@ -28,7 +28,9 @@ struct PCPrecision{T <: Real} <: AbstractHyperPrior
         return new{T}(U, α, λ)
     end
 end
-PCPrecision(U::Real = 1.0, α::Real = 0.01) = PCPrecision{typeof(float(U * α))}(float(U), float(α))
+function PCPrecision(U::Real=1.0, α::Real=0.01)
+    PCPrecision{typeof(float(U * α))}(float(U), float(α))
+end
 
 prior_name(::PCPrecision) = :pc_prec
 
@@ -58,7 +60,7 @@ struct GammaPrecision{T <: Real} <: AbstractHyperPrior
         return new{T}(shape, rate)
     end
 end
-function GammaPrecision(shape::Real = 1.0, rate::Real = 5.0e-5)
+function GammaPrecision(shape::Real=1.0, rate::Real=5.0e-5)
     T = typeof(float(shape * rate))
     return GammaPrecision{T}(T(shape), T(rate))
 end
@@ -91,7 +93,7 @@ struct LogNormalPrecision{T <: Real} <: AbstractHyperPrior
         return new{T}(μ, σ)
     end
 end
-function LogNormalPrecision(μ::Real = 0.0, σ::Real = 1.0)
+function LogNormalPrecision(μ::Real=0.0, σ::Real=1.0)
     T = typeof(float(μ * σ))
     return LogNormalPrecision{T}(T(μ), T(σ))
 end

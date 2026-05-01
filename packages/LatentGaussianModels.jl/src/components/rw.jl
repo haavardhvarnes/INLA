@@ -15,8 +15,8 @@ struct RW1{P <: AbstractHyperPrior} <: AbstractLatentComponent
     hyperprior::P
     cyclic::Bool
 end
-function RW1(n::Integer; hyperprior::AbstractHyperPrior = PCPrecision(),
-             cyclic::Bool = false)
+function RW1(n::Integer; hyperprior::AbstractHyperPrior=PCPrecision(),
+        cyclic::Bool=false)
     n ≥ 2 || throw(ArgumentError("RW1: n must be ≥ 2"))
     return RW1(Int(n), hyperprior, cyclic)
 end
@@ -26,7 +26,7 @@ nhyperparameters(::RW1) = 1
 initial_hyperparameters(::RW1) = [0.0]
 
 function gmrf(c::RW1, θ)
-    return GMRFs.RW1GMRF(c.n; τ = exp(θ[1]), cyclic = c.cyclic)
+    return GMRFs.RW1GMRF(c.n; τ=exp(θ[1]), cyclic=c.cyclic)
 end
 
 precision_matrix(c::RW1, θ) = GMRFs.precision_matrix(gmrf(c, θ))
@@ -51,8 +51,8 @@ struct RW2{P <: AbstractHyperPrior} <: AbstractLatentComponent
     hyperprior::P
     cyclic::Bool
 end
-function RW2(n::Integer; hyperprior::AbstractHyperPrior = PCPrecision(),
-             cyclic::Bool = false)
+function RW2(n::Integer; hyperprior::AbstractHyperPrior=PCPrecision(),
+        cyclic::Bool=false)
     n ≥ 3 || throw(ArgumentError("RW2: n must be ≥ 3"))
     return RW2(Int(n), hyperprior, cyclic)
 end
@@ -62,7 +62,7 @@ nhyperparameters(::RW2) = 1
 initial_hyperparameters(::RW2) = [0.0]
 
 function gmrf(c::RW2, θ)
-    return GMRFs.RW2GMRF(c.n; τ = exp(θ[1]), cyclic = c.cyclic)
+    return GMRFs.RW2GMRF(c.n; τ=exp(θ[1]), cyclic=c.cyclic)
 end
 
 precision_matrix(c::RW2, θ) = GMRFs.precision_matrix(gmrf(c, θ))

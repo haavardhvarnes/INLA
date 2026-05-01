@@ -1,8 +1,9 @@
 using LatentGaussianModels: BYM, PCPrecision, GammaPrecision, WeakPrior,
-    precision_matrix, log_hyperprior, nhyperparameters,
-    initial_hyperparameters, log_prior_density, log_normalizing_constant
+                            precision_matrix, log_hyperprior, nhyperparameters,
+                            initial_hyperparameters, log_prior_density,
+                            log_normalizing_constant
 using GMRFs: GMRFGraph, laplacian_matrix, scale_factor, num_nodes,
-    nconnected_components, constraints, constraint_matrix
+             nconnected_components, constraints, constraint_matrix
 
 # 4-node path graph: 1 - 2 - 3 - 4
 const _BYM_W_PATH = [0 1 0 0;
@@ -46,7 +47,7 @@ end
 @testset "BYM — scale_model = false" begin
     g = GMRFGraph(_BYM_W_PATH)
     n = num_nodes(g)
-    c = BYM(g; scale_model = false)
+    c = BYM(g; scale_model=false)
     τ_b = 0.5
     Q = Matrix(precision_matrix(c, [0.0, log(τ_b)]))
     Lmat = Matrix(laplacian_matrix(g))
@@ -59,15 +60,16 @@ end
     θ = [0.3, -0.7]
     lp = log_hyperprior(c, θ)
     @test isfinite(lp)
-    @test lp ≈ log_prior_density(c.hyperprior_iid, θ[1]) +
-               log_prior_density(c.hyperprior_besag, θ[2])
+    @test lp ≈
+          log_prior_density(c.hyperprior_iid, θ[1]) +
+          log_prior_density(c.hyperprior_besag, θ[2])
 end
 
 @testset "BYM — custom hyperpriors" begin
     g = GMRFGraph(_BYM_W_PATH)
     c = BYM(g;
-            hyperprior_iid = GammaPrecision(1.0, 0.01),
-            hyperprior_besag = WeakPrior())
+        hyperprior_iid=GammaPrecision(1.0, 0.01),
+        hyperprior_besag=WeakPrior())
     θ = [0.0, 0.0]
     expected = log_prior_density(GammaPrecision(1.0, 0.01), 0.0) +
                log_prior_density(WeakPrior(), 0.0)

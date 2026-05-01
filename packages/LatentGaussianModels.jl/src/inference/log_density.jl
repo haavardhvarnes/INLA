@@ -40,15 +40,16 @@ struct INLALogDensity{M <: LatentGaussianModel, Y, S <: Laplace}
 end
 
 function INLALogDensity(model::LatentGaussianModel, y;
-                        laplace::Laplace = Laplace())
+        laplace::Laplace=Laplace())
     return INLALogDensity{typeof(model), typeof(y), typeof(laplace)}(
         model, y, laplace)
 end
 
 LogDensityProblems.dimension(ld::INLALogDensity) = n_hyperparameters(ld.model)
 
-LogDensityProblems.capabilities(::Type{<:INLALogDensity}) =
+function LogDensityProblems.capabilities(::Type{<:INLALogDensity})
     LogDensityProblems.LogDensityOrder{1}()
+end
 
 function LogDensityProblems.logdensity(ld::INLALogDensity, θ::AbstractVector)
     length(θ) == n_hyperparameters(ld.model) ||
@@ -56,7 +57,7 @@ function LogDensityProblems.logdensity(ld::INLALogDensity, θ::AbstractVector)
                                 "$(n_hyperparameters(ld.model)) hyperparameters"))
     local res
     try
-        res = laplace_mode(ld.model, ld.y, θ; strategy = ld.laplace)
+        res = laplace_mode(ld.model, ld.y, θ; strategy=ld.laplace)
     catch
         return -Inf
     end
@@ -65,7 +66,7 @@ function LogDensityProblems.logdensity(ld::INLALogDensity, θ::AbstractVector)
 end
 
 function LogDensityProblems.logdensity_and_gradient(ld::INLALogDensity,
-                                                    θ::AbstractVector)
+        θ::AbstractVector)
     ℓ = LogDensityProblems.logdensity(ld, θ)
     f = θ_ -> LogDensityProblems.logdensity(ld, θ_)
     g = FiniteDiff.finite_difference_gradient(f, collect(Float64, θ))
@@ -109,18 +110,18 @@ X = sample_conditional(model, θ, y, 100; rng)
 ```
 """
 function sample_conditional(model::LatentGaussianModel, θ::AbstractVector, y;
-                            rng::Random.AbstractRNG = Random.default_rng(),
-                            laplace::Laplace = Laplace())
-    lp = laplace_mode(model, y, θ; strategy = laplace)
+        rng::Random.AbstractRNG=Random.default_rng(),
+        laplace::Laplace=Laplace())
+    lp = laplace_mode(model, y, θ; strategy=laplace)
     return _sample_laplace(rng, lp)
 end
 
 function sample_conditional(model::LatentGaussianModel, θ::AbstractVector, y,
-                            n_samples::Integer;
-                            rng::Random.AbstractRNG = Random.default_rng(),
-                            laplace::Laplace = Laplace())
+        n_samples::Integer;
+        rng::Random.AbstractRNG=Random.default_rng(),
+        laplace::Laplace=Laplace())
     n_samples ≥ 1 || throw(ArgumentError("n_samples must be ≥ 1"))
-    lp = laplace_mode(model, y, θ; strategy = laplace)
+    lp = laplace_mode(model, y, θ; strategy=laplace)
     X = Matrix{Float64}(undef, length(lp.mode), n_samples)
     for s in 1:n_samples
         @views X[:, s] .= _sample_laplace(rng, lp)

@@ -15,13 +15,13 @@ The default hyperprior matches R-INLA's `family = "gamma"` default
 observations.
 """
 struct GammaLikelihood{L <: AbstractLinkFunction,
-                       P <: AbstractHyperPrior} <: AbstractLikelihood
+    P <: AbstractHyperPrior} <: AbstractLikelihood
     link::L
     hyperprior::P
 end
 
-function GammaLikelihood(; link::AbstractLinkFunction = LogLink(),
-                          hyperprior::AbstractHyperPrior = GammaPrecision(1.0, 5.0e-5))
+function GammaLikelihood(; link::AbstractLinkFunction=LogLink(),
+        hyperprior::AbstractHyperPrior=GammaPrecision(1.0, 5.0e-5))
     link isa LogLink ||
         throw(ArgumentError("GammaLikelihood: only LogLink is supported, got $(typeof(link))"))
     return GammaLikelihood(link, hyperprior)

@@ -14,9 +14,9 @@ using Rasters: Raster, X, Y
     r = Raster(vals, (X(collect(xs)), Y(collect(ys))))
 
     sq = [0.1 0.1; 0.9 0.1; 0.9 0.9; 0.1 0.9]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.15, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.15, min_angle=25.0)
 
-    u = extract_at_mesh(r, mesh; method = :bilinear)
+    u = extract_at_mesh(r, mesh; method=:bilinear)
     @test length(u) == num_vertices(mesh)
 
     expected = [f(mesh.points[k, 1], mesh.points[k, 2]) for k in 1:num_vertices(mesh)]
@@ -31,16 +31,17 @@ end
 
     # Boundary matches a raster cell — vertex coords land on cell corners.
     sq = [0.25 0.25; 0.75 0.25; 0.75 0.75; 0.25 0.75]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.3, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.3, min_angle=25.0)
 
-    u = extract_at_mesh(r, mesh; method = :bilinear)
+    u = extract_at_mesh(r, mesh; method=:bilinear)
     @test length(u) == num_vertices(mesh)
 
     # Corners of the mesh boundary are cell centres; the raster values
     # there must come through unchanged.
     for (k, corner) in enumerate(eachrow(sq))
         # Find the mesh vertex that matches each corner.
-        idx = findfirst(i -> mesh.points[i, 1] ≈ corner[1] && mesh.points[i, 2] ≈ corner[2],
+        idx = findfirst(
+            i -> mesh.points[i, 1] ≈ corner[1] && mesh.points[i, 2] ≈ corner[2],
             1:num_vertices(mesh))
         @test idx !== nothing
         cx = findfirst(≈(corner[1]), xs)
@@ -56,9 +57,9 @@ end
     r = Raster(vals, (X(collect(xs)), Y(collect(ys))))
 
     sq = [0.5 0.5; 3.5 0.5; 3.5 3.5; 0.5 3.5]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 1.0, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=1.0, min_angle=25.0)
 
-    u_near = extract_at_mesh(r, mesh; method = :nearest)
+    u_near = extract_at_mesh(r, mesh; method=:nearest)
     @test length(u_near) == num_vertices(mesh)
 
     # Every returned value must exist somewhere in the raster cells.
@@ -90,9 +91,9 @@ end
     r = Raster(vals, (X(collect(xs)), Y(ys)))
 
     sq = [0.2 0.2; 0.8 0.2; 0.8 0.8; 0.2 0.8]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.2, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.2, min_angle=25.0)
 
-    u = extract_at_mesh(r, mesh; method = :bilinear)
+    u = extract_at_mesh(r, mesh; method=:bilinear)
     expected = [f(mesh.points[k, 1], mesh.points[k, 2]) for k in 1:num_vertices(mesh)]
     @test maximum(abs, u .- expected) < 1.0e-12
 end
@@ -105,12 +106,12 @@ end
 
     # A boundary that pokes outside the raster extent.
     sq = [-0.5 -0.5; 1.5 -0.5; 1.5 1.5; -0.5 1.5]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.5, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.5, min_angle=25.0)
 
     @test_throws ArgumentError extract_at_mesh(r, mesh)
-    @test_throws ArgumentError extract_at_mesh(r, mesh; outside = :error)
+    @test_throws ArgumentError extract_at_mesh(r, mesh; outside=:error)
 
-    u = extract_at_mesh(r, mesh; outside = :missing, missingval = -99.0)
+    u = extract_at_mesh(r, mesh; outside=:missing, missingval=-99.0)
     @test length(u) == num_vertices(mesh)
     # At least one vertex (the corners of `sq`) is outside the raster.
     @test any(==(-99.0), u)
@@ -121,8 +122,8 @@ end
     ys = 0.0:0.25:1.0
     r = Raster(zeros(length(xs), length(ys)), (X(collect(xs)), Y(collect(ys))))
     sq = [0.1 0.1; 0.9 0.1; 0.9 0.9; 0.1 0.9]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.3, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.3, min_angle=25.0)
 
-    @test_throws ArgumentError extract_at_mesh(r, mesh; method = :spline)
-    @test_throws ArgumentError extract_at_mesh(r, mesh; outside = :clamp)
+    @test_throws ArgumentError extract_at_mesh(r, mesh; method=:spline)
+    @test_throws ArgumentError extract_at_mesh(r, mesh; outside=:clamp)
 end

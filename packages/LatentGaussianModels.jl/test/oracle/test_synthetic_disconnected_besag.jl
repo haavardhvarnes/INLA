@@ -11,15 +11,15 @@ using Test
 using SparseArrays
 using LinearAlgebra: I
 using LatentGaussianModels: PoissonLikelihood, Intercept,
-    Besag, LatentGaussianModel, inla, PCPrecision,
-    fixed_effects, hyperparameters, random_effects,
-    log_marginal_likelihood
+                            Besag, LatentGaussianModel, inla, PCPrecision,
+                            fixed_effects, hyperparameters, random_effects,
+                            log_marginal_likelihood
 using GMRFs: GMRFGraph, nconnected_components
 
 const DISC_FIXTURE = "synthetic_disconnected_besag"
 
 const DISC_INTERCEPT_TOL = 0.10
-const DISC_RE_SUM_TOL    = 1.0e-6   # constraint should hold to machine precision
+const DISC_RE_SUM_TOL = 1.0e-6   # constraint should hold to machine precision
 
 _rel_disc(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -53,11 +53,11 @@ end
             # Latent layout: [α; b]. η_i = α + b_i.
             ℓ = PoissonLikelihood()
             c_int = Intercept()
-            c_b   = Besag(graph; hyperprior = PCPrecision(1.0, 0.01))
+            c_b = Besag(graph; hyperprior=PCPrecision(1.0, 0.01))
             A = sparse(hcat(ones(n), Matrix{Float64}(I, n, n)))
             model = LatentGaussianModel(ℓ, (c_int, c_b), A)
 
-            res = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Fixed effect: intercept ---------------------------------
             sf = fx["summary_fixed"]
@@ -82,8 +82,8 @@ end
             # Besag is the 2nd component → key "Besag[2]".
             b_means = re["Besag[2]"].mean
             @test length(b_means) == n
-            @test abs(sum(b_means[1:5]))   < DISC_RE_SUM_TOL
-            @test abs(sum(b_means[6:9]))   < DISC_RE_SUM_TOL
+            @test abs(sum(b_means[1:5])) < DISC_RE_SUM_TOL
+            @test abs(sum(b_means[6:9])) < DISC_RE_SUM_TOL
             @test abs(sum(b_means[10:12])) < DISC_RE_SUM_TOL
 
             # mlik finite (precision too weakly identified for tight match).

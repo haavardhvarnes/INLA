@@ -64,7 +64,8 @@ function PCBYM2Phi(U::Real, α::Real, γ::AbstractVector{<:Real})
     T = typeof(float(U * α * first(γ)))
     γT = convert(AbstractVector{T}, γ)
     dU = _bym2_phi_distance(T(U), γT)
-    iszero(dU) && throw(ArgumentError("PCBYM2Phi: d(U) is zero; check γ (all eigenvalues equal 1?)"))
+    iszero(dU) &&
+        throw(ArgumentError("PCBYM2Phi: d(U) is zero; check γ (all eigenvalues equal 1?)"))
     # d is bounded on [0, 1]; compute d_max = d(1) and solve for λ in
     # the truncated/renormalised exponential so that the quantile
     # equation P(φ < U) = α holds.
@@ -74,8 +75,10 @@ function PCBYM2Phi(U::Real, α::Real, γ::AbstractVector{<:Real})
     return PCBYM2Phi{T, typeof(γT)}(T(U), T(α), λ, d_max, log_Z, γT)
 end
 
-PCBYM2Phi(γ::AbstractVector{<:Real}; U::Real = 0.5,
-          α::Real = DEFAULT_BYM2_PHI_ALPHA) = PCBYM2Phi(U, α, γ)
+function PCBYM2Phi(γ::AbstractVector{<:Real}; U::Real=0.5,
+        α::Real=DEFAULT_BYM2_PHI_ALPHA)
+    PCBYM2Phi(U, α, γ)
+end
 
 """
 Internal: solve `(1 - exp(-λ·d_U)) / (1 - exp(-λ·d_max)) = α` for

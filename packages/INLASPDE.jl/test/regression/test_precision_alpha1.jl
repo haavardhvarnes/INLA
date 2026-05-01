@@ -11,7 +11,7 @@ using SparseArrays
     Q = spde_precision(fem, 1, τ, κ)
 
     Q_ref = τ^2 * (κ^2 * Matrix(fem.C) + Matrix(fem.G1))
-    @test Matrix(Q) ≈ Q_ref rtol = 1.0e-12
+    @test Matrix(Q)≈Q_ref rtol=1.0e-12
     @test issymmetric(Q)
 
     # Positive-definite (α=1 has no nullspace — κ² C + G₁ is SPD).
@@ -26,14 +26,14 @@ end
     # Scaling τ → c·τ multiplies Q by c² (at fixed κ).
     for c in (0.5, 2.0, 3.7)
         Qc = spde_precision(fem, 1, c * τ0, κ0)
-        @test Matrix(Qc) ≈ c^2 * Matrix(Q0) rtol = 1.0e-12
+        @test Matrix(Qc)≈c^2 * Matrix(Q0) rtol=1.0e-12
     end
 
     # Scaling κ at fixed τ: τ²(κ² C + G₁) — non-linear in κ, check the
     # identity exactly.
     κ1 = 3.0
     Q1 = spde_precision(fem, 1, τ0, κ1)
-    @test Matrix(Q1) ≈ τ0^2 * (κ1^2 * Matrix(fem.C) + Matrix(fem.G1)) rtol = 1.0e-12
+    @test Matrix(Q1)≈τ0^2 * (κ1^2 * Matrix(fem.C) + Matrix(fem.G1)) rtol=1.0e-12
 end
 
 @testset "spde_precision(α=1) — argument validation" begin
@@ -49,5 +49,5 @@ end
     τ, κ = 0.7, 1.9
     Q_struct = spde_precision(fem, 1, τ, κ)
     Q_stateless = spde_precision(1, τ, κ, fem.C, fem.G1)
-    @test Matrix(Q_struct) ≈ Matrix(Q_stateless) rtol = 1.0e-12
+    @test Matrix(Q_struct)≈Matrix(Q_stateless) rtol=1.0e-12
 end

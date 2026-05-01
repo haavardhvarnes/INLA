@@ -6,7 +6,7 @@ using LinearAlgebra: norm
 
 @testset "MeshProjector — row sums to 1, at most 3 nonzeros per row" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.25, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.25, min_angle=25.0)
 
     rng = MersenneTwister(7)
     locs = 0.05 .+ 0.9 .* rand(rng, 40, 2)           # strictly interior
@@ -14,7 +14,7 @@ using LinearAlgebra: norm
 
     @test size(P) == (40, num_vertices(mesh))
     # Each row sums to exactly 1 (barycentric partition of unity).
-    row_sums = vec(sum(P.A, dims = 2))
+    row_sums = vec(sum(P.A, dims=2))
     @test all(row_sums .≈ 1.0)
     # Each row has ≤ 3 nonzeros.
     for i in 1:size(P, 1)
@@ -30,7 +30,7 @@ end
     # on the mesh; projected values at arbitrary interior locations
     # must equal u evaluated at those locations.
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.3, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.3, min_angle=25.0)
 
     a, b, c = 2.0, -0.7, 1.3
     u_mesh = a .+ b .* mesh.points[:, 1] .+ c .* mesh.points[:, 2]
@@ -46,7 +46,7 @@ end
 
 @testset "MeshProjector — vertex locations give identity-like rows" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.3, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.3, min_angle=25.0)
 
     # Query the first 5 mesh vertices as "observations". Each row should
     # place weight 1 on its own vertex (barycentric λ_i = 1 at vertex i).
@@ -59,22 +59,22 @@ end
         # There can be multiple triangles meeting at a vertex; any is
         # valid, as long as the weight on vertex i is 1 and the other
         # two are 0.
-        @test (P * u)[i] ≈ u[i] rtol = 1.0e-12
+        @test (P * u)[i]≈u[i] rtol=1.0e-12
     end
 end
 
 @testset "MeshProjector — outside locations policy" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.5, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.5, min_angle=25.0)
 
     bad = [0.5 0.5;   # inside
            2.0 2.0;   # outside
            -0.5 0.5]  # outside
 
     @test_throws ArgumentError MeshProjector(mesh, bad)
-    @test_throws ArgumentError MeshProjector(mesh, bad; outside = :error)
+    @test_throws ArgumentError MeshProjector(mesh, bad; outside=:error)
 
-    P = MeshProjector(mesh, bad; outside = :zero)
+    P = MeshProjector(mesh, bad; outside=:zero)
     @test size(P) == (3, num_vertices(mesh))
     # Inside row has nonzero weights; outside rows are empty. The
     # interior point `(0.5, 0.5)` can land exactly on an edge of the
@@ -89,28 +89,28 @@ end
 
 @testset "MeshProjector — argument validation" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.5)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.5)
 
     @test_throws ArgumentError MeshProjector(mesh, rand(3, 3))               # 3D locs
-    @test_throws ArgumentError MeshProjector(mesh, [0.5 0.5]; outside = :clamp)
-    @test_throws ArgumentError MeshProjector(mesh, [0.5 0.5]; atol = -1.0)
+    @test_throws ArgumentError MeshProjector(mesh, [0.5 0.5]; outside=:clamp)
+    @test_throws ArgumentError MeshProjector(mesh, [0.5 0.5]; atol=-1.0)
 end
 
 @testset "MeshProjector — SciMLOperators wrapper" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.4, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.4, min_angle=25.0)
     P = MeshProjector(mesh, [0.25 0.25; 0.75 0.6])
 
     op = scimloperator(P)
     u = randn(MersenneTwister(2), num_vertices(mesh))
-    @test op * u ≈ P * u rtol = 1.0e-12
+    @test op * u≈P * u rtol=1.0e-12
     @test size(op) == size(P)
 end
 
 @testset "MeshProjector — integrates with LatentGaussianModel" begin
     using LatentGaussianModels: LatentGaussianModel, GaussianLikelihood
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.4, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.4, min_angle=25.0)
 
     spde = SPDE2(mesh)
     locs = [0.25 0.25; 0.5 0.5; 0.75 0.75]

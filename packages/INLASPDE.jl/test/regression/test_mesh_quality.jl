@@ -41,7 +41,7 @@ end
 
 @testset "inla_mesh_2d — unit-square boundary, refinement bounds respected" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.25, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.25, min_angle=25.0)
 
     @test mesh isa INLAMesh
     @test num_vertices(mesh) > 4
@@ -67,7 +67,7 @@ end
     rng = MersenneTwister(0xBEEF)
     # 30 points in the unit square interior.
     loc = 0.1 .+ 0.8 .* rand(rng, 30, 2)
-    mesh = inla_mesh_2d(loc; max_edge = 0.2, offset = 0.4, min_angle = 25.0)
+    mesh = inla_mesh_2d(loc; max_edge=0.2, offset=0.4, min_angle=25.0)
 
     @test mesh isa INLAMesh
     @test num_vertices(mesh) >= 30
@@ -84,7 +84,7 @@ end
 @testset "inla_mesh_2d — loc only (hull as boundary)" begin
     rng = MersenneTwister(42)
     loc = randn(rng, 50, 2)
-    mesh = inla_mesh_2d(loc; max_edge = 1.0, min_angle = 25.0)
+    mesh = inla_mesh_2d(loc; max_edge=1.0, min_angle=25.0)
 
     @test num_triangles(mesh) > 0
     @test min_triangle_angle(mesh.points, mesh.triangles) >= 25.0 - 1.0e-6
@@ -99,29 +99,29 @@ end
     # A small grid with duplicates placed within cutoff.
     base = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
     dups = [0.0 0.0; 0.001 0.002; 1.0 0.0; 0.999 0.001; 1.0 1.0; 0.0 1.0]
-    m1 = inla_mesh_2d(base; max_edge = 1.0, min_angle = 25.0)
-    m2 = inla_mesh_2d(dups; max_edge = 1.0, min_angle = 25.0, cutoff = 0.01)
+    m1 = inla_mesh_2d(base; max_edge=1.0, min_angle=25.0)
+    m2 = inla_mesh_2d(dups; max_edge=1.0, min_angle=25.0, cutoff=0.01)
     @test num_vertices(m2) == num_vertices(m1)
     @test num_triangles(m2) == num_triangles(m1)
 end
 
 @testset "inla_mesh_2d — argument validation" begin
-    @test_throws ArgumentError inla_mesh_2d(; max_edge = 0.1)   # no loc/boundary
+    @test_throws ArgumentError inla_mesh_2d(; max_edge=0.1)   # no loc/boundary
     @test_throws ArgumentError inla_mesh_2d([0.0 0.0; 1.0 0.0; 0.0 1.0];
-                                             max_edge = -0.1)
+        max_edge=-0.1)
     @test_throws ArgumentError inla_mesh_2d([0.0 0.0; 1.0 0.0; 0.0 1.0];
-                                             max_edge = 0.5, min_angle = -1.0)
+        max_edge=0.5, min_angle=-1.0)
     @test_throws ArgumentError inla_mesh_2d([0.0 0.0; 1.0 0.0; 0.0 1.0];
-                                             max_edge = 0.5, min_angle = 40.0)
+        max_edge=0.5, min_angle=40.0)
     @test_throws ArgumentError inla_mesh_2d([0.0 0.0; 1.0 0.0; 0.0 1.0];
-                                             max_edge = 0.5, offset = -0.1)
+        max_edge=0.5, offset=-0.1)
     @test_throws ArgumentError inla_mesh_2d([0.0 0.0; 1.0 0.0; 0.0 1.0];
-                                             max_edge = 0.5, cutoff = -0.1)
+        max_edge=0.5, cutoff=-0.1)
 end
 
 @testset "inla_mesh_2d — FEM assembly and SPDE2 interop" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.25, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.25, min_angle=25.0)
 
     # FEMMatrices convenience constructor agrees with raw-matrix form.
     fem1 = FEMMatrices(mesh)

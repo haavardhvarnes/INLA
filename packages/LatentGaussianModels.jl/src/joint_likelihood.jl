@@ -28,7 +28,7 @@ and `m.block_rows`. Reduces to a single `log_density(m.likelihoods[1],
 y, η, θ_ℓ)` call when there is exactly one block.
 """
 function joint_log_density(m::LatentGaussianModel,
-                           y::AbstractVector, η::AbstractVector, θ::AbstractVector)
+        y::AbstractVector, η::AbstractVector, θ::AbstractVector)
     s = zero(eltype(η))
     for k in eachindex(m.likelihoods)
         ℓ_k = m.likelihoods[k]
@@ -46,7 +46,7 @@ Length-`n_obs` gradient of `Σ_k log p(y_k | η_k, θ_ℓ_k)` w.r.t. `η`,
 assembled by routing each block through its `∇_η_log_density`.
 """
 function joint_∇_η_log_density(m::LatentGaussianModel,
-                               y::AbstractVector, η::AbstractVector, θ::AbstractVector)
+        y::AbstractVector, η::AbstractVector, θ::AbstractVector)
     if length(m.likelihoods) == 1
         ℓ = m.likelihoods[1]
         return ∇_η_log_density(ℓ, y, η, view(θ, m.likelihood_θ_ranges[1]))
@@ -68,7 +68,7 @@ Length-`n_obs` diagonal of the `η`-Hessian. Same routing pattern as
 [`joint_∇_η_log_density`](@ref).
 """
 function joint_∇²_η_log_density(m::LatentGaussianModel,
-                                y::AbstractVector, η::AbstractVector, θ::AbstractVector)
+        y::AbstractVector, η::AbstractVector, θ::AbstractVector)
     if length(m.likelihoods) == 1
         ℓ = m.likelihoods[1]
         return ∇²_η_log_density(ℓ, y, η, view(θ, m.likelihood_θ_ranges[1]))
@@ -91,7 +91,7 @@ likelihood w.r.t. `η`. Used by simplified-Laplace mean-shift and
 posterior-marginal skewness.
 """
 function joint_∇³_η_log_density(m::LatentGaussianModel,
-                                y::AbstractVector, η::AbstractVector, θ::AbstractVector)
+        y::AbstractVector, η::AbstractVector, θ::AbstractVector)
     if length(m.likelihoods) == 1
         ℓ = m.likelihoods[1]
         return ∇³_η_log_density(ℓ, y, η, view(θ, m.likelihood_θ_ranges[1]))
@@ -113,7 +113,7 @@ Length-`n_obs` per-observation `log p(y_i | η_i, θ_ℓ)`. Sums to
 [`joint_log_density`](@ref).
 """
 function joint_pointwise_log_density(m::LatentGaussianModel,
-                                     y::AbstractVector, η::AbstractVector, θ::AbstractVector)
+        y::AbstractVector, η::AbstractVector, θ::AbstractVector)
     if length(m.likelihoods) == 1
         ℓ = m.likelihoods[1]
         return pointwise_log_density(ℓ, y, η, view(θ, m.likelihood_θ_ranges[1]))
@@ -136,7 +136,7 @@ by PIT diagnostics. Each block must implement
 [`pointwise_cdf`](@ref) on its likelihood.
 """
 function joint_pointwise_cdf(m::LatentGaussianModel,
-                             y::AbstractVector, η::AbstractVector, θ::AbstractVector)
+        y::AbstractVector, η::AbstractVector, θ::AbstractVector)
     if length(m.likelihoods) == 1
         ℓ = m.likelihoods[1]
         return pointwise_cdf(ℓ, y, η, view(θ, m.likelihood_θ_ranges[1]))

@@ -7,13 +7,14 @@ Canonical link is logit.
 `n_trials` must be a vector of positive integers of length matching
 `y` at fit time.
 """
-struct BinomialLikelihood{L <: AbstractLinkFunction, V <: AbstractVector{<:Integer}} <: AbstractLikelihood
+struct BinomialLikelihood{L <: AbstractLinkFunction, V <: AbstractVector{<:Integer}} <:
+       AbstractLikelihood
     link::L
     n_trials::V
 end
 
 function BinomialLikelihood(n_trials::AbstractVector{<:Integer};
-                            link::AbstractLinkFunction = LogitLink())
+        link::AbstractLinkFunction=LogitLink())
     all(>(0), n_trials) || throw(ArgumentError("n_trials must be strictly positive"))
     return BinomialLikelihood(link, n_trials)
 end

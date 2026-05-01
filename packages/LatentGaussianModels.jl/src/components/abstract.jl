@@ -25,7 +25,9 @@ Optional (with default implementations):
 """
 abstract type AbstractLatentComponent end
 
-Base.length(::AbstractLatentComponent) = error("length must be implemented for concrete AbstractLatentComponent")
+function Base.length(::AbstractLatentComponent)
+    error("length must be implemented for concrete AbstractLatentComponent")
+end
 
 """
     nhyperparameters(c::AbstractLatentComponent) -> Int

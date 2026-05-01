@@ -1,10 +1,10 @@
 using LatentGaussianModels
 using LatentGaussianModels: laplace_mode, LatentGaussianModel,
-    GaussianLikelihood, IID, Intercept, BYM2, PoissonLikelihood,
-    PCPrecision
+                            GaussianLikelihood, IID, Intercept, BYM2, PoissonLikelihood,
+                            PCPrecision
 using LatentGaussianModels: model_constraints, _constrained_marginal_variances
 using GMRFs: GMRFs, GMRFGraph, LinearConstraint, NoConstraint,
-    constraint_matrix, constraint_rhs
+             constraint_matrix, constraint_rhs
 using SparseArrays
 using LinearAlgebra
 using Random
@@ -26,8 +26,9 @@ function LatentGaussianModels.precision_matrix(c::_ConstrainedIID, θ)
     τ = exp(θ[1])
     return spdiagm(0 => fill(τ, c.n))
 end
-LatentGaussianModels.log_hyperprior(c::_ConstrainedIID, θ) =
+function LatentGaussianModels.log_hyperprior(c::_ConstrainedIID, θ)
     LatentGaussianModels.log_prior_density(c.hyperprior, θ[1])
+end
 GMRFs.constraints(c::_ConstrainedIID) = LinearConstraint(c.A_constr, c.e_constr)
 
 @testset "Laplace — sum-to-zero constraint, Gaussian likelihood" begin
@@ -71,7 +72,7 @@ GMRFs.constraints(c::_ConstrainedIID) = LinearConstraint(c.A_constr, c.e_constr)
     # Constraint-corrected marginal variances: analytic form is
     # (τ_obs+τ_u)^{-1} * (1 - 1/n) = diagonal term minus projection onto
     # the constrained-out direction.
-    var_true = (1 - 1/n) / (τ_obs + τ_u)
+    var_true = (1 - 1 / n) / (τ_obs + τ_u)
     v̂ = _constrained_marginal_variances(res.precision, res.constraint)
     @test maximum(abs.(v̂ .- var_true)) < 1.0e-10
 end

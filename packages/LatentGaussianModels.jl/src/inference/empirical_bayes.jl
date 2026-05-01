@@ -46,7 +46,7 @@ function fit(m::LatentGaussianModel, y, strategy::EmpiricalBayes)
     neg_log_posterior = (θ, _p) -> begin
         local res
         try
-            res = laplace_mode(m, y, θ; strategy = strategy.laplace)
+            res = laplace_mode(m, y, θ; strategy=strategy.laplace)
         catch
             return Inf
         end
@@ -55,12 +55,12 @@ function fit(m::LatentGaussianModel, y, strategy::EmpiricalBayes)
     end
 
     optf = Optimization.OptimizationFunction(neg_log_posterior,
-                                             Optimization.AutoFiniteDiff())
+        Optimization.AutoFiniteDiff())
     prob = Optimization.OptimizationProblem(optf, θ0, nothing)
     opt_res = Optimization.solve(prob, OptimizationOptimJL.LBFGS();
-                                 strategy.optim_options...)
+        strategy.optim_options...)
     θ̂ = collect(opt_res.u)
-    final = laplace_mode(m, y, θ̂; strategy = strategy.laplace)
+    final = laplace_mode(m, y, θ̂; strategy=strategy.laplace)
 
     return EmpiricalBayesResult(θ̂, final, final.log_marginal, opt_res)
 end
@@ -77,13 +77,13 @@ fit(m::LatentGaussianModel, y) = fit(m, y, EmpiricalBayes())
 
 Alias for `fit(m, y, EmpiricalBayes(; kwargs...))`.
 """
-empirical_bayes(m::LatentGaussianModel, y; kwargs...) =
-    fit(m, y, EmpiricalBayes(; kwargs...))
+empirical_bayes(m::LatentGaussianModel, y; kwargs...) = fit(
+    m, y, EmpiricalBayes(; kwargs...))
 
 """
     laplace(m, y, θ; kwargs...)
 
 Laplace fit at fixed `θ`. Returns a `LaplaceResult`.
 """
-laplace(m::LatentGaussianModel, y, θ::AbstractVector{<:Real}; kwargs...) =
-    laplace_mode(m, y, θ; strategy = Laplace(; kwargs...))
+laplace(m::LatentGaussianModel, y, θ::AbstractVector{<:Real}; kwargs...) = laplace_mode(
+    m, y, θ; strategy=Laplace(; kwargs...))

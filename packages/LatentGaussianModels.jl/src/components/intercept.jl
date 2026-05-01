@@ -14,7 +14,7 @@ struct Intercept{T <: Real} <: AbstractLatentComponent
     prec::T
     improper::Bool
 end
-function Intercept(; prec::Real = 1.0e-3, improper::Bool = true)
+function Intercept(; prec::Real=1.0e-3, improper::Bool=true)
     return Intercept{typeof(float(prec))}(float(prec), improper)
 end
 
@@ -48,7 +48,7 @@ struct FixedEffects{T <: Real} <: AbstractLatentComponent
     p::Int
     prec::T
 end
-function FixedEffects(p::Integer; prec::Real = 1.0e-3)
+function FixedEffects(p::Integer; prec::Real=1.0e-3)
     p > 0 || throw(ArgumentError("FixedEffects: p must be positive"))
     return FixedEffects{typeof(float(prec))}(Int(p), float(prec))
 end

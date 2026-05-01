@@ -21,8 +21,8 @@ end
 
 function Base.show(io::IO, aug::CoxphAugmented)
     print(io, "CoxphAugmented(n_subjects=", aug.n_subjects,
-              ", n_intervals=", aug.n_intervals,
-              ", n_rows=", length(aug.y), ")")
+        ", n_intervals=", aug.n_intervals,
+        ", n_rows=", length(aug.y), ")")
 end
 
 """
@@ -74,9 +74,9 @@ res   = inla(model, aug.y)
 ```
 """
 function inla_coxph(time::AbstractVector{<:Real},
-                    event::AbstractVector{<:Integer};
-                    breakpoints::Union{Nothing, AbstractVector{<:Real}} = nothing,
-                    nbreakpoints::Integer = 15)
+        event::AbstractVector{<:Integer};
+        breakpoints::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        nbreakpoints::Integer=15)
     n = length(time)
     n > 0 || throw(ArgumentError("time must be non-empty"))
     length(event) == n ||
@@ -89,8 +89,8 @@ function inla_coxph(time::AbstractVector{<:Real},
         throw(ArgumentError("nbreakpoints must be ≥ 2"))
 
     bp::Vector{Float64} = breakpoints === nothing ?
-        _default_coxph_breakpoints(time, event, Int(nbreakpoints)) :
-        collect(Float64, breakpoints)
+                          _default_coxph_breakpoints(time, event, Int(nbreakpoints)) :
+                          collect(Float64, breakpoints)
 
     length(bp) ≥ 2 ||
         throw(ArgumentError("breakpoints must have length ≥ 2"))
@@ -107,10 +107,14 @@ function inla_coxph(time::AbstractVector{<:Real},
     # Pre-size with an upper bound on rows: every subject contributes at
     # most K rows, but typically far fewer. Using `sizehint!` keeps the
     # push! loop allocation-light without overshooting too much.
-    y_aug    = Int[];      sizehint!(y_aug,    n * 2)
-    E_aug    = Float64[];  sizehint!(E_aug,    n * 2)
-    subj_aug = Int[];      sizehint!(subj_aug, n * 2)
-    intv_aug = Int[];      sizehint!(intv_aug, n * 2)
+    y_aug = Int[]
+    sizehint!(y_aug, n * 2)
+    E_aug = Float64[]
+    sizehint!(E_aug, n * 2)
+    subj_aug = Int[]
+    sizehint!(subj_aug, n * 2)
+    intv_aug = Int[]
+    sizehint!(intv_aug, n * 2)
 
     for i in 1:n
         t_i = float(time[i])

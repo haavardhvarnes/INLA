@@ -10,12 +10,13 @@ include("load_fixture.jl")
 using Test
 using SparseArrays
 using LatentGaussianModels: GaussianLikelihood, Generic0, GammaPrecision,
-    LatentGaussianModel, inla, hyperparameters, log_marginal_likelihood
+                            LatentGaussianModel, inla, hyperparameters,
+                            log_marginal_likelihood
 
 const G0_FIXTURE = "synthetic_generic0"
 
 const G0_PREC_REL_TOL = 0.20
-const G0_LIK_REL_TOL  = 0.20
+const G0_LIK_REL_TOL = 0.20
 const G0_MLIK_REL_TOL = 0.05
 
 _rel_g0(a, b) = abs(a - b) / max(abs(b), 1.0)
@@ -39,10 +40,10 @@ end
         if !haskey(fx, "input")
             @test_skip "fixture has no `input` field — regenerate with the current R script"
         else
-            inp   = fx["input"]
+            inp = fx["input"]
             n_obs = Int(inp["n_obs"])
             n_lat = Int(inp["n_lat"])
-            y     = Float64.(inp["y"])
+            y = Float64.(inp["y"])
             # A is stored row-major (`as.numeric(t(A))`).
             A_vec = Float64.(inp["A"])
             @test length(A_vec) == n_obs * n_lat
@@ -53,12 +54,12 @@ end
             # R-INLA's `family = "gaussian"` default precision prior is
             # `loggamma(1, 5e-5)`; pass it explicitly for parity (Julia's
             # `GaussianLikelihood` defaults to a PC prior).
-            ℓ = GaussianLikelihood(hyperprior = GammaPrecision(1.0, 5.0e-5))
-            c_g0 = Generic0(C; rankdef = 0,
-                            hyperprior = GammaPrecision(1.0, 5.0e-5))
+            ℓ = GaussianLikelihood(hyperprior=GammaPrecision(1.0, 5.0e-5))
+            c_g0 = Generic0(C; rankdef=0,
+                hyperprior=GammaPrecision(1.0, 5.0e-5))
             model = LatentGaussianModel(ℓ, (c_g0,), A)
 
-            res = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Hyperparameters -----------------------------------------
             sh = fx["summary_hyperpar"]
@@ -68,9 +69,9 @@ end
             # Internal θ layout: [likelihood; component] →
             # θ[1] = log τ_lik, θ[2] = log τ_idx.
             τ_lik_J = exp(res.θ̂[1])
-            τ_g0_J  = exp(res.θ̂[2])
+            τ_g0_J = exp(res.θ̂[2])
             @test _rel_g0(τ_lik_J, τ_lik_R) < G0_LIK_REL_TOL
-            @test _rel_g0(τ_g0_J,  τ_g0_R)  < G0_PREC_REL_TOL
+            @test _rel_g0(τ_g0_J, τ_g0_R) < G0_PREC_REL_TOL
 
             hp = hyperparameters(model, res)
             @test length(hp) == 2

@@ -12,7 +12,7 @@ end
 
 @testset "MakieExt — scatter(mesh) yields a Vector of 2-tuples" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.4, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.4, min_angle=25.0)
 
     (pts,) = MakieCore.convert_arguments(MakieCore.Scatter, mesh)
     @test length(pts) == num_vertices(mesh)
@@ -24,7 +24,7 @@ end
 
 @testset "MakieExt — linesegments(mesh) emits 3 edges per triangle" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.4, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.4, min_angle=25.0)
 
     (segs,) = MakieCore.convert_arguments(MakieCore.LineSegments, mesh)
     @test length(segs) == 6 * num_triangles(mesh)       # 3 edges × 2 endpoints
@@ -36,7 +36,7 @@ end
 
 @testset "MakieExt — mesh(mesh) forwards (points, triangles)" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.5, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.5, min_angle=25.0)
 
     (pts, tri) = MakieCore.convert_arguments(MakieCore.Mesh, mesh)
     @test pts === mesh.points
@@ -45,7 +45,7 @@ end
 
 @testset "MakieExt — wireframe(mesh) forwards (points, triangles)" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.5, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.5, min_angle=25.0)
 
     (pts, tri) = MakieCore.convert_arguments(MakieCore.Wireframe, mesh)
     @test pts === mesh.points

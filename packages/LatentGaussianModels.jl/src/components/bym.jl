@@ -29,7 +29,7 @@ The joint precision is block-diagonal:
 where `R = c · L` is the (optionally scaled) Besag Laplacian.
 """
 struct BYM{Pv <: AbstractHyperPrior, Pb <: AbstractHyperPrior,
-           G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
+    G <: GMRFs.AbstractGMRFGraph} <: AbstractLatentComponent
     graph::G
     hyperprior_iid::Pv
     hyperprior_besag::Pb
@@ -37,9 +37,9 @@ struct BYM{Pv <: AbstractHyperPrior, Pb <: AbstractHyperPrior,
 end
 
 function BYM(graph::GMRFs.AbstractGMRFGraph;
-             hyperprior_iid::AbstractHyperPrior = PCPrecision(),
-             hyperprior_besag::AbstractHyperPrior = PCPrecision(),
-             scale_model::Bool = true)
+        hyperprior_iid::AbstractHyperPrior=PCPrecision(),
+        hyperprior_besag::AbstractHyperPrior=PCPrecision(),
+        scale_model::Bool=true)
     return BYM(graph, hyperprior_iid, hyperprior_besag, scale_model)
 end
 
@@ -66,10 +66,14 @@ function precision_matrix(c::BYM, θ)
         R_scaled = L
     end
 
-    Is = Int[]; Js = Int[]; Vs = Float64[]
+    Is = Int[]
+    Js = Int[]
+    Vs = Float64[]
     # Q_11 = τ_v · I_n
     for i in 1:n
-        push!(Is, i); push!(Js, i); push!(Vs, τ_v)
+        push!(Is, i)
+        push!(Js, i)
+        push!(Vs, τ_v)
     end
     # Q_22 = τ_b · R_scaled
     rows = rowvals(R_scaled)

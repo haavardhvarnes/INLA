@@ -56,9 +56,9 @@ Build a sparse barycentric projector from `mesh` to the points in
 function MeshProjector(
         mesh::INLAMesh,
         locations;
-        outside::Symbol = :error,
-        atol::Real = 0.0,
-    )
+        outside::Symbol=:error,
+        atol::Real=0.0
+)
     loc_m = _as_location_matrix(locations)
     loc_m === nothing &&
         throw(ArgumentError("locations is required; got nothing"))
@@ -74,7 +74,9 @@ function MeshProjector(
     n_v = size(mesh.points, 1)
     locs = Matrix{T}(loc_m)
 
-    Is = Int[]; Js = Int[]; Vs = T[]
+    Is = Int[]
+    Js = Int[]
+    Vs = T[]
     sizehint!(Is, 3 * n_obs)
     sizehint!(Js, 3 * n_obs)
     sizehint!(Vs, 3 * n_obs)
@@ -82,7 +84,8 @@ function MeshProjector(
     tri = mesh.triangulation
     dt2m = mesh.dt_to_mesh
     for i in 1:n_obs
-        x = locs[i, 1]; y = locs[i, 2]
+        x = locs[i, 1]
+        y = locs[i, 2]
         Tri = DelaunayTriangulation.find_triangle(tri, (Float64(x), Float64(y)))
         if DelaunayTriangulation.is_ghost_triangle(Tri)
             outside === :error &&
@@ -90,12 +93,14 @@ function MeshProjector(
             continue  # :zero — leave row empty
         end
 
-        v1 = dt2m[Tri[1]]; v2 = dt2m[Tri[2]]; v3 = dt2m[Tri[3]]
+        v1 = dt2m[Tri[1]]
+        v2 = dt2m[Tri[2]]
+        v3 = dt2m[Tri[3]]
         λ1, λ2, λ3 = _barycentric(
             x, y,
             mesh.points[v1, 1], mesh.points[v1, 2],
             mesh.points[v2, 1], mesh.points[v2, 2],
-            mesh.points[v3, 1], mesh.points[v3, 2],
+            mesh.points[v3, 1], mesh.points[v3, 2]
         )
 
         if atol > 0 && (λ1 < -atol || λ2 < -atol || λ3 < -atol)
@@ -104,9 +109,15 @@ function MeshProjector(
             continue
         end
 
-        push!(Is, i); push!(Js, v1); push!(Vs, λ1)
-        push!(Is, i); push!(Js, v2); push!(Vs, λ2)
-        push!(Is, i); push!(Js, v3); push!(Vs, λ3)
+        push!(Is, i)
+        push!(Js, v1)
+        push!(Vs, λ1)
+        push!(Is, i)
+        push!(Js, v2)
+        push!(Vs, λ2)
+        push!(Is, i)
+        push!(Js, v3)
+        push!(Vs, λ3)
     end
 
     A = sparse(Is, Js, Vs, n_obs, n_v)
@@ -139,12 +150,15 @@ SparseArrays.sparse(P::MeshProjector) = P.A
 Base.:*(P::MeshProjector, x::AbstractVector) = P.A * x
 Base.:*(P::MeshProjector, X::AbstractMatrix) = P.A * X
 
-LinearAlgebra.mul!(y::AbstractVecOrMat, P::MeshProjector, x::AbstractVecOrMat) =
+function LinearAlgebra.mul!(y::AbstractVecOrMat, P::MeshProjector, x::AbstractVecOrMat)
     mul!(y, P.A, x)
-LinearAlgebra.mul!(
-    y::AbstractVecOrMat, P::MeshProjector, x::AbstractVecOrMat,
-    α::Number, β::Number,
-) = mul!(y, P.A, x, α, β)
+end
+function LinearAlgebra.mul!(
+        y::AbstractVecOrMat, P::MeshProjector, x::AbstractVecOrMat,
+        α::Number, β::Number
+)
+    mul!(y, P.A, x, α, β)
+end
 
 function Base.show(io::IO, P::MeshProjector)
     n_obs, n_v = size(P.A)

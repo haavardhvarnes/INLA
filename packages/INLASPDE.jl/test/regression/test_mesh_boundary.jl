@@ -31,8 +31,8 @@ end
         @test size(expanded) == size(sq)
         # Each input edge sits δ inside the corresponding expanded edge.
         # Expanded square: corners at (-δ, -δ), (1+δ, -δ), (1+δ, 1+δ), (-δ, 1+δ).
-        expected = [-δ -δ; 1 + δ -δ; 1 + δ 1 + δ; -δ 1 + δ]
-        @test expanded ≈ expected rtol = 1.0e-12
+        expected = [-δ -δ; 1+δ -δ; 1+δ 1+δ; -δ 1+δ]
+        @test expanded≈expected rtol=1.0e-12
     end
 end
 
@@ -59,7 +59,7 @@ end
         # onto the outward normal.
         dx = expanded[i, 1] - tri[i, 1]
         dy = expanded[i, 2] - tri[i, 2]
-        @test dx * nx + dy * ny ≈ δ rtol = 1.0e-12
+        @test dx * nx + dy * ny≈δ rtol=1.0e-12
     end
 end
 

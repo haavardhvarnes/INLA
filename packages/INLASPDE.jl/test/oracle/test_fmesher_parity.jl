@@ -93,7 +93,7 @@ function _check_parity(tag, julia_mesh, fxt)
         @test max_edge_j ≤ 2.5 * max_edge_r
     end
     return (; nv_j, nt_j, min_ang_j, max_edge_j,
-              nv_r, min_ang_r, max_edge_r, rel_vcount = abs(nv_j - nv_r) / nv_r)
+        nv_r, min_ang_r, max_edge_r, rel_vcount=abs(nv_j - nv_r) / nv_r)
 end
 
 @testset "fmesher parity — unit square" begin
@@ -101,11 +101,11 @@ end
     boundary = fxt["boundary"]
     params = fxt["params"]
     mesh_j = inla_mesh_2d(;
-        boundary  = boundary,
-        max_edge  = params["max_edge"],
-        min_angle = params["min_angle"],
-        cutoff    = params["cutoff"],
-        offset    = params["offset"],
+        boundary=boundary,
+        max_edge=params["max_edge"],
+        min_angle=params["min_angle"],
+        cutoff=params["cutoff"],
+        offset=params["offset"]
     )
     _check_parity("unit_square", mesh_j, fxt)
 end
@@ -115,11 +115,11 @@ end
     boundary = fxt["boundary"]
     params = fxt["params"]
     mesh_j = inla_mesh_2d(;
-        boundary  = boundary,
-        max_edge  = params["max_edge"],
-        min_angle = params["min_angle"],
-        cutoff    = params["cutoff"],
-        offset    = params["offset"],
+        boundary=boundary,
+        max_edge=params["max_edge"],
+        min_angle=params["min_angle"],
+        cutoff=params["cutoff"],
+        offset=params["offset"]
     )
     _check_parity("lshape", mesh_j, fxt)
 end
@@ -129,11 +129,11 @@ end
     boundary = fxt["boundary"]
     params = fxt["params"]
     mesh_j = inla_mesh_2d(;
-        boundary  = boundary,
-        max_edge  = params["max_edge"],
-        min_angle = params["min_angle"],
-        cutoff    = params["cutoff"],
-        offset    = params["offset"],
+        boundary=boundary,
+        max_edge=params["max_edge"],
+        min_angle=params["min_angle"],
+        cutoff=params["cutoff"],
+        offset=params["offset"]
     )
     _check_parity("meuse_hull", mesh_j, fxt)
 end

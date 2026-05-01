@@ -8,10 +8,10 @@ using Test
 # is what locks down INLASPDE's surface.
 @testset "Aqua — INLASPDE" begin
     Aqua.test_all(INLASPDE;
-                   ambiguities = false,
-                   piracies    = (treat_as_own = [],),
-                   stale_deps  = true,
-                   deps_compat = (check_extras = false,))
+        ambiguities=false,
+        piracies=(treat_as_own=[],),
+        stale_deps=true,
+        deps_compat=(check_extras=false,))
     @testset "ambiguities (own package only)" begin
         Aqua.test_ambiguities(INLASPDE)
     end

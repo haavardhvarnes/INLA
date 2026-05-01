@@ -32,12 +32,14 @@ function _boundary_from_trait(::GeoInterface.PolygonTrait, g)
 end
 
 # Closed LineString / LinearRing — strip the repeating closing vertex.
-_boundary_from_trait(::GeoInterface.LineStringTrait, g)  = _ring_to_matrix(g)
-_boundary_from_trait(::GeoInterface.LinearRingTrait, g)  = _ring_to_matrix(g)
+_boundary_from_trait(::GeoInterface.LineStringTrait, g) = _ring_to_matrix(g)
+_boundary_from_trait(::GeoInterface.LinearRingTrait, g) = _ring_to_matrix(g)
 
-_boundary_from_trait(trait, g) = throw(ArgumentError(
-    "boundary geometry must have PolygonTrait or LineStringTrait; got $trait"
-))
+function _boundary_from_trait(trait, g)
+    throw(ArgumentError(
+        "boundary geometry must have PolygonTrait or LineStringTrait; got $trait"
+    ))
+end
 
 function _ring_to_matrix(ring)
     n = GeoInterface.npoint(ring)
@@ -86,9 +88,11 @@ function _locations_from_trait(::GeoInterface.PointTrait, g)
     return reshape(Float64[GeoInterface.x(g), GeoInterface.y(g)], 1, 2)
 end
 
-_locations_from_trait(trait, g) = throw(ArgumentError(
-    "locations geometry must have MultiPointTrait or PointTrait; got $trait"
-))
+function _locations_from_trait(trait, g)
+    throw(ArgumentError(
+        "locations geometry must have MultiPointTrait or PointTrait; got $trait"
+    ))
+end
 
 function _points_vec_to_matrix(v::AbstractVector)
     n = length(v)

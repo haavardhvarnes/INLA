@@ -5,7 +5,7 @@ using Rasters: Raster, X, Y
 
 @testset "quantile_rasters — mean/sd/lower/upper layout" begin
     sq = [0.1 0.1; 0.9 0.1; 0.9 0.9; 0.1 0.9]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.25, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.25, min_angle=25.0)
     n = num_vertices(mesh)
 
     mean = fill(3.0, n)
@@ -20,17 +20,17 @@ using Rasters: Raster, X, Y
 
     # Constant mean projects to constant raster.
     for v in parent(q.mean)
-        @test v ≈ 3.0 rtol = 1.0e-12
+        @test v≈3.0 rtol=1.0e-12
     end
     for v in parent(q.sd)
-        @test v ≈ 0.5 rtol = 1.0e-12
+        @test v≈0.5 rtol=1.0e-12
     end
     # Default z ≈ 1.96: lower ≈ 3 - 0.98, upper ≈ 3 + 0.98.
     for v in parent(q.lower)
-        @test v ≈ 3.0 - 1.959963984540054 * 0.5 rtol = 1.0e-12
+        @test v≈3.0 - 1.959963984540054 * 0.5 rtol=1.0e-12
     end
     for v in parent(q.upper)
-        @test v ≈ 3.0 + 1.959963984540054 * 0.5 rtol = 1.0e-12
+        @test v≈3.0 + 1.959963984540054 * 0.5 rtol=1.0e-12
     end
 end
 
@@ -39,7 +39,7 @@ end
     # vertex-level intervals, not a separate computation. Confirm this
     # explicitly.
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.3, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.3, min_angle=25.0)
     n = num_vertices(mesh)
 
     mean = [2.0 * p[1] + 1.0 for p in eachrow(mesh.points)]
@@ -50,12 +50,12 @@ end
     template = Raster(zeros(length(xs), length(ys)), (X(collect(xs)), Y(collect(ys))))
 
     z = 1.5
-    q = quantile_rasters(mean, sd, mesh, template; z = z)
+    q = quantile_rasters(mean, sd, mesh, template; z=z)
 
     lower_ref = predict_raster(mean .- z .* sd, mesh, template)
     upper_ref = predict_raster(mean .+ z .* sd, mesh, template)
-    @test parent(q.lower) ≈ parent(lower_ref) rtol = 1.0e-12
-    @test parent(q.upper) ≈ parent(upper_ref) rtol = 1.0e-12
+    @test parent(q.lower)≈parent(lower_ref) rtol=1.0e-12
+    @test parent(q.upper)≈parent(upper_ref) rtol=1.0e-12
     # Upper > lower everywhere (sd > 0, z > 0).
     @test all(parent(q.upper) .>= parent(q.lower))
 end
@@ -64,7 +64,7 @@ end
     # Mesh smaller than template; masked cells get missingval in all four
     # rasters.
     sq = [0.3 0.3; 0.7 0.3; 0.7 0.7; 0.3 0.7]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.15, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.15, min_angle=25.0)
     n = num_vertices(mesh)
 
     xs = 0.0:0.1:1.0
@@ -73,22 +73,22 @@ end
 
     q = quantile_rasters(
         fill(1.0, n), fill(0.25, n), mesh, template;
-        outside = :missing, missingval = -77.0,
+        outside=:missing, missingval=-77.0
     )
-    @test q.mean[X = 1, Y = 1] == -77.0
-    @test q.sd[X = 1, Y = 1] == -77.0
-    @test q.lower[X = 1, Y = 1] == -77.0
-    @test q.upper[X = 1, Y = 1] == -77.0
+    @test q.mean[X=1, Y=1] == -77.0
+    @test q.sd[X=1, Y=1] == -77.0
+    @test q.lower[X=1, Y=1] == -77.0
+    @test q.upper[X=1, Y=1] == -77.0
 end
 
 @testset "quantile_rasters — argument validation" begin
     sq = [0.0 0.0; 1.0 0.0; 1.0 1.0; 0.0 1.0]
-    mesh = inla_mesh_2d(; boundary = sq, max_edge = 0.4, min_angle = 25.0)
+    mesh = inla_mesh_2d(; boundary=sq, max_edge=0.4, min_angle=25.0)
     n = num_vertices(mesh)
     template = Raster(zeros(3, 3), (X(0.2:0.3:0.8), Y(0.2:0.3:0.8)))
 
     @test_throws ArgumentError quantile_rasters(ones(n - 1), ones(n), mesh, template)
     @test_throws ArgumentError quantile_rasters(ones(n), ones(n - 1), mesh, template)
     @test_throws ArgumentError quantile_rasters(ones(n), -ones(n), mesh, template)
-    @test_throws ArgumentError quantile_rasters(ones(n), ones(n), mesh, template; z = -1.0)
+    @test_throws ArgumentError quantile_rasters(ones(n), ones(n), mesh, template; z=-1.0)
 end

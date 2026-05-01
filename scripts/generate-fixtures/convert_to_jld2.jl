@@ -37,7 +37,7 @@ Convert a `{x, y}` marginal dict to a named tuple of vectors. Returns
 """
 function marginal_to_pair(m)
     m === nothing && return nothing
-    return (x = Float64.(m["x"]), y = Float64.(m["y"]))
+    return (x=Float64.(m["x"]), y=Float64.(m["y"]))
 end
 
 """
@@ -53,7 +53,9 @@ function convert_summary(s)
 end
 
 _materialize(v::JSON3.Array) = collect(v)
-_materialize(v::JSON3.Object) = Dict{String, Any}(String(k) => _materialize(vv) for (k, vv) in pairs(v))
+function _materialize(v::JSON3.Object)
+    Dict{String, Any}(String(k) => _materialize(vv) for (k, vv) in pairs(v))
+end
 _materialize(v) = v
 
 function convert_fixture(doc)
@@ -84,8 +86,9 @@ function convert_fixture(doc)
     if haskey(doc, "marginals_random")
         out["marginals_random"] = Dict{String, Any}(
             String(k) => (v === nothing ? nothing :
-                          Dict{String, Any}(String(kk) => marginal_to_pair(vv) for (kk, vv) in pairs(v)))
-            for (k, v) in pairs(doc["marginals_random"])
+                          Dict{String, Any}(String(kk) => marginal_to_pair(vv)
+            for (kk, vv) in pairs(v)))
+        for (k, v) in pairs(doc["marginals_random"])
         )
     end
 
@@ -181,7 +184,7 @@ function _convert_mesh(m)
         "n_vertices" => Int(m["n_vertices"]),
         "n_triangles" => Int(m["n_triangles"]),
         "min_angle_deg" => Float64(m["min_angle_deg"]),
-        "max_edge" => Float64(m["max_edge"]),
+        "max_edge" => Float64(m["max_edge"])
     )
 end
 

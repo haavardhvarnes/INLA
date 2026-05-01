@@ -43,20 +43,20 @@ LGMs a few hundred adapts and a few hundred kept draws is enough for
 the tier-3 mean / sd cross-check.
 """
 function nuts_sample(model::LatentGaussianModel, y, n_samples::Integer;
-                     n_adapts::Integer = div(n_samples, 2),
-                     init_θ::Union{Nothing, AbstractVector{<:Real}} = nothing,
-                     init_from_inla::Union{Nothing, INLAResult} = nothing,
-                     target_acceptance::Real = 0.8,
-                     rng::AbstractRNG = default_rng(),
-                     laplace::Laplace = Laplace(),
-                     drop_warmup::Bool = true,
-                     progress::Bool = false)
+        n_adapts::Integer=div(n_samples, 2),
+        init_θ::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        init_from_inla::Union{Nothing, INLAResult}=nothing,
+        target_acceptance::Real=0.8,
+        rng::AbstractRNG=default_rng(),
+        laplace::Laplace=Laplace(),
+        drop_warmup::Bool=true,
+        progress::Bool=false)
     n_samples ≥ 1 || throw(ArgumentError("n_samples must be ≥ 1"))
-    n_adapts ≥ 0  || throw(ArgumentError("n_adapts must be ≥ 0"))
+    n_adapts ≥ 0 || throw(ArgumentError("n_adapts must be ≥ 0"))
     0 < target_acceptance < 1 ||
         throw(ArgumentError("target_acceptance must be in (0, 1)"))
 
-    ld = INLALogDensity(model, y; laplace = laplace)
+    ld = INLALogDensity(model, y; laplace=laplace)
     D = LogDensityProblems.dimension(ld)
 
     init = if init_θ !== nothing
@@ -80,18 +80,18 @@ function nuts_sample(model::LatentGaussianModel, y, n_samples::Integer;
     integrator = Leapfrog(ϵ0)
     kernel = AdvancedHMC.HMCKernel(
         AdvancedHMC.Trajectory{AdvancedHMC.MultinomialTS}(
-            integrator, GeneralisedNoUTurn()))
+        integrator, GeneralisedNoUTurn()))
     adaptor = StanHMCAdaptor(MassMatrixAdaptor(metric),
-                              StepSizeAdaptor(target_acceptance, integrator))
+        StepSizeAdaptor(target_acceptance, integrator))
 
     # AdvancedHMC's `n_samples` is total iterations including warmup; we
     # want `n_samples` to mean kept-post-warmup samples (Stan convention).
     total = drop_warmup ? n_adapts + n_samples : n_samples
     samples, _stats = AdvancedHMC.sample(rng, hamiltonian, kernel, init,
-                                         total, adaptor, n_adapts;
-                                         drop_warmup = drop_warmup,
-                                         verbose     = false,
-                                         progress    = progress)
+        total, adaptor, n_adapts;
+        drop_warmup=drop_warmup,
+        verbose=false,
+        progress=progress)
 
     n_kept = length(samples)
     arr = Array{Float64, 3}(undef, n_kept, D, 1)

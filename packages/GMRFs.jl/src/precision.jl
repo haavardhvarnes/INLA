@@ -55,13 +55,17 @@ This is a utility for tests and for bespoke precision structures; most
 concrete GMRFs in this package build their own sparse matrix directly.
 """
 function tabulated_precision(n::Integer, qfunc;
-                             pattern_edges = Tuple{Int, Int}[])
-    Is = Int[]; Js = Int[]; Vs = Float64[]
+        pattern_edges=Tuple{Int, Int}[])
+    Is = Int[]
+    Js = Int[]
+    Vs = Float64[]
     # diagonal
     for i in 1:n
         v = qfunc(i, i)
         if !iszero(v)
-            push!(Is, i); push!(Js, i); push!(Vs, float(v))
+            push!(Is, i)
+            push!(Js, i)
+            push!(Vs, float(v))
         end
     end
     # off-diagonal: symmetric pair
@@ -69,8 +73,12 @@ function tabulated_precision(n::Integer, qfunc;
         i < j || throw(ArgumentError("pattern_edges must have i<j, got ($i,$j)"))
         v = qfunc(i, j)
         if !iszero(v)
-            push!(Is, i); push!(Js, j); push!(Vs, float(v))
-            push!(Is, j); push!(Js, i); push!(Vs, float(v))
+            push!(Is, i)
+            push!(Js, j)
+            push!(Vs, float(v))
+            push!(Is, j)
+            push!(Js, i)
+            push!(Vs, float(v))
         end
     end
     return SymmetricQ(sparse(Is, Js, Vs, n, n))

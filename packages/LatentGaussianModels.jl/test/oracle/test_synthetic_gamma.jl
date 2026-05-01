@@ -13,14 +13,14 @@ include("load_fixture.jl")
 using Test
 using SparseArrays
 using LatentGaussianModels: GammaLikelihood, Intercept, FixedEffects,
-    LatentGaussianModel, inla, fixed_effects, hyperparameters,
-    log_marginal_likelihood
+                            LatentGaussianModel, inla, fixed_effects, hyperparameters,
+                            log_marginal_likelihood
 
 const GAMMA_FIXTURE = "synthetic_gamma"
 
 const GAMMA_FIXED_EFFECT_TOL = 0.05
-const GAMMA_PHI_REL_TOL      = 0.15
-const GAMMA_MLIK_REL_TOL     = 0.05
+const GAMMA_PHI_REL_TOL = 0.15
+const GAMMA_MLIK_REL_TOL = 0.05
 
 _rel_gamma(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -51,12 +51,12 @@ end
             n = length(y)
 
             ℓ = GammaLikelihood()
-            c_int  = Intercept()
+            c_int = Intercept()
             c_beta = FixedEffects(1)
             A = sparse(hcat(ones(n), reshape(x, n, 1)))
             model = LatentGaussianModel(ℓ, (c_int, c_beta), A)
 
-            res = inla(model, y; int_strategy = :grid)
+            res = inla(model, y; int_strategy=:grid)
 
             # --- Fixed effects ------------------------------------------------
             sf = fx["summary_fixed"]
@@ -72,7 +72,8 @@ end
             # R-INLA labels this "Precision-parameter for the Gamma observations".
             # Our internal scale is log(φ).
             sh = fx["summary_hyperpar"]
-            phi_R = _gamma_row_value(sh, "Precision-parameter for the Gamma observations", "mean")
+            phi_R = _gamma_row_value(
+                sh, "Precision-parameter for the Gamma observations", "mean")
             phi_J = exp(res.θ̂[1])
             @test _rel_gamma(phi_J, phi_R) < GAMMA_PHI_REL_TOL
 

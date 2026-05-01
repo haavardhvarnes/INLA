@@ -36,13 +36,14 @@ using LinearAlgebra: I
 using Dates: now, UTC
 
 using LatentGaussianModels:
-    GaussianLikelihood, PoissonLikelihood, NegativeBinomialLikelihood,
-    GammaLikelihood,
-    Intercept, FixedEffects, Seasonal, Besag, BYM, BYM2, Leroux,
-    Generic0, Generic1,
-    PCPrecision, GammaPrecision, LogitBeta,
-    LatentGaussianModel, inla, empirical_bayes,
-    fixed_effects, hyperparameters, log_marginal_likelihood
+                            GaussianLikelihood, PoissonLikelihood,
+                            NegativeBinomialLikelihood,
+                            GammaLikelihood,
+                            Intercept, FixedEffects, Seasonal, Besag, BYM, BYM2, Leroux,
+                            Generic0, Generic1,
+                            PCPrecision, GammaPrecision, LogitBeta,
+                            LatentGaussianModel, inla, empirical_bayes,
+                            fixed_effects, hyperparameters, log_marginal_likelihood
 using GMRFs: GMRFGraph
 
 using INLASPDE: SPDE2, PCMatern, spde_user_scale
@@ -52,14 +53,12 @@ using INLASPDE: SPDE2, PCMatern, spde_user_scale
 # ---------------------------------------------------------------------
 
 const REPO_ROOT = normpath(joinpath(@__DIR__, ".."))
-const LGM_FIXTURE_DIR =
-    joinpath(REPO_ROOT, "packages", "LatentGaussianModels.jl",
-             "test", "oracle", "fixtures")
-const SPDE_FIXTURE_DIR =
-    joinpath(REPO_ROOT, "packages", "INLASPDE.jl",
-             "test", "oracle", "fixtures")
+const LGM_FIXTURE_DIR = joinpath(REPO_ROOT, "packages", "LatentGaussianModels.jl",
+    "test", "oracle", "fixtures")
+const SPDE_FIXTURE_DIR = joinpath(REPO_ROOT, "packages", "INLASPDE.jl",
+    "test", "oracle", "fixtures")
 const OUTPUT_JSON = joinpath(@__DIR__, "oracle_compare_julia.json")
-const OUTPUT_MD   = joinpath(@__DIR__, "oracle_compare_julia.md")
+const OUTPUT_MD = joinpath(@__DIR__, "oracle_compare_julia.md")
 
 # ---------------------------------------------------------------------
 # Fixture utilities
@@ -109,15 +108,15 @@ function build_scotland_bym2(inp)
     x = Float64.(inp["x"])
     W = inp["W"]
     n = length(y)
-    ℓ = PoissonLikelihood(; E = E)
-    c_int  = Intercept()
+    ℓ = PoissonLikelihood(; E=E)
+    c_int = Intercept()
     c_beta = FixedEffects(1)
-    c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec = PCPrecision(1.0, 0.01))
+    c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec=PCPrecision(1.0, 0.01))
     A = sparse(hcat(
         ones(n),
         reshape(x, n, 1),
         Matrix{Float64}(I, n, n),
-        zeros(n, n),
+        zeros(n, n)
     ))
     model = LatentGaussianModel(ℓ, (c_int, c_beta, c_bym2), A)
     fixed_pairs = [(1, "(Intercept)"), (2, "x")]
@@ -131,23 +130,23 @@ function build_scotland_bym(inp)
     x = Float64.(inp["x"])
     W = inp["W"]
     n = length(y)
-    ℓ = PoissonLikelihood(; E = E)
-    c_int  = Intercept()
+    ℓ = PoissonLikelihood(; E=E)
+    c_int = Intercept()
     c_beta = FixedEffects(1)
-    c_bym  = BYM(GMRFGraph(W);
-                 hyperprior_iid   = PCPrecision(1.0, 0.01),
-                 hyperprior_besag = PCPrecision(1.0, 0.01))
+    c_bym = BYM(GMRFGraph(W);
+        hyperprior_iid=PCPrecision(1.0, 0.01),
+        hyperprior_besag=PCPrecision(1.0, 0.01))
     A = sparse(hcat(
         ones(n),
         reshape(x, n, 1),
         Matrix{Float64}(I, n, n),
-        Matrix{Float64}(I, n, n),
+        Matrix{Float64}(I, n, n)
     ))
     model = LatentGaussianModel(ℓ, (c_int, c_beta, c_bym), A)
     fixed_pairs = [(1, "(Intercept)"), (2, "x")]
     hyper_pairs = [
         (θ -> exp(θ[1]), "Precision for region (iid component)"),
-        (θ -> exp(θ[2]), "Precision for region (spatial component)"),
+        (θ -> exp(θ[2]), "Precision for region (spatial component)")
     ]
     return (; model, y, n, fixed_pairs, hyper_pairs)
 end
@@ -158,15 +157,15 @@ function build_pennsylvania_bym2(inp)
     x = Float64.(inp["x"])
     W = inp["W"]
     n = length(y)
-    ℓ = PoissonLikelihood(; E = E)
-    c_int  = Intercept()
+    ℓ = PoissonLikelihood(; E=E)
+    c_int = Intercept()
     c_beta = FixedEffects(1)
-    c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec = PCPrecision(1.0, 0.01))
+    c_bym2 = BYM2(GMRFGraph(W); hyperprior_prec=PCPrecision(1.0, 0.01))
     A = sparse(hcat(
         ones(n),
         reshape(x, n, 1),
         Matrix{Float64}(I, n, n),
-        zeros(n, n),
+        zeros(n, n)
     ))
     model = LatentGaussianModel(ℓ, (c_int, c_beta, c_bym2), A)
     fixed_pairs = [(1, "(Intercept)"), (2, "x")]
@@ -179,33 +178,33 @@ function build_synthetic_gamma(inp)
     x = Float64.(inp["x"])
     n = length(y)
     ℓ = GammaLikelihood()
-    c_int  = Intercept()
+    c_int = Intercept()
     c_beta = FixedEffects(1)
     A = sparse(hcat(ones(n), reshape(x, n, 1)))
     model = LatentGaussianModel(ℓ, (c_int, c_beta), A)
     fixed_pairs = [(1, "(Intercept)"), (2, "x")]
     hyper_pairs = [
-        (θ -> exp(θ[1]), "Precision-parameter for the Gamma observations"),
+        (θ -> exp(θ[1]), "Precision-parameter for the Gamma observations")
     ]
     return (; model, y, n, fixed_pairs, hyper_pairs)
 end
 
 function build_synthetic_seasonal(inp)
-    n      = Int(inp["n"])
+    n = Int(inp["n"])
     period = Int(inp["period"])
-    y      = Float64.(inp["y"])
-    ℓ = GaussianLikelihood(hyperprior = GammaPrecision(1.0, 5.0e-5))
+    y = Float64.(inp["y"])
+    ℓ = GaussianLikelihood(hyperprior=GammaPrecision(1.0, 5.0e-5))
     α = Intercept()
-    seas = Seasonal(n; period = period,
-                    hyperprior = GammaPrecision(1.0, 5.0e-5))
-    A_α    = sparse(ones(n, 1))
+    seas = Seasonal(n; period=period,
+        hyperprior=GammaPrecision(1.0, 5.0e-5))
+    A_α = sparse(ones(n, 1))
     A_seas = sparse(I, n, n)
-    A      = hcat(A_α, A_seas)
+    A = hcat(A_α, A_seas)
     model = LatentGaussianModel(ℓ, (α, seas), A)
     fixed_pairs = [(1, "(Intercept)")]
     hyper_pairs = [
         (θ -> exp(θ[1]), "Precision for the Gaussian observations"),
-        (θ -> exp(θ[2]), "Precision for t"),
+        (θ -> exp(θ[2]), "Precision for t")
     ]
     return (; model, y, n, fixed_pairs, hyper_pairs)
 end
@@ -213,69 +212,69 @@ end
 function build_synthetic_generic0(inp)
     n_obs = Int(inp["n_obs"])
     n_lat = Int(inp["n_lat"])
-    y     = Float64.(inp["y"])
+    y = Float64.(inp["y"])
     A_vec = Float64.(inp["A"])
     A_dense = reshape(A_vec, n_lat, n_obs)'
     A = sparse(Matrix{Float64}(A_dense))
     C = SparseMatrixCSC{Float64, Int}(inp["C"])
-    ℓ = GaussianLikelihood(hyperprior = GammaPrecision(1.0, 5.0e-5))
-    c_g0 = Generic0(C; rankdef = 0,
-                    hyperprior = GammaPrecision(1.0, 5.0e-5))
+    ℓ = GaussianLikelihood(hyperprior=GammaPrecision(1.0, 5.0e-5))
+    c_g0 = Generic0(C; rankdef=0,
+        hyperprior=GammaPrecision(1.0, 5.0e-5))
     model = LatentGaussianModel(ℓ, (c_g0,), A)
     fixed_pairs = Tuple{Int, String}[]
     hyper_pairs = [
         (θ -> exp(θ[1]), "Precision for the Gaussian observations"),
-        (θ -> exp(θ[2]), "Precision for idx"),
+        (θ -> exp(θ[2]), "Precision for idx")
     ]
-    return (; model, y, n = n_obs, fixed_pairs, hyper_pairs)
+    return (; model, y, n=n_obs, fixed_pairs, hyper_pairs)
 end
 
 function build_synthetic_generic1(inp)
     n_obs = Int(inp["n_obs"])
     n_lat = Int(inp["n_lat"])
-    y     = Float64.(inp["y"])
+    y = Float64.(inp["y"])
     A_vec = Float64.(inp["A"])
     A_dense = reshape(A_vec, n_lat, n_obs)'
     A = sparse(Matrix{Float64}(A_dense))
     C = SparseMatrixCSC{Float64, Int}(inp["C"])
-    ℓ = GaussianLikelihood(hyperprior = GammaPrecision(1.0, 5.0e-5))
-    c_g1 = Generic1(C; rankdef = 0,
-                    hyperprior = GammaPrecision(1.0, 5.0e-5))
+    ℓ = GaussianLikelihood(hyperprior=GammaPrecision(1.0, 5.0e-5))
+    c_g1 = Generic1(C; rankdef=0,
+        hyperprior=GammaPrecision(1.0, 5.0e-5))
     model = LatentGaussianModel(ℓ, (c_g1,), A)
     fixed_pairs = Tuple{Int, String}[]
     hyper_pairs = [
         (θ -> exp(θ[1]), "Precision for the Gaussian observations"),
-        (θ -> exp(θ[2]), "Precision for idx"),
+        (θ -> exp(θ[2]), "Precision for idx")
     ]
-    return (; model, y, n = n_obs, fixed_pairs, hyper_pairs)
+    return (; model, y, n=n_obs, fixed_pairs, hyper_pairs)
 end
 
 function build_synthetic_leroux(inp)
-    n      = Int(inp["n"])
-    n_obs  = Int(inp["n_obs"])
-    y      = Float64.(inp["y"])
+    n = Int(inp["n"])
+    n_obs = Int(inp["n_obs"])
+    y = Float64.(inp["y"])
     region = Int.(inp["region"])
-    W      = SparseMatrixCSC{Float64, Int}(inp["W"])
-    ℓ = GaussianLikelihood(hyperprior = GammaPrecision(1.0, 5.0e-5))
+    W = SparseMatrixCSC{Float64, Int}(inp["W"])
+    ℓ = GaussianLikelihood(hyperprior=GammaPrecision(1.0, 5.0e-5))
     α = Intercept()
     lrx = Leroux(GMRFGraph(W);
-                 hyperprior_tau = PCPrecision(1.0, 0.01),
-                 hyperprior_rho = LogitBeta(1.0, 1.0))
-    rows_α    = collect(1:n_obs)
-    cols_α    = ones(Int, n_obs)
-    A_α       = sparse(rows_α, cols_α, ones(Float64, n_obs), n_obs, 1)
-    rows_lrx  = collect(1:n_obs)
-    cols_lrx  = region
-    A_lrx     = sparse(rows_lrx, cols_lrx, ones(Float64, n_obs), n_obs, n)
-    A         = hcat(A_α, A_lrx)
+        hyperprior_tau=PCPrecision(1.0, 0.01),
+        hyperprior_rho=LogitBeta(1.0, 1.0))
+    rows_α = collect(1:n_obs)
+    cols_α = ones(Int, n_obs)
+    A_α = sparse(rows_α, cols_α, ones(Float64, n_obs), n_obs, 1)
+    rows_lrx = collect(1:n_obs)
+    cols_lrx = region
+    A_lrx = sparse(rows_lrx, cols_lrx, ones(Float64, n_obs), n_obs, n)
+    A = hcat(A_α, A_lrx)
     model = LatentGaussianModel(ℓ, (α, lrx), A)
     fixed_pairs = [(1, "(Intercept)")]
     hyper_pairs = [
         (θ -> exp(θ[1]), "Precision for the Gaussian observations"),
         (θ -> exp(θ[2]), "Precision for region"),
-        (θ -> inv(1 + exp(-θ[3])), "Lambda for region"),
+        (θ -> inv(1 + exp(-θ[3])), "Lambda for region")
     ]
-    return (; model, y, n = n_obs, fixed_pairs, hyper_pairs)
+    return (; model, y, n=n_obs, fixed_pairs, hyper_pairs)
 end
 
 function build_synthetic_nbinomial(inp)
@@ -283,14 +282,14 @@ function build_synthetic_nbinomial(inp)
     x = Float64.(inp["x"])
     n = length(y)
     ℓ = NegativeBinomialLikelihood()
-    c_int  = Intercept()
+    c_int = Intercept()
     c_beta = FixedEffects(1)
     A = sparse(hcat(ones(n), reshape(x, n, 1)))
     model = LatentGaussianModel(ℓ, (c_int, c_beta), A)
     fixed_pairs = [(1, "(Intercept)"), (2, "x")]
     hyper_pairs = [
         (θ -> exp(θ[1]),
-         "size for the nbinomial observations (1/overdispersion)"),
+        "size for the nbinomial observations (1/overdispersion)")
     ]
     return (; model, y, n, fixed_pairs, hyper_pairs)
 end
@@ -302,7 +301,7 @@ function build_synthetic_disconnected_besag(inp)
     graph = GMRFGraph(W)
     ℓ = PoissonLikelihood()
     c_int = Intercept()
-    c_b   = Besag(graph; hyperprior = PCPrecision(1.0, 0.01))
+    c_b = Besag(graph; hyperprior=PCPrecision(1.0, 0.01))
     A = sparse(hcat(ones(n), Matrix{Float64}(I, n, n)))
     model = LatentGaussianModel(ℓ, (c_int, c_b), A)
     fixed_pairs = [(1, "(Intercept)")]
@@ -314,24 +313,24 @@ function build_synthetic_disconnected_besag(inp)
 end
 
 function build_meuse_spde(fxt)
-    inp      = fxt["input"]
-    y        = Float64.(inp["y"])
+    inp = fxt["input"]
+    y = Float64.(inp["y"])
     dist_cov = Float64.(inp["dist"])
-    points   = fxt["mesh"]["loc"]::Matrix{Float64}
-    tv       = fxt["mesh"]["tv"]::Matrix{Int}
-    A_field  = SparseMatrixCSC{Float64, Int}(fxt["A_field"])
+    points = fxt["mesh"]["loc"]::Matrix{Float64}
+    tv = fxt["mesh"]["tv"]::Matrix{Int}
+    A_field = SparseMatrixCSC{Float64, Int}(fxt["A_field"])
     n_obs = length(y)
-    spde = SPDE2(points, tv; α = 2,
-        pc = PCMatern(
-            range_U = 0.5, range_α = 0.5,
-            sigma_U = 1.0, sigma_α = 0.5,
+    spde = SPDE2(points, tv; α=2,
+        pc=PCMatern(
+            range_U=0.5, range_α=0.5,
+            sigma_U=1.0, sigma_α=0.5
         ))
-    intercept = Intercept(prec = 1.0e-3)
-    beta_dist = FixedEffects(1; prec = 1.0e-3)
+    intercept = Intercept(prec=1.0e-3)
+    beta_dist = FixedEffects(1; prec=1.0e-3)
     A_intercept = ones(n_obs, 1)
-    A_dist      = reshape(dist_cov, n_obs, 1)
+    A_dist = reshape(dist_cov, n_obs, 1)
     A = hcat(A_intercept, A_dist, A_field)
-    like  = GaussianLikelihood(hyperprior = PCPrecision(1.0, 0.01))
+    like = GaussianLikelihood(hyperprior=PCPrecision(1.0, 0.01))
     model = LatentGaussianModel(like, (intercept, beta_dist, spde), A)
     fixed_pairs = [(1, "intercept"), (2, "dist")]
     # Closure over `spde` for the user-scale conversion.
@@ -339,10 +338,10 @@ function build_meuse_spde(fxt)
     sigma_fn(θ) = spde_user_scale(spde, θ[2:3])[2]
     hyper_pairs = [
         (θ -> exp(θ[1]), "Precision for the Gaussian observations"),
-        (range_fn,       "Range for field"),
-        (sigma_fn,       "Stdev for field"),
+        (range_fn, "Range for field"),
+        (sigma_fn, "Stdev for field")
     ]
-    return (; model, y, n = n_obs, fixed_pairs, hyper_pairs)
+    return (; model, y, n=n_obs, fixed_pairs, hyper_pairs)
 end
 
 # Registry — order matches the user-facing problem list. Each entry pins
@@ -350,51 +349,51 @@ end
 # (mirrors the matching test). The `int_strategy` is `:grid` for every
 # LGM oracle and `:auto` (the default) for Meuse SPDE — match the test.
 const PROBLEMS = [
-    (name = "scotland_bym2",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "scotland_bym2.jld2"),
-     builder = (fx) -> build_scotland_bym2(fx["input"]),
-     int_strategy = :grid),
-    (name = "scotland_bym",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "scotland_bym.jld2"),
-     builder = (fx) -> build_scotland_bym(fx["input"]),
-     int_strategy = :grid),
-    (name = "pennsylvania_bym2",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "pennsylvania_bym2.jld2"),
-     builder = (fx) -> build_pennsylvania_bym2(fx["input"]),
-     int_strategy = :grid),
-    (name = "synthetic_gamma",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "synthetic_gamma.jld2"),
-     builder = (fx) -> build_synthetic_gamma(fx["input"]),
-     int_strategy = :grid),
-    (name = "synthetic_seasonal",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "synthetic_seasonal.jld2"),
-     builder = (fx) -> build_synthetic_seasonal(fx["input"]),
-     int_strategy = :grid),
-    (name = "synthetic_generic0",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "synthetic_generic0.jld2"),
-     builder = (fx) -> build_synthetic_generic0(fx["input"]),
-     int_strategy = :grid),
-    (name = "synthetic_generic1",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "synthetic_generic1.jld2"),
-     builder = (fx) -> build_synthetic_generic1(fx["input"]),
-     int_strategy = :grid),
-    (name = "synthetic_leroux",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "synthetic_leroux.jld2"),
-     builder = (fx) -> build_synthetic_leroux(fx["input"]),
-     int_strategy = :grid),
-    (name = "synthetic_nbinomial",
-     fixture_path = joinpath(LGM_FIXTURE_DIR, "synthetic_nbinomial.jld2"),
-     builder = (fx) -> build_synthetic_nbinomial(fx["input"]),
-     int_strategy = :grid),
-    (name = "synthetic_disconnected_besag",
-     fixture_path = joinpath(LGM_FIXTURE_DIR,
-                             "synthetic_disconnected_besag.jld2"),
-     builder = (fx) -> build_synthetic_disconnected_besag(fx["input"]),
-     int_strategy = :grid),
-    (name = "meuse_spde",
-     fixture_path = joinpath(SPDE_FIXTURE_DIR, "meuse_spde.jld2"),
-     builder = (fx) -> build_meuse_spde(fx),
-     int_strategy = :auto),
+    (name="scotland_bym2",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "scotland_bym2.jld2"),
+        builder=(fx) -> build_scotland_bym2(fx["input"]),
+        int_strategy=:grid),
+    (name="scotland_bym",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "scotland_bym.jld2"),
+        builder=(fx) -> build_scotland_bym(fx["input"]),
+        int_strategy=:grid),
+    (name="pennsylvania_bym2",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "pennsylvania_bym2.jld2"),
+        builder=(fx) -> build_pennsylvania_bym2(fx["input"]),
+        int_strategy=:grid),
+    (name="synthetic_gamma",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "synthetic_gamma.jld2"),
+        builder=(fx) -> build_synthetic_gamma(fx["input"]),
+        int_strategy=:grid),
+    (name="synthetic_seasonal",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "synthetic_seasonal.jld2"),
+        builder=(fx) -> build_synthetic_seasonal(fx["input"]),
+        int_strategy=:grid),
+    (name="synthetic_generic0",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "synthetic_generic0.jld2"),
+        builder=(fx) -> build_synthetic_generic0(fx["input"]),
+        int_strategy=:grid),
+    (name="synthetic_generic1",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "synthetic_generic1.jld2"),
+        builder=(fx) -> build_synthetic_generic1(fx["input"]),
+        int_strategy=:grid),
+    (name="synthetic_leroux",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "synthetic_leroux.jld2"),
+        builder=(fx) -> build_synthetic_leroux(fx["input"]),
+        int_strategy=:grid),
+    (name="synthetic_nbinomial",
+        fixture_path=joinpath(LGM_FIXTURE_DIR, "synthetic_nbinomial.jld2"),
+        builder=(fx) -> build_synthetic_nbinomial(fx["input"]),
+        int_strategy=:grid),
+    (name="synthetic_disconnected_besag",
+        fixture_path=joinpath(LGM_FIXTURE_DIR,
+            "synthetic_disconnected_besag.jld2"),
+        builder=(fx) -> build_synthetic_disconnected_besag(fx["input"]),
+        int_strategy=:grid),
+    (name="meuse_spde",
+        fixture_path=joinpath(SPDE_FIXTURE_DIR, "meuse_spde.jld2"),
+        builder=(fx) -> build_meuse_spde(fx),
+        int_strategy=:auto)
 ]
 
 # ---------------------------------------------------------------------
@@ -421,9 +420,9 @@ function run_problem(p::NamedTuple)
     if fx === nothing
         @warn "fixture missing — skipping $(p.name): $(p.fixture_path)"
         return (
-            problem = p.name,
-            status  = "skipped",
-            reason  = "fixture not found at $(p.fixture_path)",
+            problem=p.name,
+            status="skipped",
+            reason="fixture not found at $(p.fixture_path)"
         )
     end
 
@@ -434,9 +433,9 @@ function run_problem(p::NamedTuple)
         msg = sprint(showerror, err)
         @warn "model build failed for $(p.name): $msg"
         return (
-            problem = p.name,
-            status  = "error",
-            error   = "build: $msg",
+            problem=p.name,
+            status="error",
+            error="build: $msg"
         )
     end
 
@@ -451,27 +450,27 @@ function run_problem(p::NamedTuple)
     # value)` form by calling the work in a helper that returns the
     # result alongside the elapsed time.
     t_warmup = NaN
-    t_inla   = NaN
-    t_eb     = NaN
-    res      = nothing
+    t_inla = NaN
+    t_eb = NaN
+    res = nothing
     try
         # Warmup discarded.
-        t_warmup = @elapsed inla(model, y; int_strategy = int_strategy)
+        t_warmup = @elapsed inla(model, y; int_strategy=int_strategy)
         # Timed run — capture into outer-scope `res` via Ref.
         ref = Ref{Any}(nothing)
         t_inla = @elapsed begin
-            ref[] = inla(model, y; int_strategy = int_strategy)
+            ref[] = inla(model, y; int_strategy=int_strategy)
         end
         res = ref[]
     catch err
         msg = sprint(showerror, err)
         @warn "inla failed for $(p.name): $msg"
         return (
-            problem = p.name,
-            status  = "error",
-            error   = "inla: $msg",
-            n       = n,
-            timings = (inla_warmup = t_warmup, inla = t_inla, empirical_bayes = t_eb),
+            problem=p.name,
+            status="error",
+            error="inla: $msg",
+            n=n,
+            timings=(inla_warmup=t_warmup, inla=t_inla, empirical_bayes=t_eb)
         )
     end
 
@@ -497,13 +496,13 @@ function run_problem(p::NamedTuple)
     for (idx, _) in fixed_pairs
         if idx <= length(fe)
             push!(julia_fixed,
-                  (name = fe[idx].name, mean = fe[idx].mean, sd = fe[idx].sd))
+                (name=fe[idx].name, mean=fe[idx].mean, sd=fe[idx].sd))
         end
     end
     julia_hyperpar = NamedTuple{(:rowname, :mean), Tuple{String, Float64}}[]
     for (transform, rowname) in hyper_pairs
         push!(julia_hyperpar,
-              (rowname = rowname, mean = Float64(transform(res.θ̂))))
+            (rowname=rowname, mean=Float64(transform(res.θ̂))))
     end
     julia_mlik = log_marginal_likelihood(res)
 
@@ -511,19 +510,20 @@ function run_problem(p::NamedTuple)
     sf = fx["summary_fixed"]
     sh = fx["summary_hyperpar"]
     r_fixed = NamedTuple{(:rowname, :mean, :sd),
-                         Tuple{String, Float64, Float64}}[]
+        Tuple{String, Float64, Float64}}[]
     for (_, rowname) in fixed_pairs
         m = _row_value(sf, rowname, "mean")
         s = _row_value(sf, rowname, "sd")
-        push!(r_fixed, (rowname = rowname,
-                        mean = m === nothing ? NaN : m,
-                        sd   = s === nothing ? NaN : s))
+        push!(r_fixed,
+            (rowname=rowname,
+                mean=m === nothing ? NaN : m,
+                sd=s === nothing ? NaN : s))
     end
     r_hyperpar = NamedTuple{(:rowname, :mean), Tuple{String, Float64}}[]
     for (_, rowname) in hyper_pairs
         m = _row_value(sh, rowname, "mean")
         push!(r_hyperpar,
-              (rowname = rowname, mean = m === nothing ? NaN : m))
+            (rowname=rowname, mean=m === nothing ? NaN : m))
     end
     r_mlik = haskey(fx, "mlik") ? Float64(fx["mlik"][1]) : NaN
 
@@ -540,20 +540,20 @@ function run_problem(p::NamedTuple)
     # ---- Deltas --------------------------------------------------------
     fe_rels = Float64[]
     fixed_deltas = NamedTuple{(:name, :rel),
-                              Tuple{String, Float64}}[]
+        Tuple{String, Float64}}[]
     for i in eachindex(julia_fixed)
         rel = _rel_fixed(julia_fixed[i].mean, r_fixed[i].mean)
         push!(fe_rels, rel)
-        push!(fixed_deltas, (name = julia_fixed[i].name, rel = rel))
+        push!(fixed_deltas, (name=julia_fixed[i].name, rel=rel))
     end
     hp_rels = Float64[]
     hyper_deltas = NamedTuple{(:rowname, :rel),
-                              Tuple{String, Float64}}[]
+        Tuple{String, Float64}}[]
     for i in eachindex(julia_hyperpar)
         rel = _rel_hyper(julia_hyperpar[i].mean, r_hyperpar[i].mean)
         push!(hp_rels, rel)
         push!(hyper_deltas,
-              (rowname = julia_hyperpar[i].rowname, rel = rel))
+            (rowname=julia_hyperpar[i].rowname, rel=rel))
     end
     mlik_abs = abs(julia_mlik - r_mlik)
     mlik_rel = isfinite(r_mlik) && r_mlik != 0.0 ?
@@ -562,28 +562,28 @@ function run_problem(p::NamedTuple)
     hyper_max_rel = isempty(hp_rels) ? NaN : maximum(hp_rels)
 
     return (
-        problem = p.name,
-        status  = "ok",
-        n       = n,
-        timings = (inla_warmup = t_warmup,
-                   inla        = t_inla,
-                   empirical_bayes = t_eb,
-                   r_inla       = r_inla_elapsed,
-                   speedup_vs_r = isfinite(r_inla_elapsed) && t_inla > 0 ?
-                                  r_inla_elapsed / t_inla : NaN),
-        julia = (fixed = julia_fixed,
-                 hyperpar = julia_hyperpar,
-                 mlik = julia_mlik,
-                 empirical_bayes_log_marginal = eb_log_marginal),
-        r = (fixed = r_fixed,
-             hyperpar = r_hyperpar,
-             mlik = r_mlik),
-        deltas = (fixed = fixed_deltas,
-                  hyperpar = hyper_deltas,
-                  mlik_abs = mlik_abs,
-                  mlik_rel = mlik_rel,
-                  fixed_max_rel = fixed_max_rel,
-                  hyperpar_max_rel = hyper_max_rel),
+        problem=p.name,
+        status="ok",
+        n=n,
+        timings=(inla_warmup=t_warmup,
+            inla=t_inla,
+            empirical_bayes=t_eb,
+            r_inla=r_inla_elapsed,
+            speedup_vs_r=isfinite(r_inla_elapsed) && t_inla > 0 ?
+                         r_inla_elapsed / t_inla : NaN),
+        julia=(fixed=julia_fixed,
+            hyperpar=julia_hyperpar,
+            mlik=julia_mlik,
+            empirical_bayes_log_marginal=eb_log_marginal),
+        r=(fixed=r_fixed,
+            hyperpar=r_hyperpar,
+            mlik=r_mlik),
+        deltas=(fixed=fixed_deltas,
+            hyperpar=hyper_deltas,
+            mlik_abs=mlik_abs,
+            mlik_rel=mlik_rel,
+            fixed_max_rel=fixed_max_rel,
+            hyperpar_max_rel=hyper_max_rel)
     )
 end
 
@@ -593,8 +593,10 @@ end
 
 # Format a maybe-NaN float for the markdown summary table. The fallback
 # string keeps the column widths even and makes "no data" obvious.
-_fmt(x; sigdigits = 4) = (x === nothing || !isfinite(x)) ?
-                         "—" : string(round(x; sigdigits = sigdigits))
+function _fmt(x; sigdigits=4)
+    (x === nothing || !isfinite(x)) ?
+    "—" : string(round(x; sigdigits=sigdigits))
+end
 
 function print_markdown_table(io::IO, results)
     println(io, "## Quality (relative error vs R-INLA fixture)")
@@ -607,10 +609,12 @@ function print_markdown_table(io::IO, results)
             continue
         elseif r.status == "error"
             err = haskey(r, :error) ? r.error : ""
-            println(io, "| $(r.problem) | $(get(r, :n, "—")) | — | — | — | _error: $(first(err, 40))_ |")
+            println(io,
+                "| $(r.problem) | $(get(r, :n, "—")) | — | — | — | _error: $(first(err, 40))_ |")
             continue
         end
-        println(io, "| $(r.problem) | $(r.n) | $(_fmt(r.deltas.fixed_max_rel)) | $(_fmt(r.deltas.hyperpar_max_rel)) | $(_fmt(r.deltas.mlik_rel)) | $(_fmt(r.deltas.mlik_abs)) |")
+        println(io,
+            "| $(r.problem) | $(r.n) | $(_fmt(r.deltas.fixed_max_rel)) | $(_fmt(r.deltas.hyperpar_max_rel)) | $(_fmt(r.deltas.mlik_rel)) | $(_fmt(r.deltas.mlik_abs)) |")
     end
 
     println(io)
@@ -623,7 +627,8 @@ function print_markdown_table(io::IO, results)
             println(io, "| $(r.problem) | — | — | — | — | — |")
             continue
         end
-        println(io, "| $(r.problem) | $(r.n) | $(_fmt(r.timings.inla)) | $(_fmt(r.timings.empirical_bayes)) | $(_fmt(r.timings.r_inla)) | $(_fmt(r.timings.speedup_vs_r; sigdigits=3)) |")
+        println(io,
+            "| $(r.problem) | $(r.n) | $(_fmt(r.timings.inla)) | $(_fmt(r.timings.empirical_bayes)) | $(_fmt(r.timings.r_inla)) | $(_fmt(r.timings.speedup_vs_r; sigdigits=3)) |")
     end
 end
 
@@ -636,13 +641,14 @@ end
 # Dict{String, Any}. Float NaN and ±Inf are emitted as `null` so the
 # output is strict JSON.
 
-_json_escape(s::AbstractString) =
+function _json_escape(s::AbstractString)
     replace(String(s),
-            '\\' => "\\\\",
-            '"' => "\\\"",
-            '\n' => "\\n",
-            '\r' => "\\r",
-            '\t' => "\\t")
+        '\\' => "\\\\",
+        '"' => "\\\"",
+        '\n' => "\\n",
+        '\r' => "\\r",
+        '\t' => "\\t")
+end
 
 function _json_value(io::IO, x)
     if x === nothing
@@ -701,10 +707,11 @@ function _json_object(io::IO, pairs_iter)
     return nothing
 end
 
-write_json(path::AbstractString, x) = open(path, "w") do io
-    _json_value(io, x)
-    print(io, "\n")
-end
+write_json(path::AbstractString, x) =
+    open(path, "w") do io
+        _json_value(io, x)
+        print(io, "\n")
+    end
 
 # ---------------------------------------------------------------------
 # Entrypoint
@@ -712,7 +719,7 @@ end
 
 function main()
     println(stderr, "[oracle_compare] running ", length(PROBLEMS),
-            " problems …")
+        " problems …")
     results = Any[]
     for p in PROBLEMS
         println(stderr, "[oracle_compare] -> ", p.name)
@@ -729,11 +736,11 @@ function main()
     print_markdown_table(stdout, results)
 
     write_json(OUTPUT_JSON,
-               (generated_at = string(now_utc()),
-                problems     = results))
+        (generated_at=string(now_utc()),
+            problems=results))
     open(OUTPUT_MD, "w") do io
         println(io, "*Auto-generated by `bench/oracle_compare.jl`. ",
-                "Last refreshed: ", string(now_utc()), " UTC.*")
+            "Last refreshed: ", string(now_utc()), " UTC.*")
         println(io)
         print_markdown_table(io, results)
     end

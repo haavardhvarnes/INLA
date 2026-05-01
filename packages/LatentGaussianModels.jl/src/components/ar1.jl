@@ -36,8 +36,8 @@ function log_prior_density(p::_NormalAR1ρ, θ)
 end
 
 function AR1(n::Integer;
-             precprior::AbstractHyperPrior = PCPrecision(),
-             ρprior::AbstractHyperPrior = _NormalAR1ρ(0.0, 1.0))
+        precprior::AbstractHyperPrior=PCPrecision(),
+        ρprior::AbstractHyperPrior=_NormalAR1ρ(0.0, 1.0))
     n ≥ 2 || throw(ArgumentError("AR1: n must be ≥ 2"))
     return AR1(Int(n), precprior, ρprior)
 end
@@ -49,7 +49,7 @@ initial_hyperparameters(::AR1) = [0.0, 0.0]   # log τ = 0, atanh ρ = 0 (ρ = 0
 function gmrf(c::AR1, θ)
     τ = exp(θ[1])
     ρ = tanh(θ[2])
-    return GMRFs.AR1GMRF(c.n; ρ = ρ, τ = τ)
+    return GMRFs.AR1GMRF(c.n; ρ=ρ, τ=τ)
 end
 
 precision_matrix(c::AR1, θ) = GMRFs.precision_matrix(gmrf(c, θ))

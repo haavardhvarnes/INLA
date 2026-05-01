@@ -138,8 +138,12 @@ function _adjacency(g::AbstractGraph)
     sizehint!(V, 2 * ne(g))
     for e in Graphs.edges(g)
         u, v = Graphs.src(e), Graphs.dst(e)
-        push!(I, u); push!(J, v); push!(V, true)
-        push!(I, v); push!(J, u); push!(V, true)
+        push!(I, u)
+        push!(J, v)
+        push!(V, true)
+        push!(I, v)
+        push!(J, u)
+        push!(V, true)
     end
     return sparse(I, J, V, n, n)
 end
@@ -147,7 +151,7 @@ end
 function _laplacian_from_adjacency(A::SparseMatrixCSC{Bool, Int})
     n = size(A, 1)
     # degrees = sum of Bool adjacency rows
-    deg = Int.(sum(A; dims = 2)[:, 1])
+    deg = Int.(sum(A; dims=2)[:, 1])
     # L = D - A, entries are integers (degree on diagonal, -1 on edges)
     return spdiagm(0 => deg) - convert(SparseMatrixCSC{Int, Int}, A)
 end

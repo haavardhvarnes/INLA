@@ -46,9 +46,9 @@ struct PCMatern{T <: Real}
 end
 
 function PCMatern(;
-        range_U::Real = 1.0, range_α::Real = 0.05,
-        sigma_U::Real = 1.0, sigma_α::Real = 0.01,
-    )
+        range_U::Real=1.0, range_α::Real=0.05,
+        sigma_U::Real=1.0, sigma_α::Real=0.01
+)
     range_U > 0 ||
         throw(ArgumentError("PCMatern: range_U must be positive; got $range_U"))
     sigma_U > 0 ||
@@ -59,13 +59,13 @@ function PCMatern(;
         throw(ArgumentError("PCMatern: sigma_α must be in (0, 1); got $sigma_α"))
     T = promote_type(
         typeof(float(range_U)), typeof(float(range_α)),
-        typeof(float(sigma_U)), typeof(float(sigma_α)),
+        typeof(float(sigma_U)), typeof(float(sigma_α))
     )
     d = 2
     λ_ρ = T(-log(range_α) * range_U^(d / 2))
     λ_σ = T(-log(sigma_α) / sigma_U)
     return PCMatern{T}(
-        T(range_U), T(range_α), T(sigma_U), T(sigma_α), λ_ρ, λ_σ,
+        T(range_U), T(range_α), T(sigma_U), T(sigma_α), λ_ρ, λ_σ
     )
 end
 

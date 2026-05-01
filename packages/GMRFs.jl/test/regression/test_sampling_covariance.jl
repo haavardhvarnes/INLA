@@ -15,10 +15,10 @@ using Statistics: cov, mean
     n = 4
     ρ = 0.5
     τ = 1.0
-    g = AR1GMRF(n; ρ = ρ, τ = τ)
+    g = AR1GMRF(n; ρ=ρ, τ=τ)
     N = 30_000
     S = reduce(hcat, rand(rng, g) for _ in 1:N)
-    C = cov(S; dims = 2)
+    C = cov(S; dims=2)
     Σ_expected = inv(Matrix(precision_matrix(g)))
     @test maximum(abs, C - Σ_expected) < 0.05
 end
@@ -27,15 +27,15 @@ end
     rng = MersenneTwister(31)
     n = 5
     τ = 1.0
-    g = RW1GMRF(n; τ = τ)
+    g = RW1GMRF(n; τ=τ)
     N = 30_000
     S = reduce(hcat, rand(rng, g) for _ in 1:N)
-    @test maximum(abs, mean(S; dims = 2)) < 0.05  # mean ~ 0
+    @test maximum(abs, mean(S; dims=2)) < 0.05  # mean ~ 0
 
     # Expected pseudo-inverse: project onto non-null subspace
     Q = Matrix(precision_matrix(g))
     V = null_space_basis(g)
     Σ_expected = inv(Q + V * V') - V * V'
-    C = cov(S; dims = 2)
+    C = cov(S; dims=2)
     @test maximum(abs, C - Σ_expected) < 0.1  # looser MC tolerance for intrinsic
 end

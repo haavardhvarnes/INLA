@@ -21,7 +21,7 @@ is `loggamma(1, 5e-5)` — pass `hyperprior = GammaPrecision(1.0, 5.0e-5)`
 to match.
 """
 struct Generic1{T <: Real, P <: AbstractHyperPrior,
-                C <: Union{NoConstraint, LinearConstraint}} <: AbstractLatentComponent
+    C <: Union{NoConstraint, LinearConstraint}} <: AbstractLatentComponent
     R::SparseMatrixCSC{T, Int}    # rescaled so λ_max(R) = 1
     rd::Int
     hyperprior::P
@@ -29,9 +29,9 @@ struct Generic1{T <: Real, P <: AbstractHyperPrior,
     λ_max_original::T             # λ_max(R) before rescaling
 end
 
-function Generic1(R::AbstractMatrix; rankdef::Integer = 0,
-                  hyperprior::AbstractHyperPrior = PCPrecision(),
-                  constraint::Union{Nothing, LinearConstraint} = nothing)
+function Generic1(R::AbstractMatrix; rankdef::Integer=0,
+        hyperprior::AbstractHyperPrior=PCPrecision(),
+        constraint::Union{Nothing, LinearConstraint}=nothing)
     n, m = size(R)
     n == m || throw(DimensionMismatch("Generic1: R must be square, got $n×$m"))
     issymmetric(R) || throw(ArgumentError("Generic1: R must be symmetric"))
@@ -72,6 +72,6 @@ end
 function gmrf(c::Generic1, θ)
     # `c.R` is already eigen-rescaled at construction; pass it through
     # with `scale_model = false` to avoid Sørbye-Rue double scaling.
-    return GMRFs.Generic0GMRF(c.R; τ = exp(θ[1]), rankdef = c.rd,
-                               scale_model = false)
+    return GMRFs.Generic0GMRF(c.R; τ=exp(θ[1]), rankdef=c.rd,
+        scale_model=false)
 end
