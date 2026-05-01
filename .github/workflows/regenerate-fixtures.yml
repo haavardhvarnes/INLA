@@ -55,11 +55,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install system libraries for spdep / SpatialEpi
+      - name: Install system libraries for spdep / SpatialEpi / R-INLA
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libudunits2-dev libgdal-dev libgeos-dev libproj-dev libsqlite3-dev
+            libudunits2-dev libgdal-dev libgeos-dev libproj-dev libsqlite3-dev \
+            libgsl-dev
 
       - uses: r-lib/actions/setup-r@v2
         with:
@@ -80,18 +81,35 @@ jobs:
         run: |
           options(repos = c(CRAN = Sys.getenv("R_REPOS_CRAN"),
                             INLA = Sys.getenv("R_REPOS_INLA")))
+          # R-INLA imports `gsl` (CRAN) and the Bioconductor packages
+          # `Rgraphviz` and `graph`. Without them, `library(INLA)` fails
+          # with `dyn.load(...)` / `package or namespace load failed`.
+          # Install Bioconductor deps via BiocManager before INLA.
+          if (!requireNamespace("BiocManager", quietly = TRUE)) {
+              install.packages("BiocManager")
+          }
+          BiocManager::install(c("Rgraphviz", "graph"),
+                               update = FALSE, ask = FALSE)
+          if (!requireNamespace("gsl", quietly = TRUE)) {
+              install.packages("gsl")  # needs system libgsl-dev (above)
+          }
           needed <- c("jsonlite", "Matrix", "SpatialEpi", "spdep", "INLA")
           missing <- needed[!sapply(needed, requireNamespace, quietly = TRUE)]
           if (length(missing) > 0) {
               install.packages(missing, dependencies = TRUE)
           }
+          # Force-load INLA to surface dyn.load failures here, not during
+          # the regenerate step where the error message is harder to spot.
+          library(INLA)
           inla_version <- as.character(packageVersion("INLA"))
           cat(sprintf("INLA version resolved to: %s\n", inla_version))
           writeLines(inla_version, "scripts/generate-fixtures/INLA_VERSION.txt")
 
       - uses: julia-actions/setup-julia@v2
         with:
-          version: '1.10'
+          # ADR-020: Julia 1.12+ is the supported floor across the
+          # monorepo. `'1'` resolves to the latest stable release.
+          version: '1'
 
       - uses: julia-actions/cache@v2
 
