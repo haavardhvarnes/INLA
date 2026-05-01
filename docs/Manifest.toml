@@ -672,7 +672,7 @@ version = "1.11.0"
 deps = ["Distributions", "Graphs", "LinearAlgebra", "LinearSolve", "Random", "SelectedInversion", "SparseArrays", "Statistics"]
 path = "../packages/GMRFs.jl"
 uuid = "a8720bf5-58d3-44b3-b5a9-acd31420dc17"
-version = "0.1.0-rc1"
+version = "0.1.1"
 
     [deps.GMRFs.extensions]
     GMRFsMakieExt = "MakieCore"
@@ -758,7 +758,7 @@ version = "0.3.28"
 deps = ["CoordRefSystems", "DelaunayTriangulation", "GMRFs", "LatentGaussianModels", "LinearAlgebra", "Meshes", "SciMLOperators", "SparseArrays"]
 path = "../packages/INLASPDE.jl"
 uuid = "2835c710-3f40-4945-979f-d21c9e20d425"
-version = "0.1.0-rc1"
+version = "0.1.1"
 
     [deps.INLASPDE.extensions]
     INLASPDEGeoInterfaceExt = "GeoInterface"
@@ -772,7 +772,7 @@ version = "0.1.0-rc1"
 deps = ["GMRFs", "INLASPDE", "LatentGaussianModels", "Rasters"]
 path = "../packages/INLASPDERasters.jl"
 uuid = "28708ac2-a765-4cf9-a54c-708b26c5e9a3"
-version = "0.1.0-rc1"
+version = "0.1.1"
 
 [[deps.IOCapture]]
 deps = ["Logging", "Random"]
@@ -943,10 +943,10 @@ uuid = "81d17ec3-03a1-5e46-b53e-bddc35a13473"
 version = "3.0.1+0"
 
 [[deps.LatentGaussianModels]]
-deps = ["ADTypes", "Distributions", "FastGaussQuadrature", "FiniteDiff", "GMRFs", "LinearAlgebra", "LogDensityProblems", "Optimization", "OptimizationOptimJL", "Printf", "QuadGK", "Random", "SparseArrays", "Statistics"]
+deps = ["ADTypes", "Distributions", "FastGaussQuadrature", "FiniteDiff", "GMRFs", "LinearAlgebra", "LogDensityProblems", "Optimization", "OptimizationOptimJL", "Printf", "QuadGK", "Random", "SparseArrays", "SpecialFunctions", "Statistics"]
 path = "../packages/LatentGaussianModels.jl"
 uuid = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
-version = "0.1.0-rc1"
+version = "0.1.1"
 
     [deps.LatentGaussianModels.extensions]
     LGMHCubatureExt = "HCubature"

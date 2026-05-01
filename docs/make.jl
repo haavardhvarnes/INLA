@@ -28,7 +28,8 @@ makedocs(
         "Vignettes" => [
             "Areal — Scotland BYM2" => "vignettes/scotland-bym2.md",
             "Temporal — Tokyo rainfall" => "vignettes/tokyo-rainfall.md",
-            "Spatial — Meuse SPDE" => "vignettes/meuse-spde.md"
+            "Spatial — Meuse SPDE" => "vignettes/meuse-spde.md",
+            "Survival — Cox PH and Weibull" => "vignettes/coxph-weibull-survival.md"
         ],
         "Benchmarks" => [
             "Quality vs R-INLA" => "benchmarks/quality.md"
