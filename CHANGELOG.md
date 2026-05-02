@@ -4,6 +4,47 @@ All notable changes to this repository are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.3] — 2026-05-02
+
+Phase Q PR-1. Patch release on `LatentGaussianModels.jl` and the
+`INLA.jl` umbrella; `GMRFs.jl`, `INLASPDE.jl`, and `INLASPDERasters.jl`
+are unchanged at v0.1.1. Closes both Phase Q v0.1 performance regressions
+with a single LBFGS-tuning fix; quality numbers unchanged byte-for-byte.
+
+### Changed
+
+- **Default `g_tol = 1.0e-4`** in the outer θ-mode LBFGS for both
+  [`INLA`](packages/LatentGaussianModels.jl/src/inference/inla.jl) and
+  [`EmpiricalBayes`](packages/LatentGaussianModels.jl/src/inference/empirical_bayes.jl).
+  The `Optimization.jl + AutoFiniteDiff` FD-gradient noise floor sits
+  near `√eps ≈ 1.0e-8` — exactly Optim.jl's default `g_tol`, so LBFGS
+  exhausted the 1000-iteration limit chasing noise. Raising `g_tol` to
+  `1.0e-4` recovers the same θ̂ to ≲ 2e-4 in θ-space (well under any
+  oracle test tolerance) at a fraction of the work. Users who want the
+  prior tolerance can pass `optim_options = (; g_tol = 1.0e-8)` to
+  override.
+- **Pennsylvania BYM2 wall-clock**: 18.3 s → 0.15 s (119× faster),
+  flipping the v0.1.x regression from `0.47×` of R-INLA to **48.8×
+  faster** than R-INLA on `bench/oracle_compare.jl`. Phase Q's
+  ≤ 1.2× R-INLA acceptance criterion met with 40× headroom.
+- **Meuse SPDE wall-clock**: 142 s → 1.32 s (108× faster) under the
+  default SuiteSparse backend, flipping the v0.1.x regression from
+  27× *slower* than R-INLA to **4.46× faster**. Phase Q's
+  ≤ 2× R-INLA-under-Pardiso acceptance criterion met under SuiteSparse
+  alone, without needing the `GMRFsPardiso.jl` backend.
+- **Quality unchanged.** `bench/oracle_compare_julia.md` Quality table
+  is byte-identical to v0.1.2: every `fixed_max_rel`, `hyperpar_max_rel`,
+  `mlik_rel` matches to four significant figures across all 11 oracle
+  problems.
+
+### Diagnostic
+
+- [`bench/diagnostics/pa_bym2_hessian.jl`](bench/diagnostics/pa_bym2_hessian.jl)
+  — eight-stage diagnostic that pinned the regression to the outer
+  LBFGS rather than the integration grid or the FD Hessian. Refuted the
+  replan-2026-04-28 hypothesis ("wider Hessian at θ̂ → wider grid
+  envelope"); FD Hessian was correct, mode-finding was the bottleneck.
+
 ## [v0.1.2] — 2026-05-02
 
 Phase F.5 close. Patch release on `LatentGaussianModels.jl` and the

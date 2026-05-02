@@ -1,4 +1,5 @@
-# Reproducible-environment manifest for `bench/oracle_compare.jl`.
+# Reproducible-environment manifest for `bench/oracle_compare.jl` and
+# the diagnostic scripts under `bench/diagnostics/`.
 #
 # `bench/Manifest.toml` is gitignored (top-level `.gitignore`). To
 # reproduce the env from a fresh clone, run from the repo root:
@@ -18,4 +19,6 @@ INLASPDE = "2835c710-3f40-4945-979f-d21c9e20d425"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LatentGaussianModels = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+Optimization = "7f7a1694-90dd-40f0-9382-eb1efda571ba"
+OptimizationOptimJL = "36348300-93cb-4f02-beb5-3c3902f8871e"
 SparseArrays = "2f01184e-e22b-5df5-ae63-d93ebab69eaf"

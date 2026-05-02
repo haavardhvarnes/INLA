@@ -1,6 +1,6 @@
 name = "INLA"
 uuid = "0e5511d8-343a-4ee4-83ff-c93235e7b734"
-version = "0.1.2"
+version = "0.1.3"
 authors = ["Håvard Hvarnes <haavardhvarnes@gmail.com>"]
 
 [deps]

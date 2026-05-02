@@ -42,6 +42,7 @@ benchmarks/results/
 benchmarks/tune.json
 bench/oracle_compare_julia.json
 bench/oracle_compare_run.log
+bench/diagnostics/*.log
 
 # Local test artifacts
 test/tmp/

@@ -139,8 +139,14 @@ function _θ_mode_and_hessian(m::LatentGaussianModel, y, strategy::INLA)
     f = _neg_log_posterior_θ(m, y, strategy.laplace)
     optf = Optimization.OptimizationFunction(f, Optimization.AutoFiniteDiff())
     prob = Optimization.OptimizationProblem(optf, θ0, nothing)
+    # FD-gradient noise floor at AutoFiniteDiff defaults sits around
+    # √eps ≈ 1e-8, i.e. Optim.jl's default g_tol. LBFGS then exhausts the
+    # 1000-iteration limit hunting noise. g_tol = 1e-4 cuts PA BYM2 from
+    # 18 s → 0.36 s with Δθ̂ ≈ 1.7e-4 — well under oracle test tolerances.
+    default_opts = (; g_tol = 1.0e-4)
+    merged_opts = merge(default_opts, strategy.optim_options)
     opt_res = Optimization.solve(prob, OptimizationOptimJL.LBFGS();
-        strategy.optim_options...)
+        merged_opts...)
     θ̂ = collect(opt_res.u)
 
     # Hessian at the mode. Use FiniteDiff with a two-arg wrapper.

@@ -57,8 +57,12 @@ function fit(m::LatentGaussianModel, y, strategy::EmpiricalBayes)
     optf = Optimization.OptimizationFunction(neg_log_posterior,
         Optimization.AutoFiniteDiff())
     prob = Optimization.OptimizationProblem(optf, θ0, nothing)
+    # See _θ_mode_and_hessian in inla.jl for the FD-gradient noise-floor
+    # rationale; `g_tol = 1.0e-4` is the corresponding default here.
+    default_opts = (; g_tol = 1.0e-4)
+    merged_opts = merge(default_opts, strategy.optim_options)
     opt_res = Optimization.solve(prob, OptimizationOptimJL.LBFGS();
-        strategy.optim_options...)
+        merged_opts...)
     θ̂ = collect(opt_res.u)
     final = laplace_mode(m, y, θ̂; strategy=strategy.laplace)
 
