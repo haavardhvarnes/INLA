@@ -4,6 +4,160 @@ All notable changes to this repository are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.1] — 2026-05-02
+
+Second release line. Multi-likelihood `LatentGaussianModel`, censoring
+infrastructure, five new survival likelihoods, the zero-inflated count
+pack, the `Copy` component, and the `AbstractObservationMapping` seam.
+Julia 1.12+ requirement.
+
+### Added
+
+- **Multi-likelihood `LatentGaussianModel`** (Phase G PR2,
+  [`8d66bc9`](https://github.com/HaavardHvarnes/INLA.jl/commit/8d66bc9)).
+  A single `LatentGaussianModel` mounts more than one likelihood block
+  over a stacked observation vector via `StackedMapping`. Block-diagonal
+  observation mappings compose with per-block likelihoods, so joint
+  Gauss-Poisson, joint longitudinal-survival, and similar mixed-family
+  models share one latent and one hyperparameter posterior. Covered by
+  the new `synthetic_joint_gauss_pois` oracle.
+- **`AbstractObservationMapping` seam** (Phase G PR1, ADR-017,
+  [`fb46f71`](https://github.com/HaavardHvarnes/INLA.jl/commit/fb46f71)).
+  The projector from latent `x` to linear predictor `η` is now a typed
+  abstraction with three concrete implementations: `IdentityMapping`,
+  `LinearProjector` (sparse `A`-matrix; the existing default),
+  `StackedMapping` (multi-likelihood block-row stack), plus a
+  `KroneckerMapping` stub reserved for Phase M space-time SPDE.
+- **`Copy` component** (Phase G PR3, ADR-021,
+  [`f20bbfd`](https://github.com/HaavardHvarnes/INLA.jl/commit/f20bbfd) →
+  [`2113623`](https://github.com/HaavardHvarnes/INLA.jl/commit/2113623)).
+  Joint-effect sharing à la R-INLA's `f(., copy = "name")`. The
+  β-scaling lives on the receiving likelihood (not on the projection
+  mapping), preserving the separation between observation maps and
+  likelihood logic. Backed by an `add_copy_contributions!` hook on
+  `AbstractLikelihood`, a closed-form fixed-β oracle, and a joint
+  longitudinal + Weibull survival regression test.
+- **Censoring infrastructure** (ADR-018,
+  [`b97b84f`](https://github.com/HaavardHvarnes/INLA.jl/commit/b97b84f)).
+  Per-observation `Censoring` enum (`NONE`, `LEFT`, `RIGHT`,
+  `INTERVAL`); survival likelihoods accept a
+  `censoring::Vector{Censoring}` field and dispatch internally for
+  log-density and η-derivatives.
+- **Five new survival likelihoods** (ADR-018):
+  - `ExponentialLikelihood`
+    ([`b97b84f`](https://github.com/HaavardHvarnes/INLA.jl/commit/b97b84f)).
+  - `WeibullLikelihood` — PH parameterisation, shape `α_w` as a
+    hyperparameter
+    ([`5071990`](https://github.com/HaavardHvarnes/INLA.jl/commit/5071990));
+    `PCAlphaW` PC prior (Sørbye–Rue 2017) alongside the
+    `loggamma(1, 0.001)` default
+    ([`ec18458`](https://github.com/HaavardHvarnes/INLA.jl/commit/ec18458)).
+  - `LognormalSurvLikelihood` — AFT parameterisation, precision `τ` on
+    `log T`
+    ([`1b6f54c`](https://github.com/HaavardHvarnes/INLA.jl/commit/1b6f54c)).
+  - `GammaSurvLikelihood` — mean parameterisation, shape `φ`
+    ([`5a7c327`](https://github.com/HaavardHvarnes/INLA.jl/commit/5a7c327)).
+  - `WeibullCureLikelihood` — Weibull mixture-cure with logistic cure
+    fraction
+    ([`1501296`](https://github.com/HaavardHvarnes/INLA.jl/commit/1501296)).
+- **Cox proportional-hazards via data augmentation** (ADR-018 PR4,
+  [`6876b3a`](https://github.com/HaavardHvarnes/INLA.jl/commit/6876b3a)).
+  `inla_coxph(time, event)` produces the Holford / Laird-Olivier
+  piecewise-exponential-as-Poisson augmentation; `coxph_design` builds
+  the matching design matrix.
+- **Zero-inflated likelihood pack** (ADR-019,
+  [`925d853`](https://github.com/HaavardHvarnes/INLA.jl/commit/925d853)).
+  Three R-INLA parameterisations (types 0, 1, 2) × three base count
+  families (Poisson, Binomial, NegativeBinomial) = nine new
+  likelihoods. ZIP1 oracle vs R-INLA's
+  `family = "zeroinflatedpoisson1"`
+  ([`b1ab680`](https://github.com/HaavardHvarnes/INLA.jl/commit/b1ab680)).
+- **Opt-in simplified-Laplace mean-shift** (ADR-016,
+  [`fbe9b50`](https://github.com/HaavardHvarnes/INLA.jl/commit/fbe9b50)).
+  `inla(...; latent_strategy = :simplified_laplace)` applies a per-row
+  mean-shift correction at the cost of one extra Newton step per
+  integration node. The variance correction remains deferred to v0.3
+  (Phase Q in the rolling plan). `pennsylvania_bym2` oracle covers the
+  new pathway.
+- **Survival vignettes.** CoxPH and Weibull survival under the new
+  censoring infrastructure, published in
+  [`docs/src/vignettes/coxph-weibull-survival.md`](docs/src/vignettes/coxph-weibull-survival.md)
+  ([`fd5ac78`](https://github.com/HaavardHvarnes/INLA.jl/commit/fd5ac78)).
+- **Eight new R-INLA oracle fixtures**:
+  `synthetic_exponential_survival`, `synthetic_weibull_survival`,
+  `synthetic_lognormal_survival`, `synthetic_gamma_survival`,
+  `synthetic_coxph`, `synthetic_zip1`, `synthetic_joint_gauss_pois`,
+  and `synthetic_baghfalaki` (joint longitudinal-Gaussian + Weibull-PH
+  survival, Phase F.5).
+- **Joint longitudinal + survival vignette** at
+  [`docs/src/vignettes/joint-longitudinal-survival.md`](docs/src/vignettes/joint-longitudinal-survival.md)
+  (Phase F.5). End-to-end Baghfalaki et al. (2024)-style synthetic
+  recovery walking through `StackedMapping`, `Copy`, and the
+  multi-likelihood `LatentGaussianModel`.
+
+### Changed
+
+- **Drop Julia 1.10 LTS support** (ADR-020,
+  [`4b90410`](https://github.com/HaavardHvarnes/INLA.jl/commit/4b90410)).
+  All four `src/`-bearing packages now require Julia 1.12+. Back-compat
+  shims for `Returns`, `public` markers, and similar 1.11+ features
+  have been removed.
+- **Project versions bumped to 0.1.1** across `GMRFs.jl`,
+  `LatentGaussianModels.jl`, `INLASPDE.jl`, `INLASPDERasters.jl`, and
+  the `INLA.jl` umbrella
+  ([`700f218`](https://github.com/HaavardHvarnes/INLA.jl/commit/700f218));
+  `[compat]` widened for fresh installs.
+- **R-INLA fixture regen against `25.10.19`**
+  ([`9f98a64`](https://github.com/HaavardHvarnes/INLA.jl/commit/9f98a64)
+  + follow-up CI hardening through
+  [`44093ab`](https://github.com/HaavardHvarnes/INLA.jl/commit/44093ab)).
+  Tolerance comparator replaces the previous byte-level diff to
+  accommodate floating-point drift across R-INLA point releases.
+
+### Known limitations
+
+- **Marginal log-likelihood gap on `weibullsurv`, `lognormalsurv`,
+  `gammasurv`, and `coxph` oracles.** Phase F.5 excavation
+  ([2026-05-02](plans/phase-i-and-onwards-mighty-emerson.md)) traced
+  this to a polynomial-form Laplace approximation in R-INLA's
+  `GMRFLib` that differs from Julia's textbook formula at three
+  points: the cubic contribution to the centered polynomial
+  (`+⅙ x0³ dddf` vs the strict-Taylor `−⅙`), a modified Hessian
+  carrying an `η̂·dddf` correction, and `*logdens` evaluated at
+  sample = 0 rather than at the posterior mode. Closure requires
+  modifying
+  [`src/inference/laplace.jl`](packages/LatentGaussianModels.jl/src/inference/laplace.jl);
+  deferred to v0.3 per the Phase Q rolling plan. Fixed-effect and
+  hyperparameter posteriors agree tightly with R-INLA on these
+  oracles. Oracle tests assert `isfinite(log_marginal)` while the
+  gap is being characterised.
+- **Coxph augmentation `mlik` shifted by `Σ_events log E_{k_last,i}`**
+  — the η-independent exposure of the interval the event lands in.
+  Cancels in the posterior of `(γ, β)` so it does not affect
+  inference. See the algebraic-equivalence regression test
+  ([`test/regression/test_coxph_augmentation.jl`](packages/LatentGaussianModels.jl/test/regression/test_coxph_augmentation.jl)).
+
+### Validated against
+
+R-INLA `25.10.19` (CI fixture regen on
+[`9f98a64`](https://github.com/HaavardHvarnes/INLA.jl/commit/9f98a64)),
+R 4.5.x. Fixture generation scripts under
+[`scripts/generate-fixtures/`](scripts/generate-fixtures/).
+
+## [v0.1.0] — 2026-04-28
+
+First tagged release on the user's personal Julia registry. No content
+changes versus `v0.1.0-rc1`; release-prep cleanup only.
+
+### Changed
+
+- **Drop `[sources]` blocks from `INLASPDERasters.jl`** to enable
+  registration
+  ([`06df56a`](https://github.com/HaavardHvarnes/INLA.jl/commit/06df56a)).
+- **Version bump** to `v0.1.0` across `GMRFs.jl`,
+  `LatentGaussianModels.jl`, `INLASPDE.jl`, and `INLASPDERasters.jl`
+  ([`dad9f17`](https://github.com/HaavardHvarnes/INLA.jl/commit/dad9f17)).
+
 ## [v0.1.0-rc1] — 2026-04-28
 
 First publicly-usable release line of the Julia INLA ecosystem. The four

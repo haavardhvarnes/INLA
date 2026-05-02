@@ -96,11 +96,12 @@ end
             @test _rel_gs(φ_sd_J, φ_sd_R) < GS_SURV_PHI_SD_TOL
 
             # --- mlik ---------------------------------------------------------
-            # Exposed but not asserted with a tight tolerance: R-INLA's
-            # internal Gaussian normalising constant for `gammasurv` may
-            # diverge from Julia's by a constant (cf. the lognormalsurv +
-            # weibullsurv gaps tracked as v0.2 calibration items). We assert
-            # the value is finite; tightening is a v0.2 task.
+            # Exposed but not asserted with a tight tolerance: shares the
+            # polynomial-form Laplace gap traced under `weibullsurv`
+            # (Phase F.5 excavation 2026-05-02 — see
+            # `test_synthetic_weibull_survival.jl` header). Closure
+            # requires modifying `src/inference/laplace.jl` to match
+            # R-INLA's polynomial form; deferred to v0.3.
             @test isfinite(res.log_marginal)
         end
     end

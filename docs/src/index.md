@@ -28,6 +28,8 @@ Pages = [
     "vignettes/scotland-bym2.md",
     "vignettes/tokyo-rainfall.md",
     "vignettes/meuse-spde.md",
+    "vignettes/coxph-weibull-survival.md",
+    "vignettes/joint-longitudinal-survival.md",
     "packages/gmrfs.md",
     "packages/lgm.md",
     "packages/inlaspde.md",
@@ -65,13 +67,19 @@ Pkg.develop(url = "https://github.com/haavardhvarnes/INLA.jl",
 
 - **[Getting started](getting-started.md)** — the smallest possible
   Poisson + spatial random effect fit, top to bottom.
-- **Vignettes** — three canonical R-INLA datasets, end-to-end:
+- **Vignettes** — five end-to-end walkthroughs:
   - [Scotland BYM2](vignettes/scotland-bym2.md) (areal Poisson with
     BYM2 spatial random effect),
   - [Tokyo rainfall](vignettes/tokyo-rainfall.md) (Bernoulli with a
     cyclic RW2 seasonal),
   - [Meuse zinc SPDE](vignettes/meuse-spde.md) (Gaussian on point-referenced
-    data via the SPDE–Matérn link).
+    data via the SPDE–Matérn link),
+  - [CoxPH and Weibull survival](vignettes/coxph-weibull-survival.md)
+    (right-censored time-to-event regression with the augmented
+    piecewise-exponential and PH-Weibull pathways),
+  - [Joint longitudinal + survival](vignettes/joint-longitudinal-survival.md)
+    (Baghfalaki-style multi-likelihood model with `Copy`-shared
+    subject random effect).
 - **Packages** — per-package overviews, exported API, and required
   contracts for extending them.
 - **[References](references.md)** — the canonical method papers and

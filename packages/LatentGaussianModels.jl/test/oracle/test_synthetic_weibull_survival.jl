@@ -15,10 +15,21 @@
 #
 # **Marginal log-likelihood**: a known calibration gap exists between
 # Julia and R-INLA `weibullsurv`'s reported `mlik` (≈10 nats with this
-# fixture). The fixed-effect and shape posteriors agree tightly, so the
-# discrepancy is most likely in R-INLA's internal Gaussian normalising
-# constant for `weibullsurv`. Tracked as a v0.2 calibration item; this
-# oracle skips the `mlik` comparison.
+# fixture). The fixed-effect and shape posteriors agree tightly. Phase
+# F.5 excavation (2026-05-02) falsified the initial "family-specific NC"
+# hypothesis: R-INLA's `weibullsurv.c` and `inla.c::extra(L_WEIBULLSURV)`
+# add only the `alpha_intern` hyperprior. Root cause is in
+# `GMRFLib`'s polynomial-form Laplace, which differs from Julia's
+# textbook formula at three points: (i) the cubic contribution to the
+# centered polynomial constant is `+⅙ x0³ dddf` (`inla-blockupdate.c:153`)
+# where strict Taylor gives `−⅙`; (ii) the modified Hessian carries an
+# `η̂·dddf` correction `C'_ii = −ddf + η̂·dddf`; (iii) `*logdens` is
+# evaluated at sample=0 (`approx-inference.c:511–524`), not at the
+# mode. Closing the gap requires modifying Julia's Laplace formula in
+# `src/inference/laplace.jl` to match R-INLA's polynomial form — a v0.3
+# architectural change, out of scope for Phase F.5. Same mechanism
+# likely explains the lognormal/gamma/coxph gaps. Oracle keeps
+# `@test isfinite(...)`.
 #
 # Fixture: scripts/generate-fixtures/lgm/synthetic_weibull_survival.R.
 # Skipped transparently if the JLD2 fixture has not been generated.
@@ -103,11 +114,12 @@ end
             @test _rel_wb(α_w_sd_J, α_w_sd_R) < WB_SURV_SHAPE_SD_TOL
 
             # --- mlik ---------------------------------------------------------
-            # Skipped (see header comment): R-INLA `weibullsurv` reports a
-            # `mlik` that diverges from the Julia integrated marginal by
-            # ≈10 nats on this fixture. Fixed effects + shape posterior
-            # agree tightly, so the discrepancy is isolated to R-INLA's
-            # internal NC for this family. v0.2 calibration item.
+            # Skipped (see header comment): R-INLA `weibullsurv` reports
+            # `mlik` ≈ 10 nats above Julia on this fixture. Phase F.5
+            # excavation traced the discrepancy to R-INLA's polynomial-
+            # form Laplace (cubic-corrected Hessian + sample=0 evaluation),
+            # not to a per-family NC. Closing requires modifying
+            # `src/inference/laplace.jl`; deferred to v0.3.
             @test isfinite(res.log_marginal)
         end
     end

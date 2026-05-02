@@ -97,11 +97,12 @@ end
             @test _rel_lns(τ_sd_J, τ_sd_R) < LNS_SURV_PREC_SD_TOL
 
             # --- mlik ---------------------------------------------------------
-            # Exposed but not asserted with a tight tolerance: R-INLA's
-            # internal Gaussian normalising constant for `lognormalsurv` may
-            # diverge from Julia's by a constant (cf. the `weibullsurv` gap
-            # tracked as a v0.2 calibration item). We assert the value is
-            # finite; tightening to a relative tolerance is a v0.2 task.
+            # Exposed but not asserted with a tight tolerance: shares the
+            # polynomial-form Laplace gap traced under `weibullsurv`
+            # (Phase F.5 excavation 2026-05-02 — see
+            # `test_synthetic_weibull_survival.jl` header). Closure
+            # requires modifying `src/inference/laplace.jl` to match
+            # R-INLA's polynomial form; deferred to v0.3.
             @test isfinite(res.log_marginal)
         end
     end

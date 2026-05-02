@@ -23,9 +23,11 @@
 # n = 80 subjects × K = 5 longitudinal observations + 80 survival
 # observations gives enough information for a clean recovery.
 #
-# This is a regression test — the R-INLA oracle is a separate follow-up
-# (`test/oracle/test_synthetic_baghfalaki.jl`, gated on a fixture from
-# `scripts/generate-fixtures/lgm/synthetic_baghfalaki.R`).
+# This is a regression test against ground-truth recovery on Julia-side
+# simulated data. R-INLA oracle parity (Julia and R fitting the *same*
+# dataset) is asserted by `test/oracle/test_synthetic_baghfalaki.jl`,
+# backed by the fixture from
+# `scripts/generate-fixtures/lgm/synthetic_baghfalaki.R`.
 
 using Test
 using SparseArrays
