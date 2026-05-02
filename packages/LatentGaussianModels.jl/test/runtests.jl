@@ -75,6 +75,9 @@ using GMRFs
     @testset "Copy — fixed β=1.0 oracle + free β recovery" begin
         include("regression/test_copy.jl")
     end
+    @testset "INLA — Joint longitudinal + Weibull survival (Copy)" begin
+        include("regression/test_inla_joint_baghfalaki.jl")
+    end
     @testset "INLA — Poisson + BYM2 (synthetic)" begin
         include("regression/test_inla_poisson_bym2.jl")
     end
