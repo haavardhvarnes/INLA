@@ -55,7 +55,9 @@ function posterior_samples_η(rng::Random.AbstractRNG,
         lp = res.laplaces[k]
 
         x = _sample_laplace(rng, lp)
-        @views η_samples[:, s] .= A * x
+        η_view = view(η_samples, :, s)
+        η_view .= A * x
+        joint_apply_copy_contributions!(η_view, model, x, lp.θ)
         if n_ℓ > 0
             @views θℓ_samples[:, s] .= res.θ_points[k][1:n_ℓ]
         end

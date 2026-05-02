@@ -81,6 +81,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 
     # Build initial posterior precision and factor cache on Q_reg.
     η = A * x
+    joint_apply_copy_contributions!(η, m, x, θ)
     ∇²η = joint_∇²_η_log_density(m, y, η, θ)
     D = Diagonal(-∇²η)
     H = Q_reg + (A' * D * A)
@@ -92,6 +93,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     for k in 1:(strategy.maxiter)
         iter = k
         η = A * x
+        joint_apply_copy_contributions!(η, m, x, θ)
         ∇η = joint_∇_η_log_density(m, y, η, θ)
         ∇²η = joint_∇²_η_log_density(m, y, η, θ)
         D = Diagonal(-∇²η)
@@ -131,6 +133,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 
     # Final evaluation at x̂.
     η = A * x
+    joint_apply_copy_contributions!(η, m, x, θ)
     ∇²η = joint_∇²_η_log_density(m, y, η, θ)
     D = Diagonal(-∇²η)
     H = Q_reg + (A' * D * A)
@@ -144,6 +147,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         U_final, W_final = _kriging_correction(cache, C)
         _project_to_constraint!(x, C, e_c, U_final, W_final)
         η = A * x
+        joint_apply_copy_contributions!(η, m, x, θ)
         constraint_data = (C=C, e=e_c, U=U_final, W_fact=W_final)
     else
         constraint_data = nothing

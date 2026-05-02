@@ -148,3 +148,29 @@ function pointwise_cdf(ℓ::AbstractLikelihood, y, η, θ)
     throw(ArgumentError("pointwise_cdf not implemented for $(typeof(ℓ)); " *
                         "needed for PIT diagnostics"))
 end
+
+"""
+    add_copy_contributions!(η_block, ℓ::AbstractLikelihood, x, θ_ℓ) -> η_block
+
+Add this likelihood's `Copy`-component contributions to its slice of the
+linear predictor, in place, and return `η_block`.
+
+`Copy` (R-INLA `f(..., copy=...)`) shares a latent component across
+linear predictors with an estimated scaling β: the receiving block
+gets `η_target[i] += β * x_source[k(i)]`. ADR-021 places β on the
+*receiving* likelihood (rather than on the projection mapping), so
+each likelihood that opts in stores its `(source_indices, β_index)`
+pairs and reads β from its own `θ_ℓ` slice.
+
+The default no-op covers every likelihood without copies — Gaussian,
+Poisson, Binomial, NegBinomial, Gamma, the survival likelihoods on
+arms that don't share latents — and leaves `η_block` unchanged. The
+inner Newton loop calls this hook after every `η = mapping * x`
+evaluation, before computing likelihood derivatives.
+
+Implementing likelihoods receive an `η_block` view spanning their
+observation rows, the *full* latent vector `x` (so they can index any
+source component), and their hyperparameter view `θ_ℓ` (where β
+lives).
+"""
+add_copy_contributions!(η::AbstractVector, ::AbstractLikelihood, ::AbstractVector, θ_ℓ) = η
