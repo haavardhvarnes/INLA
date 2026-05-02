@@ -4,6 +4,50 @@ All notable changes to this repository are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.2] — 2026-05-02
+
+Phase F.5 close. Patch release on `LatentGaussianModels.jl` and the
+`INLA.jl` umbrella; `GMRFs.jl`, `INLASPDE.jl`, and `INLASPDERasters.jl`
+are unchanged at v0.1.1.
+
+### Added
+
+- **`synthetic_baghfalaki` R-INLA oracle** for the joint longitudinal-
+  Gaussian + Weibull-PH survival model
+  ([`test/oracle/test_synthetic_baghfalaki.jl`](packages/LatentGaussianModels.jl/test/oracle/test_synthetic_baghfalaki.jl)).
+  Promotes `test/regression/test_inla_joint_baghfalaki.jl` to oracle
+  parity: Julia and R-INLA fit the same dataset via
+  `y_resp = list(y_gauss, inla.surv(...))` with `family = c("gaussian",
+  "weibullsurv")` and `f(b_surv_idx, copy = "b_long_idx", fixed = FALSE)`.
+  Asserts fixed-effects (10%), hyperparameters (20%), β-Copy (15% mean /
+  50% sd, wide on the asymmetric posterior), and per-subject `b̂`
+  correlation > 0.99. mlik kept as `isfinite` only — joint inherits the
+  polynomial-form Laplace gap from the Weibull arm.
+- **Joint longitudinal + survival vignette** at
+  [`docs/src/vignettes/joint-longitudinal-survival.md`](docs/src/vignettes/joint-longitudinal-survival.md).
+  End-to-end Baghfalaki et al. (2024)-style synthetic recovery via
+  `StackedMapping`, `Copy`, and the multi-likelihood
+  `LatentGaussianModel` (the marquee Phase G PR3 deliverable that was
+  missing from the docs site at v0.1.1).
+
+### Changed
+
+- **Phase F.5 calibration excavation** ([`plans/phase-i-and-onwards-mighty-emerson.md`](plans/phase-i-and-onwards-mighty-emerson.md)).
+  Survival oracle headers
+  ([`weibullsurv`](packages/LatentGaussianModels.jl/test/oracle/test_synthetic_weibull_survival.jl),
+  [`lognormalsurv`](packages/LatentGaussianModels.jl/test/oracle/test_synthetic_lognormal_survival.jl),
+  [`gammasurv`](packages/LatentGaussianModels.jl/test/oracle/test_synthetic_gamma_survival.jl))
+  rewritten to record the polynomial-form-Laplace finding that closed
+  the 2-week excavation: R-INLA's `GMRFLib` differs from Julia's
+  textbook formula at three points (cubic contribution `+⅙ x0³ dddf` vs
+  `−⅙`, `η̂·dddf`-corrected Hessian, `*logdens` evaluated at sample = 0
+  rather than at the mode). Closure requires modifying
+  `src/inference/laplace.jl`; deferred to v0.3 / Phase Q.
+- **Documentation: registry policy.** READMEs and `docs/src/index.md`
+  drop "not yet on the General registry / submission planned" framing;
+  the personal registry at `haavardhvarnes/JuliaRegistry` is the
+  documented install path.
+
 ## [v0.1.1] — 2026-05-02
 
 Second release line. Multi-likelihood `LatentGaussianModel`, censoring
@@ -83,17 +127,11 @@ Julia 1.12+ requirement.
   censoring infrastructure, published in
   [`docs/src/vignettes/coxph-weibull-survival.md`](docs/src/vignettes/coxph-weibull-survival.md)
   ([`fd5ac78`](https://github.com/HaavardHvarnes/INLA.jl/commit/fd5ac78)).
-- **Eight new R-INLA oracle fixtures**:
+- **Seven new R-INLA oracle fixtures**:
   `synthetic_exponential_survival`, `synthetic_weibull_survival`,
   `synthetic_lognormal_survival`, `synthetic_gamma_survival`,
-  `synthetic_coxph`, `synthetic_zip1`, `synthetic_joint_gauss_pois`,
-  and `synthetic_baghfalaki` (joint longitudinal-Gaussian + Weibull-PH
-  survival, Phase F.5).
-- **Joint longitudinal + survival vignette** at
-  [`docs/src/vignettes/joint-longitudinal-survival.md`](docs/src/vignettes/joint-longitudinal-survival.md)
-  (Phase F.5). End-to-end Baghfalaki et al. (2024)-style synthetic
-  recovery walking through `StackedMapping`, `Copy`, and the
-  multi-likelihood `LatentGaussianModel`.
+  `synthetic_coxph`, `synthetic_zip1`, plus
+  `synthetic_joint_gauss_pois`.
 
 ### Changed
 

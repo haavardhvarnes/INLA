@@ -1,6 +1,6 @@
 name = "LatentGaussianModels"
 uuid = "50d8cc41-879e-4ac9-9bf2-e3c789b17716"
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Håvard Hvarnes <haavardhvarnes@gmail.com>"]
 
 [deps]
