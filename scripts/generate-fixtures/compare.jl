@@ -60,7 +60,7 @@ const SKIP_KEYS = Set([
     "marginals_random",
     "marginals_linear",
     "mesh",
-    "A_field",
+    "A_field"
 ])
 
 mutable struct Diff
@@ -75,8 +75,10 @@ function compare_values(a, b, path::Vector{String}, diffs::Vector{Diff})
         return compare_dicts(a, b, path, diffs)
     elseif (a isa Number) && (b isa Number)
         if !isapprox(a, b; rtol=RTOL, atol=ATOL)
-            push!(diffs, Diff(copy(path), @sprintf("scalar drift: %g vs %g (Δ=%g)",
-                a, b, abs(a - b))))
+            push!(diffs,
+                Diff(copy(path),
+                    @sprintf("scalar drift: %g vs %g (Δ=%g)",
+                        a, b, abs(a - b))))
         end
         return
     elseif a isa AbstractString && b isa AbstractString
@@ -88,8 +90,9 @@ function compare_values(a, b, path::Vector{String}, diffs::Vector{Diff})
         return compare_arrays(a, b, path, diffs)
     elseif a isa NamedTuple && b isa NamedTuple
         if propertynames(a) != propertynames(b)
-            push!(diffs, Diff(copy(path),
-                "namedtuple keys differ: $(propertynames(a)) vs $(propertynames(b))"))
+            push!(diffs,
+                Diff(copy(path),
+                    "namedtuple keys differ: $(propertynames(a)) vs $(propertynames(b))"))
             return
         end
         for k in propertynames(a)
@@ -100,8 +103,9 @@ function compare_values(a, b, path::Vector{String}, diffs::Vector{Diff})
         return
     elseif a isa SparseMatrixCSC && b isa SparseMatrixCSC
         if size(a) != size(b) || nnz(a) != nnz(b)
-            push!(diffs, Diff(copy(path),
-                "sparse shape mismatch: $(size(a)),nnz=$(nnz(a)) vs $(size(b)),nnz=$(nnz(b))"))
+            push!(diffs,
+                Diff(copy(path),
+                    "sparse shape mismatch: $(size(a)),nnz=$(nnz(a)) vs $(size(b)),nnz=$(nnz(b))"))
             return
         end
         if a.colptr != b.colptr || a.rowval != b.rowval
@@ -149,9 +153,10 @@ function compare_arrays(a::AbstractArray, b::AbstractArray, path, diffs)
             end
         end
         if bad > 0
-            push!(diffs, Diff(copy(path),
-                @sprintf("%d/%d entries drift beyond rtol=%g atol=%g (max abs=%g, max rel=%g)",
-                    bad, length(a), RTOL, ATOL, max_abs, max_rel)))
+            push!(diffs,
+                Diff(copy(path),
+                    @sprintf("%d/%d entries drift beyond rtol=%g atol=%g (max abs=%g, max rel=%g)",
+                        bad, length(a), RTOL, ATOL, max_abs, max_rel)))
         end
         return
     end
