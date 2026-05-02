@@ -54,6 +54,7 @@ include("likelihoods/zero_inflated/_helpers.jl")
 include("likelihoods/zero_inflated/poisson.jl")
 include("likelihoods/zero_inflated/binomial.jl")
 include("likelihoods/zero_inflated/negbinomial.jl")
+include("likelihoods/copy.jl")
 
 # --- components -------------------------------------------------------
 include("components/abstract.jl")
@@ -105,8 +106,10 @@ export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        ZeroInflatedNegativeBinomialLikelihood1,
        ZeroInflatedNegativeBinomialLikelihood2
 export CoxphAugmented, inla_coxph, coxph_design
+export Copy, CopyTargetLikelihood
 export log_density, ∇_η_log_density, ∇²_η_log_density, ∇³_η_log_density, link
 export pointwise_log_density, pointwise_cdf
+export add_copy_contributions!
 
 # Censoring (survival likelihoods). Enum values are not exported by
 # default to avoid namespace pollution; users can either pass symbols

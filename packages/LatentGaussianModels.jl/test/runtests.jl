@@ -72,6 +72,9 @@ using GMRFs
     @testset "INLA — Marginals + Accessors" begin
         include("regression/test_inla_marginals.jl")
     end
+    @testset "Copy — fixed β=1.0 oracle + free β recovery" begin
+        include("regression/test_copy.jl")
+    end
     @testset "INLA — Poisson + BYM2 (synthetic)" begin
         include("regression/test_inla_poisson_bym2.jl")
     end

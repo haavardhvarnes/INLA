@@ -109,8 +109,12 @@ MC-based [`waic`](@ref) is a robust alternative.
 function dic(res::INLAResult, model::LatentGaussianModel, y)
     A = as_matrix(model.mapping)
 
-    # D at the posterior mean of the linear predictor + full θ̄.
+    # D at the posterior mean of the linear predictor + full θ̄. With a
+    # `Copy` contribution η depends on θ through β; use the effective
+    # Jacobian at `res.θ_mean` so D_mode is evaluated at consistent
+    # (x̄, θ̄).
     η_mean = A * res.x_mean
+    joint_apply_copy_contributions!(η_mean, model, res.x_mean, res.θ_mean)
     D_mode = -2 * joint_log_density(model, y, η_mean, res.θ_mean)
 
     # D̄ via θ-averaged second-order Taylor.
@@ -119,10 +123,13 @@ function dic(res::INLAResult, model::LatentGaussianModel, y)
         w = res.θ_weights[k]
         w == 0 && continue
         lp = res.laplaces[k]
-        η_k = A * lp.mode
         θ_k = res.θ_points[k]
+        # Per-θ_k effective Jacobian. Equals A for non-Copy models.
+        J_k = joint_effective_jacobian(model, θ_k)
+        η_k = A * lp.mode
+        joint_apply_copy_contributions!(η_k, model, lp.mode, θ_k)
         neg_∇²η = .-joint_∇²_η_log_density(model, y, η_k, θ_k)  # nonneg for canonical links
-        var_η_k = _predictor_variance(A, lp)
+        var_η_k = _predictor_variance(J_k, lp)
         D_bar += w * (-2 * joint_log_density(model, y, η_k, θ_k) +
                       sum(neg_∇²η .* var_η_k))
     end
