@@ -20,7 +20,14 @@ makedocs(
         prettyurls=get(ENV, "CI", nothing) == "true",
         canonical="https://haavardhvarnes.github.io/INLA.jl/",
         edit_link="main",
-        assets=String[]
+        assets=String[],
+        # `packages/lgm.md` renders past the 200 KiB default once
+        # `@autodocs` pulls in the full `LatentGaussianModels` API. Lift
+        # the hard cap to 400 KiB so adding new components/likelihoods
+        # doesn't break the build; keep `size_threshold_warn` so the log
+        # still surfaces growth.
+        size_threshold=400 * 1024,
+        size_threshold_warn=200 * 1024
     ),
     pages=[
         "Home" => "index.md",
