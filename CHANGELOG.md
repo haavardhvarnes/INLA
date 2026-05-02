@@ -4,6 +4,60 @@ All notable changes to this repository are documented here. Format
 follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/);
 versions follow [SemVer](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.4] — 2026-05-02
+
+Phase I-A PR-1a. Patch release on `LatentGaussianModels.jl` and the
+`INLA.jl` umbrella; `GMRFs.jl`, `INLASPDE.jl`, and `INLASPDERasters.jl`
+are unchanged at v0.1.1. First multivariate-IID building block lands:
+the bivariate slot for joint-longitudinal-survival random effects,
+paired-areal disease mapping, and bivariate meta-analysis. No public
+API changed for existing components.
+
+### Added
+
+- **`PCCor0` PC prior on a correlation `ρ ∈ (-1, 1)`** with reference at
+  `ρ = 0` (independence). Mirrors R-INLA's `pc.cor0` — used by `2diid`
+  and `iid3d`. User-facing parameters `(U, α)` with `P(|ρ| > U) = α`
+  give `λ = -log(α) / √(-log(1 - U²))`. Internal scale is
+  `θ = atanh(ρ)`; the Jacobian cancels exactly with the
+  Kullback-Leibler `|dd/dρ|` factor, leaving a closed-form log-density
+  with a Taylor short-circuit at `|ρ|² < 1.0e-7` to avoid the formal
+  `0/0`. Implementation:
+  [`src/priors/pc_cor0.jl`](packages/LatentGaussianModels.jl/src/priors/pc_cor0.jl);
+  regression suite covers symmetry, branch-boundary continuity,
+  `λ`-monotonicity, and integral-to-1 over `θ ∈ ℝ`
+  ([`test/regression/test_priors.jl`](packages/LatentGaussianModels.jl/test/regression/test_priors.jl)).
+- **`IIDND_Sep{N}` family of multivariate IID random effects** with N=2
+  shipped (PR-1a). The latent vector is `n·N` slots laid out as N
+  consecutive `n`-blocks; joint precision is `Q = Λ ⊗ I_n` with `Λ` the
+  inverse of the marginal covariance. For N=2 the constructor
+  parameterises via `(τ_1, τ_2, ρ)` on internal scale `(log τ_1, log
+  τ_2, atanh ρ)`, with PC priors on the marginal precisions and a
+  `PCCor0` on the correlation by default — matches R-INLA's `2diid`
+  default exactly. Implementation:
+  [`src/components/iidnd.jl`](packages/LatentGaussianModels.jl/src/components/iidnd.jl).
+- **`IID2D(n; …)` ergonomic alias** for `IIDND_Sep{2}` with sensible
+  default priors (`PCPrecision()` × 2 + `PCCor0()`); accepts a Gaussian
+  prior on Fisher-z if the user wants R-INLA's alternate
+  `loggamma + atanh-ρ-Gaussian` form. PR-1b territory (`IID3D` +
+  Cholesky/LKJ stick-breaking) and PR-1c (`Wishart`/`InvWishart` joint
+  prior path) are scoped but not in this release.
+- **Argument-validation tests** for `IIDND` reject `n ≤ 0`, `N = 1`,
+  `N ≥ 3` (PR-1b territory), and conflicting `hyperprior_corr` /
+  `hyperprior_corrs` kwargs
+  ([`test/regression/test_iidnd.jl`](packages/LatentGaussianModels.jl/test/regression/test_iidnd.jl)).
+
+### Changed
+
+- **ADR-022 rename `PCCor1` → `PCCor0`** in
+  [`plans/decisions.md`](plans/decisions.md). R-INLA's `pc.cor0`
+  reserves the reference-at-`ρ = 0` name for the independence-anchored
+  prior used by `2diid` / `iid3d`; `pc.cor1` is the
+  reference-at-`ρ = 1` companion used by AR(1)'s lag-1 correlation.
+  The ADR update was caught and corrected before any code shipped, so
+  no migration impact for users — but the wrong name has now been
+  burned into PR-1a's public API by the right one.
+
 ## [v0.1.3] — 2026-05-02
 
 Phase Q PR-1. Patch release on `LatentGaussianModels.jl` and the

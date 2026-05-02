@@ -39,6 +39,9 @@ using GMRFs
     @testset "Components" begin
         include("regression/test_components.jl")
     end
+    @testset "IIDND — Phase I-A PR-1a" begin
+        include("regression/test_iidnd.jl")
+    end
     @testset "BYM" begin
         include("regression/test_bym.jl")
     end

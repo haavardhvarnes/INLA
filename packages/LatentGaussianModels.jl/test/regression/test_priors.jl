@@ -1,5 +1,5 @@
 using LatentGaussianModels: PCPrecision, GammaPrecision, LogNormalPrecision,
-                            WeakPrior, PCAlphaW, log_prior_density, user_scale, prior_name
+                            WeakPrior, PCAlphaW, PCCor0, log_prior_density, user_scale, prior_name
 
 @testset "PCPrecision" begin
     p = PCPrecision(1.0, 0.01)
@@ -109,4 +109,57 @@ end
     p_tight = PCAlphaW(20.0)
     @test log_prior_density(p_tight, log(3.0)) <
           log_prior_density(p_loose, log(3.0))
+end
+
+@testset "PCCor0" begin
+    p = PCCor0(0.5, 0.5)   # P(|ρ| > 0.5) = 0.5
+    @test prior_name(p) == :pc_cor0
+    @test user_scale(p, 0.0) ≈ 0.0
+    @test user_scale(p, atanh(0.7)) ≈ 0.7
+    @test isfinite(log_prior_density(p, 0.0))
+
+    # λ closed form: d(0.5) = √(-log(1 - 0.25)) = √(log(4/3))
+    d_U = sqrt(-log1p(-0.5^2))
+    @test p.λ ≈ -log(0.5) / d_U
+
+    # Symmetry in θ: π_θ(θ) = π_θ(-θ) since ρ ↔ -ρ symmetry holds.
+    for θ in (0.1, 0.5, 1.2, 2.0)
+        @test log_prior_density(p, θ) ≈ log_prior_density(p, -θ)
+    end
+
+    # Density at θ = 0 equals log(λ/2).
+    @test log_prior_density(p, 0.0) ≈ log(p.λ / 2)
+
+    # Continuity across the Taylor↔formula branch boundary. Both
+    # branches share the exact `d = √(-log1p(-ρ²))`; only the
+    # `log(d²/ρ²)` term differs (Taylor truncation `ρ²/2` vs full
+    # `log(d²/ρ²)`). At the threshold, the discrepancy is bounded by
+    # the leading `ρ⁴/12` Taylor remainder.
+    ρ² = 1.0e-7
+    nlog = -log1p(-ρ²)
+    common = log(p.λ) - log(2) - p.λ * sqrt(nlog)
+    formula_val = common - 0.5 * log(nlog / ρ²)
+    taylor_val = common - 0.5 * (ρ² / 2)
+    @test isapprox(formula_val, taylor_val; atol=ρ²^2 / 6)
+
+    # Larger λ ⇒ tighter shrinkage to ρ = 0.
+    p_loose = PCCor0(0.9, 0.5)   # small λ
+    p_tight = PCCor0(0.1, 0.5)   # large λ
+    @test p_tight.λ > p_loose.λ
+    @test log_prior_density(p_tight, atanh(0.7)) <
+          log_prior_density(p_loose, atanh(0.7))
+
+    # Integrates to 1 over θ ∈ ℝ. Use a wide grid because the prior is
+    # heavy-tailed in θ (light-tailed in ρ but the atanh map stretches).
+    θ_grid = range(-15, 15; length=10001)
+    dθ = step(θ_grid)
+    total = sum(exp(log_prior_density(p, θ)) for θ in θ_grid) * dθ
+    @test isapprox(total, 1.0; rtol=5.0e-3)
+
+    # Constructor validation
+    @test_throws ArgumentError PCCor0(0.0, 0.5)
+    @test_throws ArgumentError PCCor0(1.0, 0.5)
+    @test_throws ArgumentError PCCor0(-0.1, 0.5)
+    @test_throws ArgumentError PCCor0(0.5, 0.0)
+    @test_throws ArgumentError PCCor0(0.5, 1.0)
 end

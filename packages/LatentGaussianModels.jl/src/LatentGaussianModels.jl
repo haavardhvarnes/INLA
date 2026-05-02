@@ -31,6 +31,7 @@ using LogDensityProblems: LogDensityProblems
 include("priors/abstract.jl")
 include("priors/pc.jl")
 include("priors/pc_alphaw.jl")
+include("priors/pc_cor0.jl")
 include("priors/logit_beta.jl")
 include("priors/bym2_phi.jl")
 include("priors/gaussian_internal.jl")
@@ -60,6 +61,7 @@ include("likelihoods/copy.jl")
 include("components/abstract.jl")
 include("components/intercept.jl")
 include("components/iid.jl")
+include("components/iidnd.jl")
 include("components/rw.jl")
 include("components/ar1.jl")
 include("components/seasonal.jl")
@@ -120,13 +122,14 @@ export Censoring
 # Hyperpriors
 export AbstractHyperPrior
 export PCPrecision, GammaPrecision, LogNormalPrecision, WeakPrior
-export PCBYM2Phi, LogitBeta, PCAlphaW, GaussianPrior
+export PCBYM2Phi, LogitBeta, PCAlphaW, PCCor0, GaussianPrior
 export log_prior_density, user_scale, prior_name
 
 # Components
 export AbstractLatentComponent
-export Intercept, FixedEffects, IID, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
+export Intercept, FixedEffects, IID, IIDND, IID2D, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
        Leroux, Generic0, Generic1
+export AbstractIIDND, IIDND_Sep
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean
 

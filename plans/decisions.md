@@ -1762,6 +1762,237 @@ disturbing the first.
 
 ---
 
+## ADR-022: `IIDND{N}` parameterisation — separable (`log τ_i, atanh ρ_{ij}`) by default, Wishart/InvWishart on the joint precision as alternative
+
+Status: Accepted
+Date: 2026-05-02
+
+### Context
+
+Phase I-A opens the multivariate-IID work: the `IID2D` and `IID3D`
+families that R-INLA exposes as `model = "2diid"` / `"iid3d"`, used in
+joint longitudinal-survival random effects, paired-areal disease
+mapping, and bivariate meta-analysis. Before any code lands, the
+parameterisation has to be locked because it touches the public kwargs,
+the prior interface, the Hessian-at-θ̂ stability, and the matching of
+R-INLA's defaults — all four of which are difficult to walk back later.
+
+The component sits on `n × N` latent slots with joint precision
+`Λ ∈ ℝ^{N × N}` (the GMRF block is `Λ ⊗ I_n`, so the per-replicate
+precision is `Λ` and the cross-replicate structure is independence).
+What needs deciding is *how the user supplies Λ*, since that drives the
+hyperparameter vector θ_c, the prior interface, and the user-facing
+parameters that get reported in the summary.
+
+Three parameterisations were on the table:
+
+A. **Joint Λ with Wishart/InvWishart prior.** θ_c stores the
+   `N(N+1)/2` distinct entries of Λ on a Cholesky scale; the prior is a
+   single `Wishart(r, V)` (or `InvWishart`). Matches R-INLA's `iid2d`
+   model code's default. Requires a new `AbstractJointHyperPrior`-style
+   abstract type because the existing `AbstractHyperPrior` is
+   documented as scalar-only (`packages/LatentGaussianModels.jl/src/priors/abstract.jl`
+   line 18: "Multi-dimensional priors … live in INLASPDE.jl because
+   they are inherently coupled").
+
+B. **Marginal precisions × correlations (separable).**
+   - For `N = 2`: θ_c = `(log τ_1, log τ_2, atanh ρ)` — three scalars,
+     each carrying its own `AbstractHyperPrior`. Matches R-INLA's
+     `2diid` model code (the alternate `f(., model="2diid", ...)` form).
+   - For `N ≥ 3`: θ_c stores the strictly-lower-triangular Cholesky
+     factor of the correlation matrix on a tangent-space scale (Lewandowski-Kurowicka-Joe
+     2009 / Stan's `cholesky_factor_corr`). Marginal precisions stay
+     scalar.
+
+C. **Marginal precisions × correlation matrix on a sphere
+   (Lewandowski).** Strictly more complex than (B); the only material
+   difference is the prior shape, and R-INLA's defaults aren't
+   expressible cleanly in this form.
+
+### Decision
+
+**Adopt (B) as the default parameterisation. Provide (A) — Wishart /
+InvWishart on the joint Λ — as an explicit alternative when the user
+supplies one as the `hyperprior` kwarg.**
+
+For `N = 2`:
+
+```julia
+IIDND(n, 2;
+      hyperprior_precs = (PCPrecision(), PCPrecision()),
+      hyperprior_corr  = PCCor0(U = 0.5, α = 0.5))
+```
+
+with internal-scale `θ_c = (log τ_1, log τ_2, atanh ρ)`. The
+user-facing summary reports `(τ_1, τ_2, ρ)`.
+
+For `N ≥ 3`:
+
+```julia
+IIDND(n, 3;
+      hyperprior_precs = ntuple(_ -> PCPrecision(), 3),
+      hyperprior_corrs = ntuple(_ -> PCCor0(U = 0.5, α = 0.5), 3))
+```
+
+with internal-scale θ_c packing the three log-precisions followed by
+the `N(N-1)/2 = 3` `atanh ρ_{ij}` entries (i < j); the on-disk Cholesky
+factor of the correlation matrix is reconstructed from the `atanh ρ`
+entries via the Lewandowski-Kurowicka-Joe stick-breaking step. (The
+`atanh-of-each-pairwise-corr` parameterisation is *not* injective onto
+positive-definite correlation matrices for N ≥ 4 in general; ADR-022
+locks IIDND to N ≤ 3, with N ≥ 4 deferred to a successor ADR if the
+need arises. R-INLA's `iid3d` model also stops at N = 3.)
+
+For the Wishart alternative:
+
+```julia
+IIDND(n, N; hyperprior = Wishart(r = N + 1, V = Matrix(I, N, N)))
+```
+
+θ_c packs the lower-triangular Cholesky factor of Λ; internal scale is
+unconstrained `ℝ^{N(N+1)/2}` via the log-Cholesky map (positive
+diagonal entries are stored as `log L_{ii}`). This needs a new
+`AbstractJointHyperPrior` abstract type and a single
+`log_prior_density(prior, θ_block)` method on it; the existing scalar
+`AbstractHyperPrior` machinery is left untouched. Wishart and
+InvWishart are the only initial concrete subtypes.
+
+The `IIDND` struct dispatches on whichever kwarg path the user took
+(separable vs joint) via two distinct `IIDND` types — `IIDND_Sep{N}`
+and `IIDND_Joint{N}` — under a single `AbstractIIDND` umbrella. The
+public constructor `IIDND(n, N; ...)` selects the right concrete type
+by inspecting the kwargs; users don't see the dispatch.
+
+### Why (B) over (A) as default
+
+1. **Matches R-INLA's `2diid` defaults bit-for-bit.** R-INLA's
+   `2diid` model uses `loggamma + atanh-ρ-Gaussian` defaults; the
+   reference implementation `IntegratedNestedLaplace.jl`'s
+   `BivariateIIDModel` does the same. Defaulting to (A) — Wishart on Λ
+   — would silently diverge from R-INLA's most-used multivariate-IID
+   path (R-INLA's docs list `2diid` as the recommended form when the
+   user has scalar precisions + correlation in mind, which is the
+   common joint-models case).
+2. **Fits the existing `AbstractHyperPrior` infra without a new
+   abstract type.** Each of the three (or six, for N=3) hyperparameter
+   slots is scalar and gets its own existing prior class. Wishart/
+   InvWishart are inherently coupled and *do* need new infra; option
+   (B) lets that infra arrive only when the user opts in.
+3. **PC priors compose naturally.** `PCCor0` on the correlation slot
+   (reference at ρ = 0, penalising departures from independence —
+   matches R-INLA's `pc.cor0`), `PCPrecision` on each marginal
+   precision — the already-shipped PC priors. The Wishart path doesn't
+   have a PC analogue in the literature. (Note: the early drafts of
+   this ADR called the prior `PCCor1`; corrected before code landed
+   because R-INLA's `pc.cor1` reserves that name for the
+   reference-at-ρ=1 prior used by AR(1)'s lag-1 correlation.)
+4. **Hessian-at-θ̂ stability is well-understood.** R-INLA's published
+   stability results for `2diid` carry over directly. The Cholesky
+   parameterisation of the joint Λ has known degenerate-Hessian
+   pathologies on the diagonal (the `log L_{ii}` entries) when Λ is
+   near-singular; defaulting to that path before we have a
+   stress-tested implementation is the wrong order.
+
+### Why (A) is still offered
+
+When the user is genuinely working in the precision-matrix mental
+model — typically because they have an informative Wishart prior from
+prior elicitation, or because they're following a textbook example
+that uses Wishart — forcing them through the separable path is a
+violation of "match R-INLA's user mental model". `iid2d` (Wishart
+default) and `2diid` (separable default) coexist in R-INLA precisely
+because both audiences exist.
+
+### Why not (C)
+
+The sphere parameterisation is strictly more complex than (B) —
+Lewandowski-Kurowicka-Joe is the standard tool for this — and the only
+material difference is the prior shape. R-INLA's defaults aren't
+expressible in (C) without a Jacobian compensation that the user
+shouldn't have to think about. Rejected on lock-in cost vs zero
+quality benefit.
+
+### Consequences
+
+**Good.**
+
+- `IID2D` is the highest-leverage Phase I-A target, and the separable
+  parameterisation makes it (a) bit-for-bit comparable to R-INLA's
+  `2diid` oracle, (b) ergonomic for the joint-longitudinal-survival
+  use case where the user thinks in terms of "subject-specific
+  random intercept and slope, with a correlation between them".
+- The Wishart alternative path is opt-in, so the `AbstractJointHyperPrior`
+  infra only ships when there's a real caller for it. PR sequencing
+  can defer the Wishart path to its own PR.
+- PC priors stay primary throughout the package; no backslide on the
+  R-INLA defaults-parity track.
+
+**Cost.**
+
+- Two `IIDND` concrete types (`Sep{N}` + `Joint{N}`) instead of one.
+  Localised: ~80 LoC each, plus the umbrella abstract type. Both
+  share `length`, `nhyperparameters`, `gmrf` defaults via the abstract
+  type; only `precision_matrix`, `log_hyperprior`,
+  `initial_hyperparameters`, and the public constructor logic differ.
+- One new abstract type (`AbstractJointHyperPrior`) plus `Wishart` /
+  `InvWishart` concrete subtypes when the Wishart path lands. Three
+  new files in `src/priors/`. Doesn't affect any of the existing
+  scalar-prior-using components.
+- `Cholesky-of-correlation` reconstruction (LKJ stick-breaking) for
+  N=3 needs ~30 LoC of arithmetic and a regression test against the
+  Stan reference.
+
+**Escape hatch.** If a user case emerges where the separable default
+diverges materially from a Wishart default they expected (e.g. they're
+porting an R-INLA model that *did* use `iid2d` rather than `2diid`),
+they pass `hyperprior = Wishart(...)` and the constructor flips to
+the joint path with no further code change.
+
+**Defer.** N ≥ 4 IID is deferred — neither R-INLA nor the joint-models
+literature has an active need, and the Lewandowski-Kurowicka-Joe
+parameterisation gets fragile at higher N. A successor ADR can lift
+this if a real use case appears.
+
+### Phasing — how this lands
+
+1. **PR-1a — `IIDND_Sep{2}` (i.e. `IID2D`).** Add the separable
+   constructor, `precision_matrix`, log-prior wiring through the three
+   scalar `AbstractHyperPrior` slots, regression tests against a dense
+   reference Λ. Add `PCCor0` prior. No Wishart path yet.
+2. **PR-1b — `IID3D`.** Same pattern at N=3 with the three-correlation
+   LKJ piece. `IID3D` regression test against R-INLA `iid3d` (R-INLA's
+   `iid3d` is documented as brittle on small samples; oracle is
+   informational, not load-bearing).
+3. **PR-1c — Wishart / InvWishart joint path.** Adds
+   `AbstractJointHyperPrior`, the two concrete priors, and
+   `IIDND_Joint{N}` constructor logic. Lands only when a user case
+   asks for it; otherwise sits behind the proposed-status flag.
+
+### References
+
+- ADR-006 — PC priors as the default prior class.
+- ADR-021 — recent component ADR; this ADR follows the same shape.
+- `plans/replan-2026-04-28.md` Phase I — original IID2D / IID3D scope.
+- `plans/phase-i-and-onwards-mighty-emerson.md` §Phase I-A — the
+  prereq this ADR closes.
+- Simpson, D., Rue, H., Riebler, A., Martins, T. G., & Sørbye, S. H.
+  (2017). *Penalising model component complexity: a principled,
+  practical approach to constructing priors.* — general PC-prior
+  framework underlying `PCCor0` (reference at ρ = 0).
+- Sørbye, S. H., & Rue, H. (2017). *Penalised complexity priors for
+  stationary autoregressive processes.* — companion construction at
+  reference ρ = 1 (R-INLA's `pc.cor1`), used by AR(1) but not by
+  IID2D.
+- Lewandowski, D., Kurowicka, D., & Joe, H. (2009). *Generating
+  random correlation matrices based on vines and extended onion
+  method.* — N≥3 Cholesky-of-correlation parameterisation.
+- R-INLA `f(., model="2diid", ...)` and `f(., model="iid3d", ...)` —
+  the parameterisations this ADR matches.
+- `IntegratedNestedLaplace.jl` `BivariateIIDModel` — reference
+  implementation using the separable form.
+
+---
+
 ## ADR template for future entries
 
 ```
