@@ -1595,6 +1595,173 @@ matrix lane.
 
 ---
 
+## ADR-021: `Copy` component — scaling β lives on the receiving likelihood, not on the projection mapping
+
+Status: Accepted
+Date: 2026-05-02
+
+### Context
+
+ADR-017 closed the projector seam question by promoting the model's
+`A` slot to a dispatchable `AbstractObservationMapping`. Phase G PR
+series 1 and 2 (multi-likelihood + the seam) have since merged. PR
+series 3 — the `Copy` component, the single largest blocker on the
+joint longitudinal-survival vignette — needs to express
+`η_target[i] += β · x_source[k(i)]`, where `x_source` is some other
+component's latent slice and `β` is an estimated hyperparameter.
+
+The plumbing question β raises is *where in the architecture does β
+live*. Three places it could live:
+
+A. **θ-aware `apply!`.** Extend the seam contract from
+   `apply!(η, mapping, x)` to `apply!(η, mapping, x, θ)`. The Copy
+   mapping reads β from θ via a stored hyperparameter index and
+   applies the scaling in its `apply!` method.
+
+B. **Mutable scaling on the mapping struct.** Add a
+   `set_scaling!(mapping, θ)` method called once per θ-iteration before
+   `apply!` runs; the Copy mapping caches the current β internally.
+
+C. **β on the receiving likelihood.** β is a hyperparameter of the
+   likelihood that receives the copied effect (not of the source
+   component or of the mapping). The mapping stays β-free; after the
+   main `apply!` runs, the receiving likelihood adds its own
+   `β · x_source[k(i)]` contribution to η via a new hook.
+
+ADR-017's `LinearPredictorTerm` paragraph (line 1036) is silent on
+which of these wins; the ADR explicitly leaves Copy's plumbing for
+PR series 3 to settle, with the "outside reviewer" prerequisite from
+the replan-2026-04-28 Phase G "Risks" subsection.
+
+### Decision
+
+**Option C: β is a hyperparameter of the receiving likelihood.**
+
+The seam contract from ADR-017 stays exactly as written —
+`apply!(η, mapping, x)` is θ-free. After the mapping's `apply!`
+populates η from x, each likelihood gets a chance to apply its own
+post-projection contributions via a new hook on `AbstractLikelihood`:
+
+```julia
+# Default no-op — most likelihoods don't have copies.
+add_copy_contributions!(η_block, ℓ::AbstractLikelihood,
+                        x::AbstractVector, θ_ℓ) = η_block
+```
+
+Likelihoods that participate in joint models (the survival likelihoods
+from Phase H, primarily) override this to read their `β` slot from
+`θ_ℓ` and apply `β * x[component_range]` to their η block. The
+`Copy` "component" that user code interacts with is therefore an
+ergonomic constructor that:
+
+1. registers no new entry in the latent vector (no extra columns in
+   x; the source component's latent is the only copy);
+2. registers no new precision-matrix block;
+3. records `(target_block, source_component_index, β_prior)` on the
+   receiving likelihood when the model is constructed;
+4. expands `nhyperparameters(ℓ)` by 1 (or more, for vector β) so the
+   inference loop allocates β alongside the likelihood's other
+   hyperparameters.
+
+In effect, "Copy" is sugar over a likelihood-side feature, not a new
+latent component class. The latent component listing in the model
+struct is unchanged from PR series 2.
+
+### Alternatives considered
+
+**A. θ-aware `apply!`.** Cleaner stylistically — the mapping owns the
+projection completely, including any θ-dependent scaling — but
+breaks the ADR-017 contract that all ~30 `m.A`-equivalent sites in
+`inference/laplace.jl` and `INLASPDERasters.jl` were rewritten
+against ten weeks ago. Third-party `AbstractObservationMapping`
+implementers (the `LowRankProjector` / `KroneckerMapping` audience)
+would need to update their mappings to accept θ even when they don't
+use it. Rejected on lock-in cost.
+
+**B. Mutable mapping state with `set_scaling!`.** Avoids the contract
+break but introduces a hidden imperative call ordering — the inner
+Newton loop has to call `set_scaling!` before each `apply!` or the
+mapping returns stale η. Surprises third-party implementers, makes
+the seam less type-stable. Rejected on ergonomics.
+
+**C** keeps the seam pure, keeps the Copy implementation local to
+likelihoods that actually use it, and matches R-INLA's mental model
+where β is a property of the receiving formula's `f(..., copy=...)`,
+not of the latent term being copied.
+
+### Consequences
+
+**Good.**
+
+- ADR-017's `apply!` / `apply_adjoke!` contract is unchanged —
+  third-party `AbstractObservationMapping` implementers don't have
+  to retrofit anything. The 30 rewritten call sites stay rewritten.
+- Copy's hyperparameter accounting flows through the existing
+  `likelihood_θ_ranges` machinery from PR series 2 — no parallel
+  routing. β is just another likelihood hyperparameter.
+- The receiving likelihood's `log_density` / `∇_η_log_density` /
+  `∇²_η_log_density` methods need no changes: they already operate
+  on η. The hook fires before they do; everything downstream is the
+  same.
+- The Copy component's user-visible constructor stays intact — users
+  don't need to know β lives on the likelihood; they pass
+  `Copy(target_component; β_prior)` and the model constructor wires
+  it through.
+
+**Cost.**
+
+- One new abstract method on `AbstractLikelihood`:
+  `add_copy_contributions!`. Every concrete likelihood inherits the
+  default no-op (single-line method). The ones that opt in are the
+  survival likelihoods (Weibull, Exponential, log-normal, gamma)
+  plus Gaussian on the longitudinal arm — five sites at most.
+- The model constructor has to thread β-prior info from the
+  user-facing `Copy(...)` call onto the right likelihood's
+  `θ_ranges`. One pass over `m.likelihoods` at construction.
+- The β-source association (`β` on this likelihood reads from the
+  random-intercept *of that other component*) needs a stored index
+  on the receiving likelihood. Adds one field per opt-in likelihood.
+
+**Escape hatch.** If a future use case needs a Copy whose receiving
+*term* isn't a likelihood (e.g. a copy that targets a fixed-effect
+slot, not an observation block), the alternative B path is still
+available — `set_scaling!` becomes the second mechanism without
+disturbing the first.
+
+### Phasing — how this lands
+
+1. **PR-3a — likelihood hook.** Add the no-op
+   `add_copy_contributions!(η, ℓ, x, θ)` default and the source-index
+   storage on the abstract likelihood interface. Every existing
+   concrete likelihood gets the default; oracle suite stays green.
+2. **PR-3b — `Copy` ergonomic constructor.** Add the user-visible
+   `Copy(target, …)` constructor that wires β-prior onto the receiving
+   likelihood. Add a closed-form regression test (β = 1.0 fixed
+   should reproduce the unscaled-share oracle result).
+3. **PR-3c — Baghfalaki vignette.** Joint Gaussian + Weibull with a
+   shared subject-specific random intercept and a Copy-scaled
+   contribution into the survival linear predictor. Lands as the
+   final Phase G PR; oracle fixture in
+   `packages/LatentGaussianModels.jl/test/oracle/fixtures/baghfalaki.jld2`.
+
+### References
+
+- ADR-017 — projector seam decision; this ADR closes the β-plumbing
+  question deferred there.
+- ADR-018 — censoring as a per-row vector on the survival likelihood
+  struct; the same likelihood-side feature pattern that this ADR
+  follows for β.
+- `plans/replan-2026-04-28.md` Phase G — "Joint-models scaffolding";
+  Risks subsection (outside-reviewer prerequisite).
+- R-INLA `f(..., copy=..., hyper=list(beta = ...))` — the
+  conceptual model this ADR matches.
+- Baghfalaki, T., Esfandyari, S. & Nazari, V. (2024). *A Bayesian
+  joint modelling of longitudinal and time-to-event data using
+  INLA: A tutorial.* — the joint model this ADR's PR-3c vignette
+  reproduces.
+
+---
+
 ## ADR template for future entries
 
 ```
