@@ -54,6 +54,13 @@ jobs:
       # follow-up lands; until then we accept whatever "stable" resolves to
       # and capture it in the artifact step below.
       R_REPOS_INLA: "https://inla.r-inla-download.org/R/stable"
+      # Force UTF-8 locale so non-ASCII strings in fixture metadata
+      # (e.g. "λ_max" in synthetic_generic1) round-trip identically
+      # between the developer machine (macOS) and the CI runner. Without
+      # this, R writes the string as raw bytes and the regenerated JSON
+      # carries `<ce><bb>_max` instead of `λ_max`.
+      LANG: "C.UTF-8"
+      LC_ALL: "C.UTF-8"
 
     steps:
       - uses: actions/checkout@v4
@@ -107,6 +114,23 @@ jobs:
           # available" on a stale repo state — keep this explicit.
           install.packages("gsl", repos = cran_repos)
           stopifnot(requireNamespace("gsl", quietly = TRUE))
+
+          # Pin fmesher to match the developer-machine version that
+          # generated the committed fixtures. fmesher is a separate
+          # CRAN package (used by `scripts/generate-fixtures/spde/*.R`
+          # via `library(fmesher)`); PPM's "latest" snapshot can resolve
+          # to a newer version whose triangulator produces meshes with
+          # different vertex / triangle counts, breaking the tamper
+          # check despite no semantic change. 0.7.0 matches the version
+          # used to generate the committed `fmesher_meuse_hull.jld2` and
+          # `meuse_spde.jld2` fixtures.
+          if (!requireNamespace("remotes", quietly = TRUE)) {
+              install.packages("remotes", repos = cran_repos)
+          }
+          remotes::install_version("fmesher", version = "0.7.0",
+                                   repos = cran_repos, upgrade = "never")
+          fmesher_version <- as.character(packageVersion("fmesher"))
+          cat(sprintf("fmesher version pinned to: %s\n", fmesher_version))
 
           needed <- c("jsonlite", "Matrix", "SpatialEpi", "spdep", "INLA")
           missing <- needed[!sapply(needed, requireNamespace, quietly = TRUE)]
