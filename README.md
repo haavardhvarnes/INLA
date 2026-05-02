@@ -60,8 +60,9 @@ brings the inference stack into scope in one import.
 
 ## Installation
 
-The packages are not yet on the General registry. They are registered
-in a personal Julia registry. From a fresh Julia REPL:
+The packages are registered on a personal Julia registry at
+[`haavardhvarnes/JuliaRegistry`](https://github.com/haavardhvarnes/JuliaRegistry).
+From a fresh Julia REPL:
 
 ```julia
 using Pkg
@@ -84,9 +85,6 @@ The optional sub-packages `LGMTuring.jl`, `LGMFormula.jl`, and
 Pkg.develop(url = "https://github.com/haavardhvarnes/INLA.jl",
             subdir = "packages/LGMTuring.jl")
 ```
-
-General-registry submission is planned; until then the personal
-registry is the install path.
 
 ## What ships in v0.1.1
 

@@ -53,8 +53,9 @@ update!(cache, BesagGMRF(g; τ = 4.0, scale_model = true))
 
 ## Installation
 
-Not yet on the General registry. Registered in a personal Julia
-registry — add it once, then `Pkg.add` as usual:
+Registered on a personal Julia registry at
+[`haavardhvarnes/JuliaRegistry`](https://github.com/haavardhvarnes/JuliaRegistry) —
+add it once, then `Pkg.add` as usual:
 
 ```julia
 using Pkg

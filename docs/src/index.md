@@ -41,8 +41,9 @@ Depth = 2
 
 ## Installing
 
-`v0.1.0` is not yet on the General registry. The packages are
-registered in a personal Julia registry. From a fresh Julia REPL:
+The packages are registered on a personal Julia registry at
+[`haavardhvarnes/JuliaRegistry`](https://github.com/haavardhvarnes/JuliaRegistry).
+From a fresh Julia REPL:
 
 ```julia
 using Pkg
