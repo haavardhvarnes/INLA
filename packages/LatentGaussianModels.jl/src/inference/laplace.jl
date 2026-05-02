@@ -62,6 +62,14 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         x0::Union{Nothing, AbstractVector{<:Real}}=nothing)
     Q = joint_precision(m, θ)
     A = as_matrix(m.mapping)
+    # Effective Jacobian `dη/dx` for the Newton step. Equals `A` for
+    # models without `Copy`; otherwise includes per-block β-rows that
+    # share a latent component into another linear-predictor block. β
+    # is fixed within a single Laplace fit (θ is fixed), so we
+    # materialise `J` once. `A` is kept separate for the forward pass
+    # `η = A * x; joint_apply_copy_contributions!(η, …)`, where the
+    # Copy share enters via the `η`-hook to keep that abstraction live.
+    J = joint_effective_jacobian(m, θ)
 
     # --- constraint bookkeeping ---------------------------------------
     constraint = model_constraints(m)
@@ -80,10 +88,14 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     x = x0 === nothing ? zeros(Float64, m.n_x) : Vector{Float64}(x0)
 
     # Build initial posterior precision and factor cache on Q_reg.
+    # `J` is the effective Jacobian `dη/dx` (= `A` for non-Copy models;
+    # `A + B(β)` when a `CopyTargetLikelihood` is present), used in the
+    # Hessian `Q + Jᵀ D J` and gradient `Jᵀ ∇η - Q x`.
     η = A * x
+    joint_apply_copy_contributions!(η, m, x, θ)
     ∇²η = joint_∇²_η_log_density(m, y, η, θ)
     D = Diagonal(-∇²η)
-    H = Q_reg + (A' * D * A)
+    H = Q_reg + (J' * D * J)
     H = _symmetrize!(H)
     cache = GMRFs.FactorCache(H)
 
@@ -92,15 +104,16 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     for k in 1:(strategy.maxiter)
         iter = k
         η = A * x
+        joint_apply_copy_contributions!(η, m, x, θ)
         ∇η = joint_∇_η_log_density(m, y, η, θ)
         ∇²η = joint_∇²_η_log_density(m, y, η, θ)
         D = Diagonal(-∇²η)
-        H = Q_reg + (A' * D * A)
+        H = Q_reg + (J' * D * J)
         H = _symmetrize!(H)
         GMRFs.update!(cache, H)
 
         # Gradient of log joint w.r.t. x uses the *original* Q (not Q_reg):
-        #   g = A' ∇_η log p - Q x
+        #   g = Jᵀ ∇_η log p - Q x
         # The bump `V V^T x` contributes to H_reg on null(Q) only — it keeps
         # Newton out of the null direction without biasing the mode on the
         # constraint surface (where C x = 0 ⟹ V^T x = 0 so V V^T x = 0).
@@ -109,9 +122,9 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         # a fixed offset. Include it in the RHS to keep the Newton target
         # consistent with the regularised quadratic.
         if has_constr
-            g = A' * ∇η - Q_reg * x
+            g = J' * ∇η - Q_reg * x
         else
-            g = A' * ∇η - Q * x
+            g = J' * ∇η - Q * x
         end
 
         Δx = cache \ g
@@ -131,9 +144,10 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
 
     # Final evaluation at x̂.
     η = A * x
+    joint_apply_copy_contributions!(η, m, x, θ)
     ∇²η = joint_∇²_η_log_density(m, y, η, θ)
     D = Diagonal(-∇²η)
-    H = Q_reg + (A' * D * A)
+    H = Q_reg + (J' * D * J)
     H = _symmetrize!(H)
     GMRFs.update!(cache, H)
 
@@ -144,6 +158,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         U_final, W_final = _kriging_correction(cache, C)
         _project_to_constraint!(x, C, e_c, U_final, W_final)
         η = A * x
+        joint_apply_copy_contributions!(η, m, x, θ)
         constraint_data = (C=C, e=e_c, U=U_final, W_fact=W_final)
     else
         constraint_data = nothing

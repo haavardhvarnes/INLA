@@ -129,6 +129,79 @@ function joint_pointwise_log_density(m::LatentGaussianModel,
 end
 
 """
+    joint_apply_copy_contributions!(η, m::LatentGaussianModel, x, θ) -> η
+
+Apply each likelihood's [`add_copy_contributions!`](@ref) hook to its
+own slice of `η`, in place, and return `η`. Called after every
+`η = mapping * x` evaluation in the inner Newton loop and posterior
+sampler so that `Copy`-scaled latent shares fold into the linear
+predictor before likelihood derivatives are computed.
+
+The default `add_copy_contributions!` is a no-op, so single-likelihood
+models without copies pay only the per-block dispatch loop — concrete
+`Tuple{Vararg{<:AbstractLikelihood}}` likelihoods union-split at
+compile time, so the no-op specialisation lowers to a no-op.
+"""
+function joint_apply_copy_contributions!(η::AbstractVector,
+        m::LatentGaussianModel,
+        x::AbstractVector,
+        θ::AbstractVector)
+    for k in eachindex(m.likelihoods)
+        ℓ_k = m.likelihoods[k]
+        rows_k = m.block_rows[k]
+        θ_k = view(θ, m.likelihood_θ_ranges[k])
+        add_copy_contributions!(view(η, rows_k), ℓ_k, x, θ_k)
+    end
+    return η
+end
+
+"""
+    joint_effective_jacobian(m::LatentGaussianModel, θ) -> AbstractMatrix
+
+Effective design Jacobian `dη/dx`, including any [`Copy`](@ref)
+contributions on the receiving likelihoods.
+
+For models without copies this returns `as_matrix(m.mapping)` directly
+(no allocation overhead). For models with copies, the Copy share
+`η_target[i] += β * x[source_indices[i]]` adds a `β` entry to
+`J[block_rows[k][i], source_indices[i]]`, returned as `A + B(θ)`.
+
+Used by every inference site that needs `dη/dx` — the inner Newton
+Hessian/gradient, simplified-Laplace mean-shift, posterior-marginal
+skewness, and DIC.
+"""
+function joint_effective_jacobian(m::LatentGaussianModel, θ::AbstractVector)
+    A = as_matrix(m.mapping)
+    any(_has_copy_contribution, m.likelihoods) || return A
+
+    # Coordinate-list build: Copy contributions are sparse, β depends on
+    # θ, so we materialise a fresh `B` each call and let SparseArrays
+    # handle the addition.
+    Is = Int[]
+    Js = Int[]
+    Vs = promote_type(eltype(A), Float64)[]
+    for k in eachindex(m.likelihoods)
+        ℓ_k = m.likelihoods[k]
+        _has_copy_contribution(ℓ_k) || continue
+        rows_k = m.block_rows[k]
+        θ_k = view(θ, m.likelihood_θ_ranges[k])
+        _accumulate_copy_jacobian!(Is, Js, Vs, ℓ_k, rows_k, θ_k)
+    end
+    isempty(Is) && return A
+    B = sparse(Is, Js, Vs, size(A, 1), size(A, 2))
+    return A + B
+end
+
+# Predicate + accumulator. Default is no-op; `CopyTargetLikelihood`
+# overrides both in `likelihoods/copy.jl`.
+_has_copy_contribution(::AbstractLikelihood) = false
+
+function _accumulate_copy_jacobian!(::AbstractVector, ::AbstractVector, ::AbstractVector,
+        ::AbstractLikelihood, ::AbstractVector, _θ_ℓ)
+    return nothing
+end
+
+"""
     joint_pointwise_cdf(m::LatentGaussianModel, y, η, θ) -> AbstractVector
 
 Length-`n_obs` per-observation predictive CDF `F(y_i | η_i, θ_ℓ)`. Used

@@ -159,7 +159,12 @@ function _latent_skewness(lp::LaplaceResult,
     σ_i == 0 && return 0.0
 
     A = as_matrix(model.mapping)
+    # `J` is the effective Jacobian `dη/dx` — equals `A` for non-Copy
+    # models; otherwise includes per-block β-rows. The skewness contracts
+    # `c³` with `(J u)_j³`, so the Copy contribution must enter J here.
+    J = joint_effective_jacobian(model, lp.θ)
     η̂ = A * lp.mode
+    joint_apply_copy_contributions!(η̂, model, lp.mode, lp.θ)
     c³ = joint_∇³_η_log_density(model, y, η̂, lp.θ)
     all(iszero, c³) && return 0.0
 
@@ -176,10 +181,10 @@ function _latent_skewness(lp::LaplaceResult,
         u .-= U * (W_fact \ (C * u))
     end
 
-    Au = A * u
+    Ju = J * u
     κ3 = zero(Float64)
     @inbounds for j in eachindex(c³)
-        κ3 += c³[j] * Au[j]^3
+        κ3 += c³[j] * Ju[j]^3
     end
     return κ3 / σ_i^3
 end

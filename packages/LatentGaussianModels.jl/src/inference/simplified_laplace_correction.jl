@@ -39,35 +39,39 @@ function _sla_mean_shift(lp::LaplaceResult,
         model::LatentGaussianModel,
         y)
     A = as_matrix(model.mapping)
+    # Effective Jacobian for σ²_η and the H⁻¹ Jᵀ solve. Equals `A` for
+    # non-Copy models; otherwise includes per-block β-rows.
+    J = joint_effective_jacobian(model, lp.θ)
     η̂ = A * lp.mode
+    joint_apply_copy_contributions!(η̂, model, lp.mode, lp.θ)
 
     h³ = joint_∇³_η_log_density(model, y, η̂, lp.θ)
     all(iszero, h³) && return zeros(Float64, length(lp.mode))
 
-    # Z = H⁻¹ Aᵀ via multi-RHS sparse Cholesky on the cached factor
-    # (FactorCache `\` supports AbstractVecOrMat). Materialise Aᵀ as a
+    # Z = H⁻¹ Jᵀ via multi-RHS sparse Cholesky on the cached factor
+    # (FactorCache `\` supports AbstractVecOrMat). Materialise Jᵀ as a
     # dense `n_x × n_obs` block — the solver handles dense RHS faster
     # than sparse and the block size is bounded by the latent dimension.
-    Z = lp.factor \ Matrix(transpose(A))
+    Z = lp.factor \ Matrix(transpose(J))
     if lp.constraint !== nothing
         # Project each column onto null(C) using the same kriging
         # identity as `_latent_skewness` (marginals.jl). After this,
-        # `Z` is the columnwise constrained-inverse `Aᵀ` action and
-        # `diag(A · Z)` is the constraint-corrected `σ²_η`.
+        # `Z` is the columnwise constrained-inverse `Jᵀ` action and
+        # `diag(J · Z)` is the constraint-corrected `σ²_η`.
         U = lp.constraint.U
         W_fact = lp.constraint.W_fact
         C = lp.constraint.C
         Z .-= U * (W_fact \ (C * Z))
     end
 
-    # σ²_η_i = (A H⁻¹ Aᵀ)_ii = Σ_j A_ij Z_ji, computed without forming
-    # the full `n_obs × n_obs` matrix `A · Z`. Sparse-times-dense
-    # broadcasting respects A's pattern.
-    σ²_η = vec(sum(A .* transpose(Z), dims=2))
+    # σ²_η_i = (J H⁻¹ Jᵀ)_ii = Σ_j J_ij Z_ji, computed without forming
+    # the full `n_obs × n_obs` matrix `J · Z`. Sparse-times-dense
+    # broadcasting respects J's pattern.
+    σ²_η = vec(sum(J .* transpose(Z), dims=2))
 
-    # Δx = ½ H⁻¹ Aᵀ (h³ ⊙ σ²_η). One vector solve, then project onto
+    # Δx = ½ H⁻¹ Jᵀ (h³ ⊙ σ²_η). One vector solve, then project onto
     # null(C) so that `C(x̂ + Δx) = C x̂ = e` is preserved exactly.
-    rhs = transpose(A) * (h³ .* σ²_η)
+    rhs = transpose(J) * (h³ .* σ²_η)
     Δx = lp.factor \ Vector(rhs)
     if lp.constraint !== nothing
         U = lp.constraint.U
