@@ -1993,6 +1993,335 @@ this if a real use case appears.
 
 ---
 
+## ADR-023: `MEB` and `MEC` measurement-error components — β-via-`Copy` decomposition; non-zero `prior_mean` made load-bearing
+
+Status: Accepted
+Date: 2026-05-03
+
+### Context
+
+Phase I-B opens the measurement-error work: R-INLA's `f(w, model="meb", ...)`
+(Berkson) and `f(w, model="mec", ...)` (Classical) latent components, used
+for errors-in-variables regression in epidemiology, environmental
+exposure modelling, and any setting where a covariate is measured with
+non-trivial uncertainty (Carroll, Ruppert, Stefanski, Crainiceanu 2006;
+Muff, Riebler, Held, Rue, Saner 2015).
+
+Both R-INLA models expose, in the linear predictor, the *scaled* latent
+covariate `ν_i = β · x_i` rather than `x_i` itself. Internally the
+latent block is the unscaled `x` — a length-`n_unique(w)` Gaussian
+vector with prior mean and prior precision determined by the model
+flavour and a small set of hyperparameters — and `β` is a per-component
+hyperparameter that multiplies the projection from latent to linear
+predictor before it lands in `η`. R-INLA registers both models in the
+latent-models table alongside `ar1`/`rw1`/`iid` (`models.R`,
+`n.required = FALSE`), so the user's mental model is "this is a
+component", not "this is a coefficient prior".
+
+The two flavours differ by which way the noise tie runs:
+
+- **MEB (Berkson)**: `x_i = w_i + u_i`, `u_i ~ N(0, (τ_u s_i)⁻¹)`. The
+  observed covariate `w` is *fixed* and the latent is `w + u`. The
+  latent-block prior is therefore `x ~ N(w, (τ_u D)⁻¹)` with
+  `D = diag(s)` after marginalising `u`.
+- **MEC (Classical)**: `w_i = x_i + u_i`, `u_i ~ N(0, (τ_u s_i)⁻¹)`,
+  with prior `x ~ N(μ_x · 1, (τ_x I)⁻¹)`. The observed `w` is a noisy
+  measurement of the latent truth `x`. R-INLA absorbs the Berkson tie
+  `w | x ~ N(x, (τ_u D)⁻¹)` into the prior on `x` via Gaussian
+  conjugacy: posterior precision becomes `τ_x I + τ_u D`, posterior mean
+  becomes `(τ_x I + τ_u D)⁻¹ (τ_x μ_x 1 + τ_u D w)`.
+
+Both flavours fit the existing `AbstractLatentComponent` contract if
+two things are true:
+
+1. The component's prior mean is allowed to be non-zero (the optional
+   `prior_mean(c, θ)` method documented in `CLAUDE.md` becomes
+   load-bearing, where for every other component it has been zero).
+2. The β-multiplication of the latent block before it enters η is
+   handled somewhere — and we have a choice of where.
+
+`plans/replan-2026-04-28.md` (lines 255–256) originally labelled MEB
+as "classical" and MEC as "Berkson". This is the opposite of R-INLA's
+convention. The R-INLA LaTeX source
+(`inlaprog/doc/latent/{meb,mec}.tex`) is unambiguous: `meb` =
+"Berkson Measurement Error", `mec` = "Classical Measurement Error". The
+B/C suffix in the model name encodes the error structure, not "Bayesian
+vs. classical inference". This ADR locks the correct R-INLA naming;
+the same PR that lands this ADR amends the replan in place.
+
+### Decision
+
+**Three coupled choices.**
+
+#### 1. β lives on the *receiving* likelihood via `Copy`, not on the component
+
+Consistent with ADR-021's `Copy` decision. The MEB and MEC components
+own only the latent block `x` (with non-zero prior mean and structured
+precision); the β-scaling is wired up by the user (or by a constructor
+helper) as a `Copy(source_indices; β_prior=...)` on the
+`CopyTargetLikelihood` that wraps the receiving observation likelihood.
+
+```julia
+# User-facing pattern:
+component = MEB(w; scale = s, τ_u_prior = GammaPrecision(1.0, 1.0e-4))
+β_copy = Copy(component_range; β_prior = GaussianPrior(1.0, 0.001))
+target = CopyTargetLikelihood(GaussianLikelihood(), β_copy)
+model = LatentGaussianModel((target,),
+                            (Intercept(), component),
+                            obs_mapping)
+```
+
+The receiving-likelihood placement is the existing infrastructure;
+nothing about the inner Newton loop, the η-Jacobian augmentation, or
+the hyperparameter accounting changes. The MEB/MEC component itself
+contributes zero copies of its own — it is, structurally, an "IID with
+non-zero prior mean and per-element precision".
+
+#### 2. Latent layout
+
+Both components store a length-`n_unique(w)` latent block. Observations
+with identical `w` (after rounding to the supplied `digits`, matching
+R-INLA's `f(w, model = "meb", values = ...)` semantics) share the same
+latent slot. The projector from latent to row-space is the natural
+"row `i` reads slot `k` where `w[i] = unique_w[k]`" injection — already
+expressible as a `LinearProjector` from ADR-017's observation-mapping
+seam, no new mapping type required.
+
+`prior_mean(c, θ)` becomes the load-bearing way to expose the non-zero
+mean to the inner Newton loop. The CLAUDE.md component-contract entry
+already documents `prior_mean` as an optional method with default
+`zeros`; this ADR promotes it to "load-bearing for at least two
+components" and adds the corresponding hot-path test (the inner Newton
+step must read `prior_mean` whenever it is non-zero).
+
+`precision_matrix(c, θ)` is diagonal in both flavours:
+
+- **MEB**: `Q_c = τ_u · D`, `μ_c = w_unique`.
+- **MEC**: `Q_c = τ_x I + τ_u D`, `μ_c = Q_c⁻¹ · (τ_x μ_x 1 + τ_u D w_unique)`.
+
+Note the MEC mean depends on θ (through `τ_x`, `τ_u`, `μ_x`), unlike
+MEB's θ-constant mean. This is fine — `prior_mean(c, θ)` is dispatched
+on θ already; the contract supports it.
+
+#### 3. Hyperparameter list and defaults — bit-for-bit R-INLA
+
+**MEB**:
+
+| slot | name | internal scale | prior | initial | default-fixed |
+|---|---|---|---|---|---|
+| θ_c[1] | β | identity | `GaussianPrior(1.0, 0.001)` (R-INLA: gaussian, mean=1, prec=0.001) | 1.0 | no |
+| θ_c[2] | log τ_u | log | `GammaPrecision(1.0, 1.0e-4)` (R-INLA: loggamma, shape=1, rate=1e-4) | log(1000) ≈ 6.9078 | no |
+
+β lives on the receiving likelihood via `Copy`; θ_c[1] is the Copy's β
+slot, *not* the component's. Internally only `log τ_u` belongs to the
+component's hyperparameter vector. The "MEB has 2 hyperparameters" line
+in R-INLA's docs is a user-facing accounting that includes β; the
+Julia accounting is "1 component hyperparameter + 1 β slot via Copy".
+
+**MEC**:
+
+| slot | name | internal scale | prior | initial | default-fixed |
+|---|---|---|---|---|---|
+| θ_c[1] | β | identity | `GaussianPrior(1.0, 0.001)` | 1.0 | no |
+| θ_c[2] | log τ_u | log | `GammaPrecision(1.0, 1.0e-4)` | log(10000) ≈ 9.21 | **yes** |
+| θ_c[3] | μ_x | identity | `GaussianPrior(0.0, 1.0e-4)` | 0.0 | **yes** |
+| θ_c[4] | log τ_x | log | `GammaPrecision(1.0, 1.0e4)` | -log(10000) ≈ -9.21 | **yes** |
+
+Same β-via-Copy split as MEB. The default-fixed slots (τ_u, μ_x, τ_x)
+are R-INLA's "degrades to plain regression unless the user opts in":
+τ_u huge ⇒ no measurement error, τ_x tiny ⇒ vague prior on x, μ_x
+fixed at 0. The user unfixes whichever slots they want to estimate by
+passing `fix_τ_u = false` (etc.) at construction. The Julia-side public
+constructor mirrors R-INLA's `f(w, model = "mec", control.fixed =
+list(...))` form.
+
+#### Public API
+
+```julia
+MEB(w::AbstractVector;
+    scale = ones(length(unique(w))),
+    digits::Int = 8,
+    τ_u_prior::AbstractHyperPrior = GammaPrecision(1.0, 1.0e-4),
+    τ_u_init::Real = log(1000.0))
+# Returns a `MEB` component (subtype of `AbstractLatentComponent`) plus,
+# via the constructor's secondary return, a `Copy` template the user
+# attaches to the receiving likelihood.
+
+MEC(w::AbstractVector;
+    scale = ones(length(unique(w))),
+    digits::Int = 8,
+    τ_u_prior = GammaPrecision(1.0, 1.0e-4),
+    μ_x_prior = GaussianPrior(0.0, 1.0e-4),
+    τ_x_prior = GammaPrecision(1.0, 1.0e4),
+    τ_u_init  = log(10000.0),
+    μ_x_init  = 0.0,
+    τ_x_init  = -log(10000.0),
+    fix_τ_u::Bool = true,
+    fix_μ_x::Bool = true,
+    fix_τ_x::Bool = true)
+```
+
+The `digits` kwarg matches R-INLA's `f(...; values = unique(round(w,
+digits = ...)))` convention for de-duplicating observed covariate
+values into latent slots.
+
+The β slot does not appear in either constructor's kwargs — it lives on
+the user-supplied `Copy(...)` attached to the receiving likelihood. To
+make this ergonomic, both constructors return a `(component, β_copy_template)`
+named tuple where `β_copy_template` is a `Copy` pre-configured with
+R-INLA's `gaussian(1, 0.001)` β prior; the user can override by
+constructing their own `Copy` against the component's range.
+
+### Why β-via-Copy and not β-on-the-component
+
+1. **Consistency with ADR-021.** That ADR accepted "scaling β lives on
+   the receiving likelihood" as the rule. Reopening it for MEB/MEC
+   would either fragment the codebase (two β-attachment idioms) or
+   force an ADR-021 supersedence. The Copy route is the one we already
+   tested.
+2. **No change to `add_copy_contributions!` or `_accumulate_copy_jacobian!`.**
+   The hot path is already wired for β-times-source-block contributions
+   into η. Reusing it for MEB/MEC means zero net new hot-path code
+   beyond the component's `precision_matrix` and `prior_mean`.
+3. **The "MEB component contributes its own copy" alternative would
+   couple component construction to likelihood construction.** Right
+   now `LatentGaussianModel` accepts `(likelihoods, components,
+   mapping)` independently. A self-copying component would need a
+   back-reference from latent index → receiving likelihood, which
+   `LatentGaussianModel` does not currently maintain.
+4. **R-INLA's posterior of `ν = β·x` is recoverable post-fit as a
+   derived quantity from the joint `(x, β)` posterior** — no need to
+   carry `ν` as a primary latent. A small accessor in PR-2c
+   (`measurement_error_scaled_latent(model, res)`) closes the
+   user-facing ergonomics gap.
+
+### Why two distinct components and not a parameterised one
+
+`MEB` and `MEC` differ in:
+- prior-mean dependence on θ (constant for MEB, θ-dependent for MEC);
+- precision-matrix structure (diagonal `τ_u D` vs `τ_x I + τ_u D`);
+- number of hyperparameters (1 vs 3 once β is excluded);
+- default-fixed pattern (none for MEB, three of three for MEC).
+
+Folding both into a single `MeasurementError(...; flavour = :berkson|:classical)`
+constructor would require the struct's hyperparameter vector to be
+parameterised on `flavour`, which forces the field types to be
+`Vector` instead of `NTuple` and gives up dispatch granularity for
+`precision_matrix`/`prior_mean`. The two-component split is the same
+shape as `BYM` vs `BYM2` or `Generic0` vs `Generic1` vs `Generic2` —
+distinct components matching distinct R-INLA model strings.
+
+### Why the replan's labels-swapped error matters
+
+Carroll-style measurement-error literature uses the Berkson/Classical
+distinction to flag which way the noise tie runs, and the analytical
+behaviour differs sharply between them — bias attenuation under
+classical error, no-attenuation under Berkson, and entirely different
+prior-elicitation requirements. Mislabelling the components in user
+documentation would silently push users toward the wrong model for
+their data. `plans/replan-2026-04-28.md` lines 255–256 originally
+called `MEB(...)` "classical" and `MEC(...)` "Berkson" — the opposite
+of R-INLA. The active session-level Phase I-onwards replan
+(2026-05-02) inherited the same swap from the parent replan. This ADR
+is the single source of truth from this point forward; the committed
+replan was corrected in the same PR that landed this ADR, and the
+session-level replan picks up the correction via its next sync.
+
+### Consequences
+
+**Good.**
+
+- MEB and MEC ship as standard `AbstractLatentComponent` subtypes with
+  no new abstract types, no new prior categories, no Copy-machinery
+  changes. The β-attachment idiom is unchanged from ADR-021.
+- `prior_mean(c, θ)` is promoted from "documented but unused optional"
+  to "documented and load-bearing in two components". The inner Newton
+  loop already calls it; this ADR confirms that path stays load-bearing
+  rather than getting silently optimised away.
+- The R-INLA defaults table is captured here verbatim for
+  `defaults-parity.md`'s next sync.
+- The replan's MEB/MEC label swap is corrected in writing.
+
+**Cost.**
+
+- ~150 LoC for `MEB` (struct, constructor, `precision_matrix`,
+  `prior_mean`, `log_hyperprior`, `log_normalizing_constant`, `gmrf`)
+  plus ~50 LoC of regression tests in `test/regression/test_meb.jl`.
+- ~200 LoC for `MEC` (more hyperparameters, conjugate-Gaussian mean
+  formula, three default-fixed slots, fix-toggle kwargs) plus ~70 LoC
+  of regression tests.
+- One R-INLA oracle fixture (Carroll-style classical-error regression)
+  in `test/oracle/`. Probably reuse the Muff et al. 2015 example data.
+- Promotion of `prior_mean` to load-bearing requires a regression test
+  asserting the inner Newton step reads it correctly. ~30 LoC.
+- The "constructor returns `(component, β_copy_template)` named tuple"
+  is a slightly unusual constructor return shape; document explicitly
+  in both docstrings.
+
+**Escape hatch.** If the named-tuple constructor return shape produces
+user-visible friction (someone tries to write `c = MEB(w)` and is
+surprised by the tuple), wrap it in a small helper:
+
+```julia
+component, β_copy = MEB(w)            # explicit destructuring
+m = MEB(w).component                  # ignore β-default-template
+m, β_copy = unpack_meb(MEB(w))        # named helper
+```
+
+**Defer.** R-INLA exposes both `meb` and `mec` per-row group / replicate
+extensions (`f(w, model = "meb", group = ..., replicate = ...)`).
+Phase I-C handles the `replicate` / `group` machinery for *all*
+components uniformly; MEB/MEC pick them up for free at that point. No
+extra ADR work needed when Phase I-C lands.
+
+### Phasing — how this lands
+
+1. **PR-2a (this ADR + replan correction).** Lock the design before
+   code. Amend `plans/replan-2026-04-28.md` (lines 255–256) to correct
+   the MEB/MEC label swap and reference this ADR.
+2. **PR-2b — `MEB` (Berkson) component.** The simpler of the two —
+   prior mean is θ-constant `w_unique`, precision is diagonal `τ_u D`,
+   one component hyperparameter (`log τ_u`). Regression tests + R-INLA
+   oracle on a synthetic Berkson example.
+3. **PR-2c — `MEC` (Classical) component.** Adds the conjugate-Gaussian
+   prior-mean formula, three default-fixed hyperparameters, and the
+   `fix_*` kwargs. R-INLA oracle on a Carroll-style classical-error
+   regression (Muff et al. 2015 example data is the canonical fixture).
+4. **PR-2d — Vignette.** Port the Carroll classical-error regression
+   into `docs/src/vignettes/measurement-error-regression.md`.
+
+### References
+
+- ADR-021 — `Copy` component; β-on-receiving-likelihood rule that this
+  ADR follows.
+- ADR-017 — `AbstractObservationMapping` seam; provides the
+  `LinearProjector` for the row-to-unique-slot mapping.
+- ADR-022 — most-recent component ADR; this ADR follows its shape.
+- `plans/replan-2026-04-28.md` Phase I — original scope; this ADR
+  corrects the MEB/MEC label swap originally introduced there
+  (lines 255–256), now amended in the same PR that lands this ADR.
+- `plans/defaults-parity.md` — to be updated with the MEB/MEC default
+  table when PR-2b/c land.
+- R-INLA model docs:
+  - `https://inla.r-inla-download.org/r-inla.org/doc/latent/meb.pdf`
+  - `https://inla.r-inla-download.org/r-inla.org/doc/latent/mec.pdf`
+- R-INLA source:
+  - `inlaprog/doc/latent/meb.tex`, `mec.tex` — model equations and
+    R-INLA's hyperparameter accounting (`hyperid 3001/3002` for MEB,
+    `hyperid 2001-2004` for MEC).
+  - `rinla/R/models.R` — registration confirms latent-section
+    placement, `n.required = FALSE`, no `covariate` field.
+- Muff, Riebler, Held, Rue, Saner (2015). *Bayesian analysis of
+  measurement error models using INLA.* — canonical Bayesian-INLA
+  treatment of MEB/MEC; the parameterisation choices in R-INLA trace
+  to this paper.
+- Carroll, Ruppert, Stefanski, Crainiceanu (2006). *Measurement Error
+  in Nonlinear Models: A Modern Perspective.* — textbook reference for
+  the Berkson vs. classical distinction and the associated bias
+  results.
+
+---
+
 ## ADR template for future entries
 
 ```
