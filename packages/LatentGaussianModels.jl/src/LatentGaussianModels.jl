@@ -127,7 +127,7 @@ export log_prior_density, user_scale, prior_name
 
 # Components
 export AbstractLatentComponent
-export Intercept, FixedEffects, IID, IIDND, IID2D, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
+export Intercept, FixedEffects, IID, IIDND, IID2D, IID3D, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
        Leroux, Generic0, Generic1
 export AbstractIIDND, IIDND_Sep
 export precision_matrix, initial_hyperparameters, nhyperparameters,

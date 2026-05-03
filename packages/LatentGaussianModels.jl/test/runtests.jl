@@ -39,7 +39,7 @@ using GMRFs
     @testset "Components" begin
         include("regression/test_components.jl")
     end
-    @testset "IIDND — Phase I-A PR-1a" begin
+    @testset "IIDND — Phase I-A PR-1a/PR-1b" begin
         include("regression/test_iidnd.jl")
     end
     @testset "BYM" begin
