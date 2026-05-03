@@ -48,6 +48,9 @@ using GMRFs
     @testset "MEC — Phase I-B PR-2c" begin
         include("regression/test_mec.jl")
     end
+    @testset "Replicate — Phase I-C PR-3a" begin
+        include("regression/test_replicate.jl")
+    end
     @testset "BYM" begin
         include("regression/test_bym.jl")
     end
