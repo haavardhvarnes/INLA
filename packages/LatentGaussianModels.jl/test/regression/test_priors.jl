@@ -1,5 +1,5 @@
 using LatentGaussianModels: PCPrecision, GammaPrecision, LogNormalPrecision,
-                            WeakPrior, PCAlphaW, PCCor0, log_prior_density, user_scale, prior_name
+                            WeakPrior, PCAlphaW, PCCor0, PCCor1, log_prior_density, user_scale, prior_name
 
 @testset "PCPrecision" begin
     p = PCPrecision(1.0, 0.01)
@@ -162,4 +162,71 @@ end
     @test_throws ArgumentError PCCor0(-0.1, 0.5)
     @test_throws ArgumentError PCCor0(0.5, 0.0)
     @test_throws ArgumentError PCCor0(0.5, 1.0)
+end
+
+@testset "PCCor1" begin
+    p = PCCor1(0.7, 0.7)   # P(ρ > 0.7) = 0.7, R-INLA textbook default
+    @test prior_name(p) == :pc_cor1
+    @test user_scale(p, 0.0) ≈ 0.0
+    @test user_scale(p, atanh(0.5)) ≈ 0.5
+    @test isfinite(log_prior_density(p, 0.0))
+
+    # λ root-finder accuracy: F(λ) = (1 - exp(-aλ))/(1 - exp(-bλ)) must
+    # match α at the solved λ to floating-point precision.
+    a = sqrt(1 - 0.7)
+    b = sqrt(2)
+    F_at_λ = -expm1(-a * p.λ) / -expm1(-b * p.λ)
+    @test isapprox(F_at_λ, 0.7; atol=1.0e-10)
+
+    # Closed-form check on the ρ-scale density `inla.pc.dcor1` at a few
+    # ρ values. The Julia prior is on `θ = atanh(ρ)`, so convert via
+    # `log π_ρ(ρ) = log π_θ(θ) - log|dρ/dθ| = log π_θ(θ) - log(1-ρ²)`.
+    # The reference is the R-INLA published formula
+    #   log π_ρ(ρ) = log λ - λ√(1-ρ) - log(1-exp(-√2 λ)) - log(2√(1-ρ))
+    # evaluated at the same `λ` Julia solved. This pins the
+    # ρ ↔ θ Jacobian conversion (a primary place to introduce bugs).
+    log_norm_R = log(-expm1(-sqrt(2) * p.λ))
+    for ρ in (-0.5, 0.0, 0.3, 0.7, 0.9)
+        θ = atanh(ρ)
+        sqrt_1m = sqrt(1 - ρ)
+        ld_ρ_R = log(p.λ) - p.λ * sqrt_1m - log_norm_R - log(2 * sqrt_1m)
+        ld_ρ_J = log_prior_density(p, θ) - log1p(-ρ^2)
+        @test isapprox(ld_ρ_J, ld_ρ_R; atol=1.0e-12)
+    end
+
+    # Larger λ ⇒ tighter shrinkage to the reference ρ = 1. Holding U
+    # fixed, raising α toward 1 raises λ and concentrates more mass
+    # near ρ = 1 — so density at any ρ < 1 strictly drops as α grows.
+    p_loose = PCCor1(0.7, 0.55)   # α near α_min = √0.15 ≈ 0.387, small λ
+    p_tight = PCCor1(0.7, 0.95)   # α near 1, large λ
+    @test p_tight.λ > p_loose.λ
+    @test log_prior_density(p_tight, atanh(0.0)) <
+          log_prior_density(p_loose, atanh(0.0))
+
+    # Saturation stability: |θ| up to 25 stays finite. Symmetric in θ
+    # the prior is *not* — penalises ρ → -1 (θ → -∞) more strongly
+    # than ρ → +1 (θ → +∞), since +1 is the reference.
+    for θ in (-25.0, -5.0, 0.0, 5.0, 25.0)
+        @test isfinite(log_prior_density(p, θ))
+    end
+    @test log_prior_density(p, 5.0) > log_prior_density(p, -5.0)
+
+    # Integrates to 1 over θ ∈ ℝ via trapezoid. The prior is heavy in
+    # the +θ tail (concentrated near ρ = 1) so the grid must extend
+    # further on the +θ side.
+    θ_grid = range(-20, 25; length=20001)
+    dθ = step(θ_grid)
+    total = sum(exp(log_prior_density(p, θ)) for θ in θ_grid) * dθ
+    @test isapprox(total, 1.0; rtol=5.0e-3)
+
+    # Constructor validation: U bounds, α bounds.
+    @test_throws ArgumentError PCCor1(-1.0, 0.7)
+    @test_throws ArgumentError PCCor1(1.0, 0.7)
+    α_min = sqrt((1 - 0.7) / 2)
+    @test_throws ArgumentError PCCor1(0.7, α_min)        # α at lower bound
+    @test_throws ArgumentError PCCor1(0.7, α_min - 0.01) # α below lower bound
+    @test_throws ArgumentError PCCor1(0.7, 1.0)          # α at upper bound
+
+    # Default kwargs: PCCor1() ≡ PCCor1(0.7, 0.7).
+    @test PCCor1().λ ≈ PCCor1(0.7, 0.7).λ
 end

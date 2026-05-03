@@ -8,9 +8,14 @@ Stationary AR(1) latent field of length `n`. Two hyperparameters:
   `θ₂ = atanh(ρ) = ½ log((1 + ρ)/(1 - ρ))`.
 
 `precprior` is a scalar prior on `θ₁` (default PC prior on τ).
-`ρprior` defaults to a Normal(0, 1) on `θ₂`, which is R-INLA's
-`pc.cor1(0.7, 0.7)` replacement used by the INLA docs when the user
-does not override. Pass a concrete `AbstractHyperPrior` to override.
+`ρprior` defaults to a Normal(0, σ=1) on `θ₂` — the simple
+diffuse-on-Fisher-z choice used in many INLA tutorials. R-INLA's
+*built-in* `f(., model="ar1")` default differs: a Normal on
+`logit(ρ) = 2 atanh(ρ)` with precision 0.15 (i.e. σ ≈ 2.582 on
+`logit(ρ)`, equivalently σ ≈ 1.291 on `atanh(ρ)`) — close to but not
+identical to our default. Pass `ρprior = PCCor1(U, α)` to opt into
+the textbook PC prior on `ρ` with reference at `ρ = 1` (Sørbye-Rue
+2017), or any other `AbstractHyperPrior` to override.
 
 Parameterization follows Rue & Held (2005, Eq. 1.39) so that
 `Var(x_i) = 1/τ` at every index.

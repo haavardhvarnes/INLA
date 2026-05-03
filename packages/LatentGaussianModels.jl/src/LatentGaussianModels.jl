@@ -32,6 +32,7 @@ include("priors/abstract.jl")
 include("priors/pc.jl")
 include("priors/pc_alphaw.jl")
 include("priors/pc_cor0.jl")
+include("priors/pc_cor1.jl")
 include("priors/logit_beta.jl")
 include("priors/bym2_phi.jl")
 include("priors/gaussian_internal.jl")
@@ -122,7 +123,7 @@ export Censoring
 # Hyperpriors
 export AbstractHyperPrior
 export PCPrecision, GammaPrecision, LogNormalPrecision, WeakPrior
-export PCBYM2Phi, LogitBeta, PCAlphaW, PCCor0, GaussianPrior
+export PCBYM2Phi, LogitBeta, PCAlphaW, PCCor0, PCCor1, GaussianPrior
 export log_prior_density, user_scale, prior_name
 
 # Components
