@@ -32,15 +32,24 @@ const IID2D_FIXTURE = "synthetic_iid2d"
 # precisions get a 15% relative band, the correlation gets 0.10
 # absolute (≈ ½ R-INLA posterior sd).
 #
-# Marginal log-likelihood is `@test isfinite(...)` only — IID2D shows an
-# η-independent ~8 nat gap of the same character as the open Weibull /
-# Lognormal / Gamma-survival / Coxph mlik gaps tracked in
-# `plans/replan-2026-05-02.md` Phase F.5. Tightening to a relative
-# tolerance is part of that excavation pass and is intentionally
-# deferred from this PR.
+# Phase F.5 mlik resolution (2026-05-03): the original PR-1a `isfinite`
+# assertion documented an ~8 nat gap and conjectured a `2diid`-specific
+# R-INLA normalising-constant adjustment. That conjecture was wrong.
+# Root cause: R's `y ~ -1 + intercept_1 + intercept_2 + f(idx, "2diid", …)`
+# treats `intercept_d` as ordinary fixed effects with R-INLA's default
+# `control.fixed$prec = 0.001` (proper Gaussian prior), NOT as
+# auto-intercepts under `prec.intercept = 0`. The Julia model was
+# instantiated with two `Intercept()` (improper, default) — the
+# convention mismatch contributes exactly `-½·log(prec)` per intercept
+# (verified empirically: per-intercept gap is 3.454 ≈ ½·log(1000)
+# constant across k = 1, 2, 3 intercepts on a no-random-effect
+# controlled experiment). Switching the Julia oracle to two
+# `Intercept(prec = 1e-3, improper = false)` slots — matching R's
+# convention — drops the residual gap to ~1.5 nats (1.8%).
 const IID2D_FE_TOL = 0.05
 const IID2D_TAU_REL_TOL = 0.15
 const IID2D_RHO_ABS_TOL = 0.10
+const IID2D_MLIK_REL_TOL = 0.05
 
 _rel_iid2d(a, b) = abs(a - b) / max(abs(b), 1.0)
 
@@ -101,9 +110,17 @@ end
             mapping = LinearProjector(A)
 
             ℓ = GaussianLikelihood()
+            # Two proper `Intercept(prec=1e-3, improper=false)` slots match
+            # R's `y ~ -1 + intercept_1 + intercept_2 + …` convention: with
+            # `-1`, R-INLA does NOT auto-insert an improper intercept; the
+            # `intercept_d` columns are ordinary fixed effects under the
+            # default `control.fixed$prec = 0.001`. See header comment for
+            # the Phase F.5 excavation that pinned this convention.
             model = LatentGaussianModel(
                 ℓ,
-                (Intercept(), Intercept(), IID2D(n)),
+                (Intercept(prec=1.0e-3, improper=false),
+                 Intercept(prec=1.0e-3, improper=false),
+                 IID2D(n)),
                 mapping)
 
             y = vcat(y_1, y_2)
@@ -147,10 +164,12 @@ end
             @test length(hp) == 4
 
             # --- Marginal log-likelihood --------------------------------------
-            # Phase F.5 calibration debt: ~8 nat η-independent gap vs
-            # R-INLA's `2diid`. Treated like the survival oracles for now.
+            # R-INLA's `mlik` has two entries: [Integration estimate, Gaussian
+            # estimate]. Compare against the Integration estimate, mirroring
+            # the BYM2 / Joint-Gauss-Pois oracles.
             mlik_J = log_marginal_likelihood(res)
-            @test isfinite(mlik_J)
+            mlik_R = Float64(fx["mlik"][1])
+            @test _rel_iid2d(mlik_J, mlik_R) < IID2D_MLIK_REL_TOL
         end
     end
 end
