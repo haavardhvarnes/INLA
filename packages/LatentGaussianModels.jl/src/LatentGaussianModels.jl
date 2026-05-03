@@ -76,6 +76,7 @@ include("components/generic2.jl")
 include("components/meb.jl")
 include("components/mec.jl")
 include("components/replicate.jl")
+include("components/group.jl")
 
 # --- observation mapping (load before model.jl) -----------------------
 include("observation_mapping.jl")
@@ -133,7 +134,7 @@ export log_prior_density, user_scale, prior_name
 # Components
 export AbstractLatentComponent
 export Intercept, FixedEffects, IID, IIDND, IID2D, IID3D, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
-       Leroux, Generic0, Generic1, Generic2, MEB, MEC, Replicate
+       Leroux, Generic0, Generic1, Generic2, MEB, MEC, Replicate, Group
 export AbstractIIDND, IIDND_Sep
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean

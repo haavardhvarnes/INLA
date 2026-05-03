@@ -51,6 +51,9 @@ using GMRFs
     @testset "Replicate — Phase I-C PR-3a" begin
         include("regression/test_replicate.jl")
     end
+    @testset "Group — Phase I-C PR-3b" begin
+        include("regression/test_group.jl")
+    end
     @testset "BYM" begin
         include("regression/test_bym.jl")
     end
