@@ -114,16 +114,29 @@ end
 
 Return a closure `(θ, _p) -> -log π(θ | y)` evaluated by Laplace. The
 returned function signature matches Optimization.jl's `OptimizationFunction`.
+
+When the inner Laplace step throws (typically a `PosDefException` from
+Cholesky on an ill-conditioned `Q + GᵀWG` at extreme θ) or returns a
+non-finite `log_marginal`, the closure returns a smooth large penalty
+`1e10 + 1e3 · ‖θ‖²` rather than `Inf`. This is load-bearing for the
+outer LBFGS line search (`LineSearches.HagerZhang` asserts
+`isfinite(ϕ_c)`), which can otherwise crash mid-bracket when its trial
+step lands in an infeasible region — see ADR-022 / IIDND_Sep{2} where
+ρ → ±1 saturation triggers it. The penalty's `1e10` floor is much
+larger than any feasible `-log π(θ | y)` we have ever observed (≲ 1e6
+on Phase F–I oracles), so the optimum is unaffected, and the smooth
+quadratic in θ gives a usable FD gradient pointing back to the origin.
 """
 function _neg_log_posterior_θ(m::LatentGaussianModel, y, laplace::Laplace)
+    @inline _penalty(θ) = 1.0e10 + 1.0e3 * sum(abs2, θ)
     return function (θ, _p)
         local res
         try
             res = laplace_mode(m, y, θ; strategy=laplace)
         catch
-            return Inf
+            return _penalty(θ)
         end
-        !isfinite(res.log_marginal) && return Inf
+        !isfinite(res.log_marginal) && return _penalty(θ)
         return -(res.log_marginal + log_hyperprior(m, θ))
     end
 end

@@ -118,20 +118,27 @@ GMRFs.constraints(::IIDND_Sep) = NoConstraint()
 # N = 2 specialisations (PR-1a). N ≥ 3 lifted in PR-1b.
 # ---------------------------------------------------------------------
 
-"""
-Internal: bivariate precision matrix `Λ` from `(τ_1, τ_2, ρ)`.
-
-    Λ = (1/(1 - ρ²)) · [τ_1                      -ρ √(τ_1 τ_2);
-                         -ρ √(τ_1 τ_2)            τ_2          ]
-
-Returned as a 3-tuple `(Λ_11, Λ_12, Λ_22)` so `precision_matrix` can
-build the sparse `Λ ⊗ I_n` directly without allocating a 2×2 matrix.
-"""
-function _iid2d_lambda(τ1, τ2, ρ)
-    one_m_ρ² = 1 - ρ * ρ
-    Λ11 = τ1 / one_m_ρ²
-    Λ22 = τ2 / one_m_ρ²
-    Λ12 = -ρ * sqrt(τ1 * τ2) / one_m_ρ²
+# Internal: bivariate precision-matrix entries `(Λ_11, Λ_12, Λ_22)` from
+# `(τ_1, τ_2, t)` with `t = atanh(ρ)`. The closed form
+#
+#     Λ = (1/(1 - ρ²)) · [τ_1            -ρ √(τ_1 τ_2);
+#                          -ρ √(τ_1 τ_2)   τ_2         ]
+#
+# is rewritten via `1 - ρ² = sech²(t)` and `ρ/(1 - ρ²) = sinh(t) cosh(t)`
+# to stay finite where `1 - tanh(t)²` underflows to `0` in float64
+# (|t| ≳ 19) — `precision_matrix(IIDND_Sep{2}, θ)` is called inside the
+# outer-θ LBFGS line search, which can probe |θ[3]| ≫ 19 before the
+# objective is evaluated to discover the region is bad.
+#
+# Returned as a 3-tuple so `precision_matrix` can build the sparse
+# `Λ ⊗ I_n` directly without allocating a 2×2 matrix.
+function _iid2d_lambda(τ1, τ2, t)
+    cosh_t = cosh(t)
+    sinh_t = sinh(t)
+    cosh²_t = cosh_t * cosh_t
+    Λ11 = τ1 * cosh²_t
+    Λ22 = τ2 * cosh²_t
+    Λ12 = -sqrt(τ1 * τ2) * sinh_t * cosh_t
     return Λ11, Λ12, Λ22
 end
 
@@ -139,8 +146,7 @@ function precision_matrix(c::IIDND_Sep{2}, θ)
     n = c.n
     τ1 = exp(θ[1])
     τ2 = exp(θ[2])
-    ρ  = tanh(θ[3])
-    Λ11, Λ12, Λ22 = _iid2d_lambda(τ1, τ2, ρ)
+    Λ11, Λ12, Λ22 = _iid2d_lambda(τ1, τ2, θ[3])
     diag_main = vcat(fill(Λ11, n), fill(Λ22, n))
     off_diag  = fill(Λ12, n)
     return spdiagm(0 => diag_main, n => off_diag, -n => off_diag)
@@ -153,16 +159,14 @@ function log_hyperprior(c::IIDND_Sep{2}, θ)
 end
 
 # Proper, full-rank Q = Λ ⊗ I_n with `det(Q) = det(Λ)^n` and
-# `det(Λ) = τ_1 τ_2 / (1 - ρ²)`. Total dimension is `2n`.
+# `det(Λ) = τ_1 τ_2 / (1 - ρ²)`. Total dimension is `2n`. The
+# `-log(1 - ρ²)` term is computed as `2·logcosh(θ[3])` to remain finite
+# at saturation; see `_iid2d_lambda` and `_logcosh` for context.
 #
-# Per the R-INLA convention (each proper component contributes the full
-# Gaussian log-NC),
-#
-#     log NC = -½ · 2n · log(2π) + ½ · n · (θ_1 + θ_2 - log(1 - ρ²)).
+#     log NC = -½ · 2n · log(2π) + ½ · n · (θ_1 + θ_2 + 2·logcosh(θ_3)).
 function log_normalizing_constant(c::IIDND_Sep{2}, θ)
     n = c.n
-    ρ = tanh(θ[3])
-    return -n * log(2π) + 0.5 * n * (θ[1] + θ[2] - log1p(-ρ * ρ))
+    return -n * log(2π) + 0.5 * n * (θ[1] + θ[2] + 2 * _logcosh(θ[3]))
 end
 
 function gmrf(c::IIDND_Sep{2}, θ)

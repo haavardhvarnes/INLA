@@ -62,16 +62,27 @@ prior_name(::PCCor0) = :pc_cor0
 
 user_scale(::PCCor0, θ) = tanh(θ)
 
-# Threshold below which we replace `log(-log1p(-ρ²)/ρ²)` with its
-# Taylor expansion `ρ²/2 + ρ⁴/12 + …` to avoid the formal `0/0` at
-# ρ = 0. The `d = sqrt(-log1p(-ρ²))` factor is computed exactly in
-# both branches — only the ratio term needs the limit.
+# Stable `log(cosh(t))` for any finite `t`. Identity:
+#   log cosh t = |t| + log1p(exp(-2|t|)) - log 2,
+# which stays finite where `cosh(t)` itself overflows (|t| > 710) and
+# where the ρ-scale `1 - tanh(t)²` underflows to `0` in float64
+# (|t| ≳ 19). Used by `PCCor0` and `IIDND_Sep{2}` to avoid the
+# `1/(1 - ρ²)` blow-up during outer-θ LBFGS line searches.
+function _logcosh(t::Real)
+    a = abs(t)
+    return a + log1p(exp(-2 * a)) - log(oftype(a, 2))
+end
+
+# Threshold below which we replace `log(d² / ρ²)` with its Taylor
+# expansion `ρ²/2 + ρ⁴/12 + …` to avoid the formal `0/0` at ρ = 0.
 const _PC_COR0_RHO2_TOL = 1.0e-7
 
 function log_prior_density(p::PCCor0, θ)
     ρ = tanh(θ)
     ρ² = ρ * ρ
-    nlog = -log1p(-ρ²)            # = d²; well-defined and exact at ρ = 0
+    # `d² = -log(1 - ρ²) = 2·logcosh(θ)` — the right-hand side stays
+    # finite at saturation (|θ| ≳ 19, where `1 - ρ²` underflows to 0).
+    nlog = 2 * _logcosh(θ)
     d = sqrt(nlog)
     if ρ² < _PC_COR0_RHO2_TOL
         # Taylor: log(nlog/ρ²) = ρ²/2 + ρ⁴/12 + O(ρ⁶). Truncate at ρ²/2;
