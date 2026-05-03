@@ -57,6 +57,9 @@ using GMRFs
     @testset "Generic1" begin
         include("regression/test_generic1.jl")
     end
+    @testset "Generic2" begin
+        include("regression/test_generic2.jl")
+    end
     @testset "Seasonal" begin
         include("regression/test_seasonal.jl")
     end
