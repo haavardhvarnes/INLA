@@ -234,6 +234,28 @@ function joint_precision(m::LatentGaussianModel, θ)
 end
 
 """
+    joint_prior_mean(m::LatentGaussianModel, θ) -> Vector
+
+Stacked latent prior mean `μ(θ) = [μ_1(θ_1); ...; μ_K(θ_K)]` where
+`μ_i = prior_mean(components[i], θ[θ_ranges[i]])`. The default per
+component is zeros, so this returns a zero vector for every model
+that does not use measurement-error or other shifted-prior components.
+
+ADR-023 promotes `prior_mean` from documented-optional to load-bearing
+in the inner Newton loop: the latent quadratic is
+`½ (x - μ)' Q(θ) (x - μ)`, not `½ x' Q x`.
+"""
+function joint_prior_mean(m::LatentGaussianModel, θ)
+    μ = zeros(Float64, m.n_x)
+    for (i, c) in enumerate(m.components)
+        θ_i = θ[m.θ_ranges[i]]
+        μi = prior_mean(c, θ_i)
+        @views μ[m.latent_ranges[i]] .= μi
+    end
+    return μ
+end
+
+"""
     log_hyperprior(m::LatentGaussianModel, θ) -> Real
 
 Sum of log-priors on the internal scale for all likelihoods and

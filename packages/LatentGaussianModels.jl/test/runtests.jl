@@ -42,6 +42,9 @@ using GMRFs
     @testset "IIDND — Phase I-A PR-1a/PR-1b" begin
         include("regression/test_iidnd.jl")
     end
+    @testset "MEB — Phase I-B PR-2b" begin
+        include("regression/test_meb.jl")
+    end
     @testset "BYM" begin
         include("regression/test_bym.jl")
     end

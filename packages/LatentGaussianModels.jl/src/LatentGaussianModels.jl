@@ -73,6 +73,7 @@ include("components/leroux.jl")
 include("components/generic0.jl")
 include("components/generic1.jl")
 include("components/generic2.jl")
+include("components/meb.jl")
 
 # --- observation mapping (load before model.jl) -----------------------
 include("observation_mapping.jl")
@@ -130,7 +131,7 @@ export log_prior_density, user_scale, prior_name
 # Components
 export AbstractLatentComponent
 export Intercept, FixedEffects, IID, IIDND, IID2D, IID3D, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
-       Leroux, Generic0, Generic1, Generic2
+       Leroux, Generic0, Generic1, Generic2, MEB
 export AbstractIIDND, IIDND_Sep
 export precision_matrix, initial_hyperparameters, nhyperparameters,
        log_hyperprior, prior_mean
@@ -143,7 +144,7 @@ export apply!, apply_adjoint!, nrows, ncols, likelihood_for, as_matrix
 # Model + inference
 export LatentGaussianModel, n_latent, n_observations, n_hyperparameters,
        n_likelihoods, n_likelihood_hyperparameters
-export joint_precision
+export joint_precision, joint_prior_mean
 export joint_log_density, joint_∇_η_log_density, joint_∇²_η_log_density,
        joint_∇³_η_log_density, joint_pointwise_log_density, joint_pointwise_cdf
 export AbstractInferenceStrategy, AbstractInferenceResult

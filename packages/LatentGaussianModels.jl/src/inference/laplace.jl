@@ -61,6 +61,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         strategy::Laplace=Laplace(),
         x0::Union{Nothing, AbstractVector{<:Real}}=nothing)
     Q = joint_precision(m, θ)
+    μ = joint_prior_mean(m, θ)
     A = as_matrix(m.mapping)
     # Effective Jacobian `dη/dx` for the Newton step. Equals `A` for
     # models without `Copy`; otherwise includes per-block β-rows that
@@ -113,18 +114,20 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         GMRFs.update!(cache, H)
 
         # Gradient of log joint w.r.t. x uses the *original* Q (not Q_reg):
-        #   g = Jᵀ ∇_η log p - Q x
-        # The bump `V V^T x` contributes to H_reg on null(Q) only — it keeps
-        # Newton out of the null direction without biasing the mode on the
-        # constraint surface (where C x = 0 ⟹ V^T x = 0 so V V^T x = 0).
-        # But we start (and project after each step) at C x = e so the bump
-        # does not bias: V V^T x = C^T (CC^T)^{-1} (C x) = C^T (CC^T)^{-1} e,
-        # a fixed offset. Include it in the RHS to keep the Newton target
-        # consistent with the regularised quadratic.
+        #   g = Jᵀ ∇_η log p - Q (x - μ)
+        # where μ = joint_prior_mean(m, θ). For all v0.1 components μ = 0
+        # and this reduces to `Jᵀ ∇_η log p - Q x`. Measurement-error
+        # components (MEB/MEC, ADR-023) supply non-zero μ.
+        #
+        # The bump `V V^T (x - μ)` contributes to H_reg on null(Q) only — it
+        # keeps Newton out of the null direction without biasing the mode on
+        # the constraint surface. At C x = e the bump's contribution is
+        # `C^T (CC^T)^{-1} (e - C μ)`, a fixed offset; include it on the RHS
+        # to keep the Newton target consistent with the regularised quadratic.
         if has_constr
-            g = J' * ∇η - Q_reg * x
+            g = J' * ∇η - Q_reg * (x .- μ)
         else
-            g = J' * ∇η - Q * x
+            g = J' * ∇η - Q * (x .- μ)
         end
 
         Δx = cache \ g
@@ -164,8 +167,10 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         constraint_data = nothing
     end
 
-    # log p(x̂, y | θ) — uses the *original* Q for the latent quadratic.
-    log_joint = joint_log_density(m, y, η, θ) - 0.5 * dot(x, Q * x)
+    # log p(x̂, y | θ) — uses the *original* Q for the latent quadratic
+    # `½ (x - μ)' Q (x - μ)`. With μ = 0 this reduces to `½ x' Q x`.
+    Δμ = x .- μ
+    log_joint = joint_log_density(m, y, η, θ) - 0.5 * dot(Δμ, Q * Δμ)
 
     # R-INLA-style Laplace marginal:
     #   log p(y | θ) ≈ log p(y | x̂) - ½ x̂' Q x̂
@@ -182,7 +187,7 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     # absorbed into the global `log|H_C|` correction.
     log_det_HC = _log_det_HC(cache, C, has_constr)
     log_normc_total = _sum_log_normalizing_constants(m, θ)
-    log_marginal = joint_log_density(m, y, η, θ) - 0.5 * dot(x, Q * x) +
+    log_marginal = joint_log_density(m, y, η, θ) - 0.5 * dot(Δμ, Q * Δμ) +
                    0.5 * m.n_x * log(2π) - 0.5 * log_det_HC +
                    log_normc_total
 
