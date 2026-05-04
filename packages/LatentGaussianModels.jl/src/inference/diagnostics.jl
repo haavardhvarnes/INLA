@@ -208,6 +208,86 @@ function posterior_predictive(rng::Random.AbstractRNG,
     return posterior_predictive(rng, res, model, LinearProjector(A); kwargs...)
 end
 
+"""
+    posterior_predictive_y(rng, res, model; n_samples = 1000)
+      -> @NamedTuple{x::Matrix{Float64}, θ::Matrix{Float64},
+                     η::Matrix{Float64}, y_rep::Matrix{Float64}}
+
+Posterior-predictive samples on the *response scale*. Extends
+[`posterior_predictive`](@ref) with a per-likelihood
+[`sample_y`](@ref) draw, returning the simulated replicate observations
+`y_rep` of size `n_obs × n_samples` alongside the underlying joint
+draws `(x, θ, η)`.
+
+For multi-likelihood models the response sampler dispatches per block:
+each likelihood `m.likelihoods[k]` draws a replicate of length
+`length(m.block_rows[k])` from `p(y | η_block, θ_ℓ_k)` using its own
+metadata (Binomial `n_trials`, Poisson/NegBin offset `E`, …) read
+directly from the likelihood instance.
+
+`y_rep` is always returned as `Matrix{Float64}` regardless of the
+likelihood family — counts arrive as integer-valued floats, continuous
+likelihoods as real-valued floats — to keep multi-likelihood blocks
+typed-uniformly.
+
+Used by posterior-predictive checks (Gelman et al. 2014; bayesplot's
+`pp_check`). To overlay densities of `y_rep` against the observed
+response, draw `n_samples ≈ 200–1000` and plot a subset of the columns
+of `y_rep` against `y_obs`.
+
+# Example
+
+```julia
+res = inla(model, y)
+draws = posterior_predictive_y(rng, res, model; n_samples = 400)
+# draws.y_rep is n_obs × 400 — each column a posterior-predictive
+# replicate of the full observation vector.
+```
+
+# Note
+
+Likelihoods without `sample_y` defined (currently: censored survival
+families and zero-inflated likelihoods) raise `ArgumentError`. Closed-form
+samplers ship for `GaussianLikelihood`, `PoissonLikelihood`,
+`BinomialLikelihood`, `NegativeBinomialLikelihood`, and `GammaLikelihood`.
+"""
+function posterior_predictive_y(rng::Random.AbstractRNG,
+        res::INLAResult,
+        model::LatentGaussianModel;
+        n_samples::Integer=1000)
+    n_samples ≥ 1 || throw(ArgumentError("n_samples must be ≥ 1"))
+
+    draws = posterior_sample(rng, res, model; n_samples=n_samples)
+    A = as_matrix(model.mapping)
+    n_obs = size(A, 1)
+
+    η = Matrix{Float64}(undef, n_obs, n_samples)
+    y_rep = Matrix{Float64}(undef, n_obs, n_samples)
+
+    x_buf = Vector{Float64}(undef, model.n_x)
+    η_buf = Vector{Float64}(undef, n_obs)
+
+    @inbounds for s in 1:n_samples
+        @views copyto!(x_buf, draws.x[:, s])
+        η_buf .= A * x_buf
+        @views joint_apply_copy_contributions!(η_buf, model, x_buf, draws.θ[:, s])
+        @views η[:, s] .= η_buf
+
+        for (k, ℓ) in enumerate(model.likelihoods)
+            rows = model.block_rows[k]
+            θ_ℓ_k = collect(view(draws.θ, model.likelihood_θ_ranges[k], s))
+            y_block = sample_y(rng, ℓ, view(η_buf, rows), θ_ℓ_k)
+            @views y_rep[rows, s] .= y_block
+        end
+    end
+    return (x=draws.x, θ=draws.θ, η=η, y_rep=y_rep)
+end
+
+function posterior_predictive_y(res::INLAResult, model::LatentGaussianModel;
+        kwargs...)
+    return posterior_predictive_y(Random.default_rng(), res, model; kwargs...)
+end
+
 # ---------------------------------------------------------------------
 # Deviance Information Criterion (closed-form moment approximation)
 # ---------------------------------------------------------------------

@@ -110,3 +110,16 @@ function pointwise_cdf(ℓ::GammaLikelihood{LogLink}, y, η, θ)
     end
     return out
 end
+
+# --- posterior-predictive sampling ------------------------------------
+
+function sample_y(rng::Random.AbstractRNG, ℓ::GammaLikelihood{LogLink}, η, θ)
+    φ = exp(θ[1])
+    n = length(η)
+    out = Vector{Float64}(undef, n)
+    @inbounds for i in 1:n
+        μ = exp(η[i])
+        out[i] = rand(rng, Distributions.Gamma(φ, μ / φ))
+    end
+    return out
+end

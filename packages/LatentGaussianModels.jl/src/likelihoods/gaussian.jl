@@ -121,3 +121,18 @@ function pointwise_cdf(ℓ::GaussianLikelihood, y, η, θ)
     end
     return out
 end
+
+# --- posterior-predictive sampling ------------------------------------
+
+function sample_y(rng::Random.AbstractRNG, ℓ::GaussianLikelihood, η, θ)
+    τ = exp(θ[1])
+    σ = 1 / sqrt(τ)
+    g = ℓ.link
+    n = length(η)
+    out = Vector{Float64}(undef, n)
+    @inbounds for i in 1:n
+        μi = inverse_link(g, η[i])
+        out[i] = μi + σ * randn(rng)
+    end
+    return out
+end

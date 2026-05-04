@@ -150,6 +150,26 @@ function pointwise_cdf(ℓ::AbstractLikelihood, y, η, θ)
 end
 
 """
+    sample_y(rng, ℓ::AbstractLikelihood, η, θ) -> Vector{Float64}
+
+Draw a posterior-predictive replicate `y_rep ∼ p(y | η, θ)` for each
+row in `η`. The returned vector has length `length(η)` and matches the
+likelihood's *own* observation rows — its block, in a multi-likelihood
+model. Per-observation metadata that lives on the likelihood (Binomial
+`n_trials`, Poisson/NegBin offset `E`) is read directly from `ℓ`, so
+the caller does not pass it explicitly.
+
+Used by [`posterior_predictive_y`](@ref) for posterior-predictive
+checks. The default raises `ArgumentError`; concrete likelihoods that
+admit closed-form sampling (Gaussian, Poisson, Binomial,
+NegativeBinomial, Gamma) override.
+"""
+function sample_y(rng::Random.AbstractRNG, ℓ::AbstractLikelihood, η, θ)
+    throw(ArgumentError("sample_y not implemented for $(typeof(ℓ)); " *
+                        "needed for posterior_predictive_y"))
+end
+
+"""
     add_copy_contributions!(η_block, ℓ::AbstractLikelihood, x, θ_ℓ) -> η_block
 
 Add this likelihood's `Copy`-component contributions to its slice of the

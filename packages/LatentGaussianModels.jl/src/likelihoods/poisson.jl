@@ -159,3 +159,17 @@ function pointwise_cdf(ℓ::PoissonLikelihood, y, η, θ)
     end
     return out
 end
+
+# --- posterior-predictive sampling ------------------------------------
+
+function sample_y(rng::Random.AbstractRNG, ℓ::PoissonLikelihood, η, θ)
+    g = ℓ.link
+    n = length(η)
+    out = Vector{Float64}(undef, n)
+    @inbounds for i in 1:n
+        E = _exposure(ℓ.E, i)
+        λ = E * inverse_link(g, η[i])
+        out[i] = rand(rng, Distributions.Poisson(λ))
+    end
+    return out
+end

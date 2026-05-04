@@ -166,3 +166,17 @@ function pointwise_cdf(ℓ::BinomialLikelihood, y, η, θ)
     end
     return out
 end
+
+# --- posterior-predictive sampling ------------------------------------
+
+function sample_y(rng::Random.AbstractRNG, ℓ::BinomialLikelihood, η, θ)
+    g = ℓ.link
+    n = length(η)
+    out = Vector{Float64}(undef, n)
+    @inbounds for i in 1:n
+        nt = ℓ.n_trials[i]
+        p = clamp(inverse_link(g, η[i]), 0.0, 1.0)
+        out[i] = rand(rng, Distributions.Binomial(nt, p))
+    end
+    return out
+end

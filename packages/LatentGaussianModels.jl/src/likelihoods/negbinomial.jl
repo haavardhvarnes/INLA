@@ -122,3 +122,19 @@ function pointwise_cdf(ℓ::NegativeBinomialLikelihood{LogLink}, y, η, θ)
     end
     return out
 end
+
+# --- posterior-predictive sampling ------------------------------------
+
+function sample_y(rng::Random.AbstractRNG, ℓ::NegativeBinomialLikelihood{LogLink},
+        η, θ)
+    n = exp(θ[1])
+    nobs = length(η)
+    out = Vector{Float64}(undef, nobs)
+    @inbounds for i in 1:nobs
+        E = _exposure(ℓ.E, i)
+        μ = E * exp(η[i])
+        p = n / (n + μ)
+        out[i] = rand(rng, Distributions.NegativeBinomial(n, p))
+    end
+    return out
+end
