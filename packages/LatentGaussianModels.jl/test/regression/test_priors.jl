@@ -1,5 +1,8 @@
 using LatentGaussianModels: PCPrecision, GammaPrecision, LogNormalPrecision,
-                            WeakPrior, PCAlphaW, PCCor0, PCCor1, log_prior_density, user_scale, prior_name
+                            WeakPrior, PCAlphaW, PCGevtail, PCCor0, PCCor1,
+                            LogitBeta, BetaPrior,
+                            log_prior_density, user_scale, prior_name
+using Distributions: Distributions
 
 @testset "PCPrecision" begin
     p = PCPrecision(1.0, 0.01)
@@ -109,6 +112,116 @@ end
     p_tight = PCAlphaW(20.0)
     @test log_prior_density(p_tight, log(3.0)) <
           log_prior_density(p_loose, log(3.0))
+end
+
+@testset "PCGevtail" begin
+    p = PCGevtail(7.0, (0.0, 1.0); xi_scale=0.1)
+    @test prior_name(p) == :pc_gevtail
+    @test user_scale(p, 0.0) ≈ 0.0
+    @test user_scale(p, 5.0) ≈ 0.5
+
+    # Reference values from R-INLA's `inla.pc.dgevtail(xi, lambda = 7,
+    # interval = c(0, 1))`. Density on user-scale ξ:
+    #   π_ξ(ξ) = 7 · exp(-7 ξ) / Z, Z = 1 - exp(-7).
+    # Internal-scale θ = ξ / xi_scale: π_θ(θ) = π_ξ(ξ) · xi_scale.
+    Z = 1.0 - exp(-7.0)
+    for ξ in (0.05, 0.1, 0.3, 0.7)
+        θ = ξ / 0.1
+        ld_ξ_R = log(7.0) - 7.0 * ξ - log(Z)
+        ld_θ_J = log_prior_density(p, θ)
+        # Convert R's user-scale density to internal scale:
+        ld_θ_R = ld_ξ_R + log(0.1)
+        @test isapprox(ld_θ_J, ld_θ_R; atol=1.0e-12)
+    end
+
+    # Out-of-support → -Inf (linearised PC distance is one-sided on ξ ≥ 0).
+    @test log_prior_density(p, -1.0) == typemin(Float64)         # ξ = -0.1
+    @test log_prior_density(p, 11.0) == typemin(Float64)         # ξ = 1.1
+
+    # Integrates to 1 over the interval [low/xi_scale, high/xi_scale].
+    θ_grid = range(0.0, 10.0; length=5001)
+    dθ = step(θ_grid)
+    total = sum(exp(log_prior_density(p, θ)) for θ in θ_grid) * dθ
+    @test isapprox(total, 1.0; rtol=1.0e-3)
+
+    # Constructor validation
+    @test_throws ArgumentError PCGevtail(0.0)
+    @test_throws ArgumentError PCGevtail(-1.0)
+    @test_throws ArgumentError PCGevtail(7.0, (1.0, 0.0))         # low > high
+    @test_throws ArgumentError PCGevtail(7.0, (-0.1, 1.0))        # low < 0
+    @test_throws ArgumentError PCGevtail(7.0, (0.0, 1.0); xi_scale=-0.1)
+
+    # `xi_scale` keyword: changing it linearly remaps the internal axis.
+    p_alt = PCGevtail(7.0, (0.0, 1.0); xi_scale=0.05)
+    @test user_scale(p_alt, 10.0) ≈ 0.5     # ξ = xi_scale · θ
+    # Density at the same user-scale ξ should differ only by the
+    # log(xi_scale) Jacobian.
+    ξ_test = 0.3
+    ld_alt = log_prior_density(p_alt, ξ_test / 0.05)
+    ld_def = log_prior_density(p, ξ_test / 0.1)
+    @test isapprox(ld_alt - ld_def, log(0.05) - log(0.1); atol=1.0e-12)
+
+    # Larger λ ⇒ tighter shrinkage to ξ = 0.
+    p_loose = PCGevtail(1.0, (0.0, 1.0); xi_scale=0.1)
+    p_tight = PCGevtail(20.0, (0.0, 1.0); xi_scale=0.1)
+    @test log_prior_density(p_tight, 5.0) < log_prior_density(p_loose, 5.0)
+
+    # Defaults
+    pd = PCGevtail()
+    @test pd.λ ≈ 7.0
+    @test pd.low ≈ 0.0
+    @test pd.high ≈ 1.0
+    @test pd.xi_scale ≈ 0.1
+end
+
+@testset "BetaPrior" begin
+    p = BetaPrior(2.0, 5.0)
+    @test prior_name(p) == :beta
+    @test user_scale(p, 0.0) ≈ 0.5
+    @test user_scale(p, log(3.0)) ≈ 0.75            # σ(log 3) = 3/4
+
+    # Equivalence with LogitBeta(a, b): both implement the same prior.
+    pℓ = LogitBeta(2.0, 5.0)
+    for θ in (-3.0, -0.5, 0.0, 1.2, 4.0)
+        @test isapprox(log_prior_density(p, θ),
+            log_prior_density(pℓ, θ); atol=1.0e-12)
+    end
+
+    # Distributions.jl-friendly constructor: `BetaPrior(Beta(a, b))`.
+    pd = BetaPrior(Distributions.Beta(2.0, 5.0))
+    for θ in (-3.0, 0.0, 1.2)
+        @test isapprox(log_prior_density(pd, θ),
+            log_prior_density(p, θ); atol=1.0e-12)
+    end
+
+    # Reference values from R-INLA's `inla.pc.dlogitbeta` is not
+    # applicable; instead cross-check on the user-scale Beta density.
+    # log π_θ(θ) = (a - 1) log(p) + (b - 1) log(1 - p) - log B(a, b)
+    #             + log p + log(1 - p),
+    # which equals a log p + b log(1 - p) - log B(a, b).
+    a, b = 2.0, 5.0
+    log_B = Distributions.loggamma(a) + Distributions.loggamma(b) -
+            Distributions.loggamma(a + b)
+    for θ in (-3.0, 0.0, 1.2, 4.0)
+        ρ = inv(1 + exp(-θ))
+        expected = a * log(ρ) + b * log(1 - ρ) - log_B
+        @test isapprox(log_prior_density(p, θ), expected; atol=1.0e-12)
+    end
+
+    # Integrates to 1 on the internal scale.
+    θ_grid = range(-15, 15; length=8001)
+    dθ = step(θ_grid)
+    total = sum(exp(log_prior_density(p, θ)) for θ in θ_grid) * dθ
+    @test isapprox(total, 1.0; rtol=5.0e-3)
+
+    # Constructor validation
+    @test_throws ArgumentError BetaPrior(-1.0, 1.0)
+    @test_throws ArgumentError BetaPrior(1.0, 0.0)
+
+    # Default kwargs: BetaPrior() == BetaPrior(1.0, 1.0) (uniform on p).
+    pdef = BetaPrior()
+    @test pdef.a ≈ 1.0
+    @test pdef.b ≈ 1.0
 end
 
 @testset "PCCor0" begin
