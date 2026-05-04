@@ -2322,6 +2322,247 @@ extra ADR work needed when Phase I-C lands.
 
 ---
 
+## ADR-024: Categorical / Multinomial via independent-Poisson reformulation; helper-function API, no new likelihood type
+
+Status: Accepted
+Date: 2026-05-04
+
+### Context
+
+Phase J's tail item is multi-class outcomes — the user has an `n × K`
+count or one-hot matrix `Y` (with `K ≥ 3`) and wants a regression on
+the class probabilities. The two textbook parameterisations are:
+
+1. **Multinomial-logit** (softmax). For each row `i` and class `k`:
+
+   ```math
+   π_{ik}(η) = exp(η_{ik}) / Σ_j exp(η_{ij}),
+   ```
+
+   with `K − 1` free `η` per row (one class fixed for identifiability).
+   Hessian *within an observation across the `K − 1` η values* is
+   *not* diagonal — the off-diagonal `∂²L_i/∂η_{ik}∂η_{im} ≠ 0` for
+   `k ≠ m`.
+
+2. **Stick-breaking.** Sequential binary logits:
+   `π_{i1} = σ(η_{i1})`, `π_{ik} = (1 − Σ_{j<k} π_{ij}) σ(η_{ik})`.
+   Hessian within an observation also non-diagonal.
+
+The existing `AbstractLikelihood` contract (CLAUDE.md, package-level
+section) requires `∇²_η_log_density` to return a `Vector{<:Real}` —
+the diagonal of the Hessian. From the same docstring:
+
+> For likelihoods where the Hessian is not strictly diagonal
+> (e.g. Dirichlet-multinomial), this contract does not fit — such
+> likelihoods must implement a different `AbstractLikelihood` subtype
+> with a dedicated method (not part of v0.1).
+
+That note remains accurate for v0.2.x: the package has not introduced
+a `AbstractMatrixHessianLikelihood` subtype, and the inner Newton
+loop, the simplified-Laplace correction, the marginal accessors, and
+all the integration schemes assume a diagonal-Hessian likelihood. The
+diagonal contract is load-bearing across at least eight modules; flipping
+to a banded-or-block Hessian is a Phase L-or-later refactor (it
+naturally pairs with the FullLaplace strategy work).
+
+R-INLA's standard recipe sidesteps the non-diagonal Hessian: the
+**Poisson-multinomial equivalence** (Baker 1994, Chen 1985, R-INLA's
+[`Multinomial-INLA.pdf`](https://www.r-inla.org/learnmore/tutorials)
+tutorial). Reframe each multinomial trial as `K` independent
+Poisson observations — counts `(0, …, 1, …, 0)` with the chosen class
+in row `y_i` flagged by `1` — and absorb the row total constraint
+into a per-observation nuisance intercept `α_i`:
+
+```math
+y_{ik} | α_i, η_{ik} ∼ Poisson(exp(α_i + η_{ik})),
+\qquad i = 1, …, n; k = 1, …, K.
+```
+
+Each `α_i` is given a near-flat prior so it acts as a free nuisance
+absorbing the multinomial total. Marginalising `α_i` analytically
+recovers the original multinomial likelihood up to an additive
+constant; integrating it numerically (which is what INLA does) gives
+the same posterior on the regression effects, bit-for-bit, as a
+direct multinomial-logit fit. The `K` Poisson observations within a
+row each have their own diagonal Hessian entry — the *cross-row* tying
+happens through `α_i`, which is a *latent* not a likelihood concern,
+so the diagonal contract is preserved.
+
+This is what R-INLA hard-wires; its `Multinomial-INLA.pdf` tutorial is
+the primary reference for users. The reformulation exists at the
+*user/data-construction* layer, not as a new likelihood family — there
+is no `family = "multinomial"` in R-INLA that uses the trick
+internally. Users construct the long-format data manually.
+
+### Decision
+
+**Three coupled choices.**
+
+#### 1. v0.2.x: independent-Poisson reformulation; no new likelihood type
+
+The package ships a *helper function* that converts an `n × K`
+response matrix into the long-format data needed for the Poisson trick,
+plus the projector + nuisance-intercept component. The user composes
+this helper output with the existing `PoissonLikelihood`, `Intercept`,
+`FixedEffects`, etc. — no new `AbstractLikelihood` subtype.
+
+```julia
+# Public API (v0.2.2):
+helper = multinomial_to_poisson(Y; class_names = nothing)
+# Returns a NamedTuple with:
+#   y        :: Vector{Int}            # length n*K, vec'd row-major
+#   row_id   :: Vector{Int}            # row index repeated K times
+#   class_id :: Vector{Int}            # class 1..K cycling per row
+#   n_rows, K, n_long
+```
+
+The user then constructs the model:
+
+```julia
+helper = multinomial_to_poisson(Y)
+n, K = helper.n_rows, helper.K
+
+# Per-observation nuisance intercept α_i. R-INLA convention is
+# `f(idx, model="iid", hyper=list(prec=list(initial=-10, fixed=TRUE)))`,
+# i.e. precision fixed at exp(-10) ≈ 4.5e-5 (very flat). Use the
+# existing IID component with a fixed-precision hyper.
+c_α = IID(n; τ_init = log(exp(-10)), τ_fixed = true)
+
+# Class-by-covariate fixed effects: drop class K for identifiability,
+# leaving (K − 1) × p coefficients. The user builds the design from
+# `(class_id, row_id, X_original)`; helper exposes
+# `multinomial_design_matrix(helper, X)` for the common case.
+A = multinomial_design_matrix(helper, X; reference_class = K)
+c_β = FixedEffects(size(A, 2))
+
+projector = sparse_assembly(helper.row_id, c_α, A, c_β)   # built by helper
+model = LatentGaussianModel(PoissonLikelihood(), (c_α, c_β), projector)
+res = inla(model, helper.y)
+```
+
+The `IID` component already supports a `fix_τ` toggle from Phase I
+work; the helper just wires the conventional initial value. The β
+coefficients land on the FixedEffects component as usual.
+
+**Rationale for not adding `MultinomialLikelihood`:**
+
+- It would duplicate `PoissonLikelihood` numerically (same gradients,
+  same Hessian) while adding latent-layout glue that R-INLA users
+  already express manually.
+- A "real" MultinomialLikelihood that uses the softmax form requires
+  a non-diagonal Hessian, which is a Phase L+ refactor.
+- The helper-only approach matches R-INLA's `Multinomial-INLA.pdf`
+  tutorial bit-for-bit, including the per-row α_i convention. Users
+  porting an R-INLA categorical fit translate line-by-line.
+
+#### 2. Reference class and identifiability
+
+The Poisson reformulation has a built-in identifiability subtlety: the
+likelihood is invariant under `(α_i, η_{ik}) → (α_i + c, η_{ik} − c)`
+for any class-independent shift `c`. R-INLA's near-flat prior on `α_i`
+(precision `≈ 4.5e-5`) doesn't break this exactly but tightens it
+weakly enough that the posterior on `(α, η)` is well-behaved.
+
+To force a clean identification, the helper drops one class's
+covariate effects (`reference_class = K` by default — R-INLA's
+convention is to drop the *last* class). The reference class still
+contributes Poisson observations; only its *coefficients* are zeroed.
+The intercept-only reference structure is `η_{ik} = α_i + γ_k +
+x_i' β_k` with `γ_K = 0, β_K = 0`. This is the
+"corner-point" parameterisation used in Agresti (2010, §8.5).
+
+The user can override `reference_class` to any of `1, …, K`. Picking
+the most-populated class as reference improves numerical conditioning
+(common practice in epidemiology).
+
+#### 3. Native multinomial-logit deferred to v0.3+
+
+The native multinomial-logit (and stick-breaking) parameterisations
+need a non-diagonal Hessian and therefore a new abstract type
+`AbstractMatrixHessianLikelihood` (or similar). This is naturally
+paired with the FullLaplace strategy work in Phase L (UserComponent
++ FullLaplace), since FullLaplace also needs to handle non-diagonal
+likelihood Hessians for sharply non-Gaussian latents.
+
+When the v0.3+ refactor lands, the helper-based pattern this ADR
+introduces will continue to work (it's a thin data-construction layer
+on top of `PoissonLikelihood`). The native likelihood will be an
+ergonomic alternative, not a replacement.
+
+### Consequences
+
+**Pros.**
+
+- Matches R-INLA bit-for-bit on the Phase J close. Users porting a
+  multinomial fit from R-INLA to Julia translate the helper call
+  line-by-line.
+- Reuses existing tested machinery: `PoissonLikelihood` gradients,
+  `IID` with fixed precision, `FixedEffects`, `LinearProjector`. No
+  new code paths in the inner Newton loop.
+- The diagonal-Hessian likelihood contract stays intact — no
+  ripple-effects through simplified-Laplace, marginal accessors,
+  integration schemes, or the JointLikelihood block-row stack.
+- The helper API is composable with the rest of the LGM stack: BYM2
+  random effects on classes, AR1 on time, Copy for shared latents
+  across classes — all work because we're just wiring up a Poisson
+  fit.
+
+**Cons.**
+
+- Latent dimension blows up by `n` (the per-observation nuisance
+  intercept). A `n = 10000, K = 5` problem becomes a `n*K + n =
+  60000`-dim latent before random effects. Sparse machinery handles
+  this fine for moderate `n`, but very large `n` may motivate the
+  v0.3+ native form. Document this tradeoff in the helper's docstring.
+- Users who already think in multinomial-logit terms see "Poisson"
+  in the model definition and may be confused. The vignette and
+  helper docstring must explain the equivalence explicitly.
+- The α_i nuisance precision is *fixed* at a near-flat value; a user
+  who wants to tune it sees a `fix_τ = true` setting they can't move
+  via the helper alone (they'd construct the IID directly). This is
+  R-INLA's convention but not documented in `inla.doc`; we surface
+  it in the helper docstring.
+- `pointwise_log_density` for CPO/WAIC reports per-Poisson-cell
+  contributions, not per-multinomial-row. Users computing CPO must
+  aggregate across the K rows belonging to each multinomial trial
+  — the helper exposes a `multinomial_pointwise_aggregate(res, helper)`
+  utility for this.
+
+**Acceptance criteria for the implementation PR.**
+
+- `multinomial_to_poisson(Y)` regression test: round-trip from a
+  small `Y` matrix to long format and back, verify counts match.
+- `multinomial_design_matrix(helper, X; reference_class)` regression
+  test: the column count is `(K − 1) * p` (with `reference_class`
+  zeroed), the row count is `n * K`.
+- R-INLA oracle on a `n = 200, K = 3, p = 1` synthetic example. The
+  R fixture uses R-INLA's own `Multinomial-INLA.pdf` reformulation.
+  Tolerances: 5% on the regression coefficients' marginal means; 10%
+  on the per-observation α_i posterior moments (which carry
+  identifiability noise).
+- Vignette `docs/src/vignettes/multinomial.md` walking through the
+  helper + Poisson trick, mirroring the R-INLA tutorial layout. A
+  small "alligator-food-choice" or "pollen-presence" dataset (both
+  are R-INLA tutorial staples) is the target.
+
+### References
+
+- Baker, S. G. (1994). *The Multinomial-Poisson transformation.* The
+  Statistician, 43(4), 495-504.
+- Chen, T. T. (1985). *Log-linear models for categorical data with
+  misclassification and double sampling.* JASA, 80, 158-162.
+- R-INLA tutorial: *Multinomial-INLA.pdf* — the canonical reference
+  for the Poisson-multinomial trick under R-INLA. Available from
+  https://www.r-inla.org/learnmore/tutorials.
+- Agresti, A. (2010). *Analysis of Ordinal Categorical Data*, 2nd ed.
+  §8.5 covers the corner-point parameterisation we adopt.
+- ADR-021 (`Copy` on receiving likelihood) — same architectural
+  philosophy: keep new features on top of existing primitives where
+  possible; reserve abstraction-extending changes for cases where the
+  primitives genuinely don't fit.
+
+---
+
 ## ADR template for future entries
 
 ```
