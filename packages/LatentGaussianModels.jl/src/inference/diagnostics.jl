@@ -81,6 +81,63 @@ function _sample_laplace(rng::Random.AbstractRNG, lp::LaplaceResult)
     return lp.mode .+ x0
 end
 
+"""
+    posterior_sample(rng, res, model; n_samples = 1000)
+      -> @NamedTuple{x::Matrix{Float64}, θ::Matrix{Float64}}
+
+Joint draws `(x, θ) ∼ π̂(· | y)` from the INLA posterior. The output
+matrices have one column per draw:
+
+- `x` is `n_x × n_samples` — full latent vector (component blocks
+  concatenated in joint order).
+- `θ` is `n_θ × n_samples` — full hyperparameter vector (likelihood
+  block first, then per-component blocks; same ordering as
+  [`hyperparameters`](@ref) and `res.θ_points`).
+
+The sampler picks `θ_k` from the discrete integration design with
+probabilities `res.θ_weights`, then draws `x | θ_k ∼ N(mode_k,
+H_k⁻¹)` using the cached Cholesky factor at `θ_k`. If the component
+stack declared hard linear constraints, the kriging correction is
+applied so each `x` sample satisfies `C x = e` to working precision.
+
+Use [`posterior_samples_η`](@ref) instead when you want draws of
+`η = A x` and the likelihood-only hyperparameters `θ_ℓ` (the form
+that drives WAIC / CPO / PIT). `posterior_sample` is the right
+building block for joint-`x` summaries (e.g. random-effect contrast
+posteriors) and Stan/NUTS triangulation.
+
+When `n_hyperparameters(model) == 0` (the dim(θ)=0 fast path used
+by ADR-024's multinomial-via-Poisson), the returned `θ` matrix has
+zero rows.
+"""
+function posterior_sample(rng::Random.AbstractRNG,
+        res::INLAResult,
+        model::LatentGaussianModel;
+        n_samples::Integer=1000)
+    n_samples ≥ 1 || throw(ArgumentError("n_samples must be ≥ 1"))
+    n_x = model.n_x
+    n_θ = n_hyperparameters(model)
+
+    x_samples = Matrix{Float64}(undef, n_x, n_samples)
+    θ_samples = Matrix{Float64}(undef, n_θ, n_samples)
+
+    cw = cumsum(res.θ_weights)
+    cw[end] = 1.0
+
+    for s in 1:n_samples
+        k = searchsortedfirst(cw, rand(rng))
+        k = min(k, length(cw))
+        lp = res.laplaces[k]
+
+        x_view = view(x_samples, :, s)
+        x_view .= _sample_laplace(rng, lp)
+        if n_θ > 0
+            @views θ_samples[:, s] .= res.θ_points[k]
+        end
+    end
+    return (x=x_samples, θ=θ_samples)
+end
+
 # ---------------------------------------------------------------------
 # Deviance Information Criterion (closed-form moment approximation)
 # ---------------------------------------------------------------------
