@@ -174,6 +174,18 @@ end
 # ---------------------------------------------------------------------
 
 function fit(m::LatentGaussianModel, y, strategy::INLA)
+    # Fast path: nothing to integrate over. A single Laplace fit at
+    # θ = Float64[] carries the full posterior. Used by ADR-024's
+    # multinomial-via-Poisson reformulation, where the per-row α is a
+    # fixed-precision IID nuisance (no free hyperparameters) and the
+    # rest of the latent block is FixedEffects (also no
+    # hyperparameters). LBFGS over a 0-dim space and the integration
+    # node generators are not defined for `m = 0`, so we bypass them
+    # rather than special-casing every downstream path.
+    if n_hyperparameters(m) == 0
+        return _fit_inla_no_hyperparameters(m, y, strategy)
+    end
+
     θ̂, H, opt_res = _θ_mode_and_hessian(m, y, strategy)
 
     # Σ from H; if H is not PD (near boundary) regularise with a small ridge.
@@ -283,6 +295,24 @@ end
 Convenience alias for `fit(m, y, INLA(; kwargs...))`.
 """
 inla(m::LatentGaussianModel, y; kwargs...) = fit(m, y, INLA(; kwargs...))
+
+# 0-hyperparameter fast path: single Laplace fit at θ = Float64[] with
+# trivial INLAResult layout (Σθ is 0×0, one design point of weight 1,
+# log_marginal = log p(y | θ̂) read off the Laplace fit directly).
+function _fit_inla_no_hyperparameters(m::LatentGaussianModel, y, strategy::INLA)
+    θ̂ = Float64[]
+    Σθ = zeros(Float64, 0, 0)
+    lp = laplace_mode(m, y, θ̂; strategy=strategy.laplace)
+
+    do_sla = strategy.latent_strategy === :simplified_laplace
+    mode = do_sla ? lp.mode .+ _sla_mean_shift(lp, m, y) : lp.mode
+    cond_var = _constrained_marginal_variances(lp.precision, lp.constraint)
+    x_mean = mode
+    x_var = cond_var
+
+    return INLAResult(θ̂, Σθ, [θ̂], [1.0], [lp],
+        x_mean, x_var, θ̂, lp.log_marginal, nothing)
+end
 
 # ---------------------------------------------------------------------
 # Helpers
