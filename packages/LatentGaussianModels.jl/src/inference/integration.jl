@@ -144,10 +144,17 @@ function integration_nodes(scheme::Grid, θ̂::AbstractVector{<:Real},
     F = eigen(Symmetric(Σ))
     halfσ = F.vectors * Diagonal(sqrt.(max.(F.values, 0.0)))   # Σ^{1/2}
 
-    has_skew = scheme.stdev_corr_pos !== nothing
+    # Hoist the stretch vectors into typed locals so the inner loop can
+    # be inferred as `Vector{Float64}` rather than seeing the
+    # `Union{Nothing, Vector{Float64}}` field type.
+    pos_corr_field = scheme.stdev_corr_pos
+    neg_corr_field = scheme.stdev_corr_neg
+    pos_corr::Vector{Float64} = pos_corr_field === nothing ? Float64[] : pos_corr_field
+    neg_corr::Vector{Float64} = neg_corr_field === nothing ? Float64[] : neg_corr_field
+    has_skew = pos_corr_field !== nothing
     if has_skew
-        length(scheme.stdev_corr_pos) == m || throw(ArgumentError(
-            "Grid: stdev_corr_pos has length $(length(scheme.stdev_corr_pos)) " *
+        length(pos_corr) == m || throw(ArgumentError(
+            "Grid: stdev_corr_pos has length $(length(pos_corr)) " *
             "but θ̂ has dim $m"))
     end
 
@@ -166,8 +173,8 @@ function integration_nodes(scheme::Grid, θ̂::AbstractVector{<:Real},
     for (k, idx) in enumerate(iters)
         z = [z_1d[i] for i in idx]
         if has_skew
-            z = [z[d] > 0 ? z[d] * scheme.stdev_corr_pos[d] :
-                 z[d] * scheme.stdev_corr_neg[d] for d in 1:m]
+            z = [z[d] > 0 ? z[d] * pos_corr[d] : z[d] * neg_corr[d]
+                 for d in 1:m]
         end
         points[k] = θ̂ + halfσ * z
         lws[k] = sum(log_w1d[i] for i in idx)

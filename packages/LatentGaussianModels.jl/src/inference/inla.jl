@@ -228,6 +228,20 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
         pos, neg = compute_skewness_corrections(log_post, θ̂, Σθ)
         scheme = Grid(scheme.n_per_dim, scheme.span, pos, neg)
     end
+
+    return _inla_integrate(m, y, θ̂, Σθ, scheme, strategy.laplace,
+        strategy.latent_strategy, opt_res)
+end
+
+# ---------------------------------------------------------------------
+# Integration stage: separated out so `refine_hyperposterior` can
+# re-run it against an existing (θ̂, Σθ) without redoing LBFGS.
+# ---------------------------------------------------------------------
+
+function _inla_integrate(m::LatentGaussianModel, y,
+        θ̂::Vector{Float64}, Σθ::Matrix{Float64},
+        scheme::AbstractIntegrationScheme,
+        laplace::Laplace, latent_strategy::Symbol, opt_result)
     points, log_base_weights = integration_nodes(scheme, θ̂, Σθ)
 
     # Laplace at each point + Gaussian-q log density at each point.
@@ -249,7 +263,7 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
         θ_k = points[k]
         local res
         try
-            res = laplace_mode(m, y, θ_k; strategy=strategy.laplace)
+            res = laplace_mode(m, y, θ_k; strategy=laplace)
         catch
             keep_mask[k] = false
             continue
@@ -294,7 +308,7 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     n_x = m.n_x
     x_mean = zeros(Float64, n_x)
     x_m2 = zeros(Float64, n_x)                 # E[x²] - cond_var(x|θ)
-    do_sla = strategy.latent_strategy === :simplified_laplace
+    do_sla = latent_strategy === :simplified_laplace
     for k in eachindex(points)
         lp = laplaces[k]
         # Per-θ mean: Newton mode by default; with `:simplified_laplace`,
@@ -322,7 +336,7 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     end
 
     return INLAResult(θ̂, Σθ, points, w, laplaces,
-        x_mean, x_var, θ_mean, log_marginal, opt_res)
+        x_mean, x_var, θ_mean, log_marginal, opt_result)
 end
 
 """
@@ -348,6 +362,70 @@ function _fit_inla_no_hyperparameters(m::LatentGaussianModel, y, strategy::INLA)
 
     return INLAResult(θ̂, Σθ, [θ̂], [1.0], [lp],
         x_mean, x_var, θ̂, lp.log_marginal, nothing)
+end
+
+# ---------------------------------------------------------------------
+# refine_hyperposterior — R-INLA `inla.hyperpar` equivalent
+# ---------------------------------------------------------------------
+
+"""
+    refine_hyperposterior(res, model, y;
+                          n_grid = 15, span = 4.0,
+                          skewness_correction = true,
+                          laplace = Laplace(),
+                          latent_strategy = :gaussian)
+      -> INLAResult
+
+Re-evaluate the INLA posterior on a denser hyperparameter grid given an
+existing fit. R-INLA equivalent: `inla.hyperpar`.
+
+Reuses `res.θ̂` and `res.Σθ` from the input fit (skipping the outer
+LBFGS / FD-Hessian stage) and re-runs only the integration stage of
+the INLA pipeline against a fresh `Grid(n_grid, span)`. The denser
+quadrature improves IS estimates of `log p(y)`, `x_mean`, `x_var`, and
+`θ_mean`, and gives smoother plotted hyperparameter densities. On a
+well-conditioned posterior the refined `log_marginal` should agree
+with the original within IS error.
+
+Skewness correction is on by default here (versus `inla()`'s `false`
+default): the typical reason a user calls `refine_hyperposterior` is
+that the hyperparameter posterior is heavy-tailed enough that the
+default 5×5 design under-resolves the tails, and asymmetric per-axis
+stretches are exactly the right knob for that case.
+
+Throws `ArgumentError` if `n_hyperparameters(model) == 0` — the
+fixed-θ fast path has no hyperparameter design to refine.
+"""
+function refine_hyperposterior(res::INLAResult,
+        model::LatentGaussianModel,
+        y;
+        n_grid::Integer=15,
+        span::Real=4.0,
+        skewness_correction::Bool=true,
+        laplace::Laplace=Laplace(),
+        latent_strategy::Symbol=:gaussian)
+    n_hyperparameters(model) > 0 ||
+        throw(ArgumentError("refine_hyperposterior: model has 0 " *
+                            "hyperparameters; nothing to refine"))
+    n_grid ≥ 1 || throw(ArgumentError("n_grid must be ≥ 1"))
+    span > 0 || throw(ArgumentError("span must be > 0"))
+    latent_strategy in (:gaussian, :simplified_laplace) ||
+        throw(ArgumentError("unknown latent_strategy :$latent_strategy; " *
+                            "use :gaussian or :simplified_laplace"))
+
+    θ̂ = res.θ̂
+    Σθ = res.Σθ
+
+    scheme = Grid(; n_per_dim=n_grid, span=Float64(span))
+    if skewness_correction
+        f = _neg_log_posterior_θ(model, y, laplace)
+        log_post = θ -> -f(θ, nothing)
+        pos, neg = compute_skewness_corrections(log_post, θ̂, Σθ)
+        scheme = Grid(scheme.n_per_dim, scheme.span, pos, neg)
+    end
+
+    return _inla_integrate(model, y, θ̂, Σθ, scheme, laplace,
+        latent_strategy, res.optim_result)
 end
 
 # ---------------------------------------------------------------------

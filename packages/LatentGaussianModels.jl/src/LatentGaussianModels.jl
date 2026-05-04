@@ -174,7 +174,7 @@ export AbstractIntegrationScheme, Grid, GaussHermite, CCD,
 export Laplace, LaplaceResult, laplace_mode
 export EmpiricalBayes, EmpiricalBayesResult
 export INLA, INLAResult
-export fit, empirical_bayes, laplace, inla
+export fit, empirical_bayes, laplace, inla, refine_hyperposterior
 export posterior_marginal_x, posterior_marginal_θ
 export fixed_effects, random_effects, hyperparameters
 export log_marginal_likelihood, component_range
