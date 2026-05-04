@@ -85,6 +85,7 @@ include("components/meb.jl")
 include("components/mec.jl")
 include("components/replicate.jl")
 include("components/group.jl")
+include("components/user_component.jl")
 
 # --- multinomial-to-Poisson reformulation helpers (ADR-024) -----------
 include("multinomial.jl")
@@ -149,7 +150,8 @@ export log_prior_density, user_scale, prior_name
 # Components
 export AbstractLatentComponent
 export Intercept, FixedEffects, IID, IIDND, IID2D, IID3D, RW1, RW2, AR1, Seasonal, Besag, BYM, BYM2,
-       Leroux, Generic0, Generic1, Generic2, MEB, MEC, Replicate, Group
+       Leroux, Generic0, Generic1, Generic2, MEB, MEC, Replicate, Group,
+       UserComponent
 
 # Multinomial-via-Poisson helpers (ADR-024)
 export multinomial_to_poisson, multinomial_design_matrix

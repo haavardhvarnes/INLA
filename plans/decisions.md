@@ -2730,6 +2730,153 @@ returns the Rue-Martino shift / Edgeworth-corrected mixture;
 
 ---
 
+## ADR-025: `UserComponent` callback signature (R-INLA `rgeneric`)
+
+Status: Accepted
+Date: 2026-05-04
+
+### Context
+
+Phase L PR-2 ships [`UserComponent`](../packages/LatentGaussianModels.jl/src/components/user_component.jl),
+the R-INLA `rgeneric` equivalent: a one-line callable wrapper around
+the [`AbstractLatentComponent`](../packages/LatentGaussianModels.jl/src/components/abstract.jl)
+contract that lets users port R-INLA `rgeneric` model definitions
+without subtyping. This is the most-used extension hook in published
+R-INLA papers and the determinant of how much of R-INLA's long-tail
+component library (`crw2`, `besag2`, `besagproper`, `clinear`, `z`,
+`ou`, …) we can avoid implementing natively.
+
+Two design questions need a durable answer:
+
+1. **Return shape of the callable.** Positional tuple, named tuple,
+   multiple-return, struct? Each has trade-offs in extensibility and
+   readability.
+2. **Does `UserComponent` replace direct subtyping, supplement it, or
+   subsume one within the other?** The contract has eight methods of
+   varying optionality; not all of them fit a single callable cleanly.
+
+ADR-003 already commits to multiple-dispatch as the primary extension
+mechanism. `UserComponent` is the *callable* surface over the same
+seam, not a parallel mechanism — the question is how the surface
+relates to the seam underneath.
+
+The `cgeneric` part of R-INLA (C-callable user components) is dropped
+from scope (see [`plans/conti-valiant-pebble.md`](../plans/conti-valiant-pebble.md)
+§Scope decision): Julia callables are JIT-compiled to native code, so
+there is no measurable performance gap with C, and an FFI layer would
+*cost* speed.
+
+### Decision
+
+1. **The callable returns a `NamedTuple`**, not a positional tuple
+   or multiple values. The required key is `:Q` (sparse precision
+   matrix); optional keys with defaults are `:log_prior` (default `0`),
+   `:log_normc` (default `0`), and `:constraint` (default
+   `NoConstraint()`).
+
+   Adding a fifth key in a future release (e.g. `:prior_mean` for
+   ADR-023 hot paths) is non-breaking — existing callables stay
+   silent on the new key and pick up the default. A positional tuple
+   would force every caller to update on extension.
+
+2. **The constraint is read once at construction time** by invoking
+   the callable at `θ0` and caching the returned `:constraint`.
+   `GMRFs.constraints(c)` is θ-independent in our seam; mirroring
+   that, `UserComponent` documents that the constraint must be
+   θ-independent (or, equivalently, that only its θ0-value is
+   honoured). This matches R-INLA's rgeneric, where `extraconstr`
+   is set at `f()` time, not in the rgeneric callback.
+
+3. **`UserComponent` and direct subtyping ship side-by-side.** The
+   power-user path (subtyping `AbstractLatentComponent` directly) is
+   already proved by `Generic0` / `Generic1` / `Generic2` and is
+   needed for cases where the callable is too narrow:
+   - Component-specific overrides of `prior_mean(c, θ)` (ADR-023)
+     for shifted-prior measurement-error components (`MEC`).
+   - Custom `gmrf(c, θ)` factorisations that bypass the default
+     `Generic0GMRF` wrapper.
+   - Lazy/structured precision matrices that don't fit the
+     `SparseMatrixCSC` mould.
+
+   `UserComponent` covers everything else with one closure. The two
+   are complementary, and `docs/src/extending.md` documents both as
+   first-class extension paths rather than tiered alternatives.
+
+4. **`@ccall` is the C-library bridge.** Users with existing C
+   precision-matrix routines call them inside the Julia closure via
+   `@ccall`. There is no separate `CGenericComponent` type and no
+   plan to add one. The `UserComponent` docstring carries a one-
+   paragraph note pointing this out; it does not need its own ADR.
+
+### Consequences
+
+#### Positive
+
+- **R-INLA users port models in one closure**: `crw2`, `besag2`,
+  `clinear`, `z` etc. become a single function literal each. The
+  Phase L `crw2` vignette (PR-6) is the proof.
+- **Extension is non-breaking**: adding new optional keys to the
+  returned `NamedTuple` does not break existing callables.
+- **No FFI surface to maintain**: dropping `cgeneric` removes a
+  C-API drift risk and a build-system dependency.
+- **One-shot validation**: the constructor invokes the callable
+  once at `θ0`, surfacing wrong return shapes / wrong-size `Q` /
+  bad constraint types as `ArgumentError` / `DimensionMismatch`
+  during model construction rather than mid-Newton.
+
+#### Negative / Trade-offs
+
+- **Repeated callable invocations.** `precision_matrix`,
+  `log_hyperprior`, and `log_normalizing_constant` each call the
+  closure separately at the same θ. For an expensive precision
+  build this triples the work per integration point. Users wanting
+  to amortise can cache via `Memoize.jl` or hand-rolled state — the
+  v0.1 contract is "call lazily; user owns memoisation".
+- **θ-independent constraint is a real constraint on the API.**
+  Models where the constraint genuinely depends on θ (rare; would
+  e.g. model regime switches in the null space) must subtype
+  `AbstractLatentComponent` directly. This is documented in the
+  `UserComponent` docstring and is unlikely to bite anyone in v0.x.
+
+#### Neutral
+
+- **`prior_mean` is not in the callable.** ADR-023 makes
+  `prior_mean(c, θ)` load-bearing in the Newton hot path, but the
+  vast majority of components return zeros. We may add `:prior_mean`
+  as an optional key in a future minor release without breaking
+  existing callables (point 1 above).
+
+### Acceptance criteria
+
+- `UserComponent` reproducing a `Generic0` agrees with the native
+  `Generic0` posterior to `1e-10` on a realistic `inla()` fit
+  (Gaussian likelihood + tridiagonal SPD structure matrix). ✓
+  ([`test/regression/test_user_component.jl`](../packages/LatentGaussianModels.jl/test/regression/test_user_component.jl))
+- The intrinsic-with-sum-to-zero-constraint variant agrees to the
+  same tolerance under the same fit configuration. ✓
+- Construction-time validation surfaces wrong-size `Q`, missing
+  `:Q`, and non-`NamedTuple` returns as user-facing errors. ✓
+- The full LGM test suite (28 oracle fixtures, 2535+ regression
+  assertions) passes unchanged after PR-2 lands. ✓
+
+### References
+
+- [`plans/conti-valiant-pebble.md`](../plans/conti-valiant-pebble.md)
+  §PR-2 — the implementation plan.
+- R-INLA `rgeneric` documentation: `inla.doc("rgeneric")`.
+- [Generic0 implementation](../packages/LatentGaussianModels.jl/src/components/generic0.jl)
+  — the natural-language reference for "what does a callable need
+  to return?". `UserComponent`'s required signature mirrors
+  `Generic0`'s required methods.
+- ADR-003 — "subtype + multiple dispatch over macros" — the
+  architectural commitment that makes `UserComponent` a *surface*
+  rather than a *parallel mechanism*.
+- ADR-023 — `prior_mean` promoted to load-bearing; informs why
+  `:prior_mean` is reserved for a future namedtuple key rather than
+  shipped now.
+
+---
+
 ## ADR template for future entries
 
 ```
