@@ -111,6 +111,9 @@ using GMRFs
     @testset "Diagnostics — DIC / WAIC / CPO / PIT" begin
         include("regression/test_diagnostics.jl")
     end
+    @testset "refine_hyperposterior — Phase K PR-3" begin
+        include("regression/test_refine_hyperposterior.jl")
+    end
     @testset "Simplified Laplace — skew correction" begin
         include("regression/test_simplified_laplace.jl")
     end
