@@ -52,14 +52,24 @@ struct LaplaceResult <: AbstractInferenceResult
 end
 
 """
-    laplace_mode(model::LatentGaussianModel, y, θ; strategy = Laplace(), x0 = nothing)
+    laplace_mode(model, y, θ;
+                 strategy = Laplace(), x0 = nothing,
+                 extra_constraint = nothing) -> LaplaceResult
 
 Find the mode `x̂` of `log p(x | θ, y) ∝ log p(y | A x, θ_ℓ) - ½ x' Q(θ) x`
 by Newton iteration. Returns a `LaplaceResult`.
+
+`extra_constraint`, if supplied, is a `NamedTuple{(:rows, :rhs)}` whose
+rows are stacked onto the model-level constraint produced by
+[`model_constraints`](@ref). Used by [`FullLaplace`](@ref) to fix a
+single coordinate `x_i = a` for the per-`x_i` Laplace refit; any
+caller-supplied linear equality is acceptable as long as the augmented
+constraint matrix is full-rank.
 """
 function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
         strategy::Laplace=Laplace(),
-        x0::Union{Nothing, AbstractVector{<:Real}}=nothing)
+        x0::Union{Nothing, AbstractVector{<:Real}}=nothing,
+        extra_constraint::Union{Nothing, NamedTuple}=nothing)
     Q = joint_precision(m, θ)
     μ = joint_prior_mean(m, θ)
     A = as_matrix(m.mapping)
@@ -73,16 +83,32 @@ function laplace_mode(m::LatentGaussianModel, y, θ::AbstractVector{<:Real};
     J = joint_effective_jacobian(m, θ)
 
     # --- constraint bookkeeping ---------------------------------------
+    # Stack any caller-supplied `extra_constraint = (rows, rhs)` onto the
+    # model-level constraint. Used by `FullLaplace` (PR-3) to inject a
+    # per-`x_i` equality constraint `e_i^T x = a` into the inner Newton
+    # without rebuilding the model. The augmented constraint flows through
+    # `_null_bump`, the kriging projection, and `_log_det_HC` unchanged.
     constraint = model_constraints(m)
-    has_constr = !(constraint isa GMRFs.NoConstraint)
+    has_model_constr = !(constraint isa GMRFs.NoConstraint)
+    if has_model_constr
+        C_model = GMRFs.constraint_matrix(constraint)
+        e_model = GMRFs.constraint_rhs(constraint)
+    else
+        C_model = zeros(Float64, 0, m.n_x)
+        e_model = Float64[]
+    end
+    if extra_constraint === nothing
+        C = C_model
+        e_c = e_model
+    else
+        C = vcat(C_model, extra_constraint.rows)
+        e_c = vcat(e_model, extra_constraint.rhs)
+    end
+    has_constr = size(C, 1) > 0
     if has_constr
-        C = GMRFs.constraint_matrix(constraint)
-        e_c = GMRFs.constraint_rhs(constraint)
         bump = _null_bump(C)
         Q_reg = Q + bump
     else
-        C = zeros(Float64, 0, m.n_x)
-        e_c = Float64[]
         Q_reg = Q
     end
 

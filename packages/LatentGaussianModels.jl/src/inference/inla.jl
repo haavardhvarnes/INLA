@@ -375,6 +375,12 @@ _integration_mean_shift(::Gaussian, lp::LaplaceResult,
 _integration_mean_shift(::SimplifiedLaplace, lp::LaplaceResult,
     m::LatentGaussianModel, y) = _sla_mean_shift(lp, m, y)
 
+# `FullLaplace` (PR-3) only intercepts `posterior_marginal_x`; the
+# integration-stage summary stays Gaussian until PR-4 wires the
+# per-coordinate Laplace refit into `_inla_integrate`.
+_integration_mean_shift(::FullLaplace, lp::LaplaceResult,
+    m::LatentGaussianModel, y) = zero(lp.mode)
+
 # ---------------------------------------------------------------------
 # refine_hyperposterior — R-INLA `inla.hyperpar` equivalent
 # ---------------------------------------------------------------------

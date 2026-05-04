@@ -35,8 +35,12 @@ Concrete strategies (see ADR-026):
   shift in the integration stage; Edgeworth first-order skewness
   correction in the per-coordinate density. Reduces to `Gaussian`
   when the likelihood third derivative `∇³_η log p` is zero. R-INLA's
-  `strategy = "simplified.laplace"`. Phase L will add `FullLaplace`
-  (R-INLA's `strategy = "laplace"`) as a third subtype.
+  `strategy = "simplified.laplace"`.
+- [`FullLaplace`](@ref) — per-`x_i` refitted Laplace via constraint
+  injection. The reference quality strategy when the latent posterior
+  is sharply non-Gaussian. R-INLA's `strategy = "laplace"`. PR-3 wires
+  it into [`posterior_marginal_x`](@ref) only; the integration-stage
+  hook delegates to `Gaussian` until PR-4 ships the rank-1 update.
 
 The mean-shift facet of `SimplifiedLaplace` (integration-stage) and
 its density-skew facet (per-coordinate marginals) are independent —
@@ -73,13 +77,27 @@ See [`AbstractMarginalStrategy`](@ref) and ADR-016.
 struct SimplifiedLaplace <: AbstractMarginalStrategy end
 
 """
+    FullLaplace()
+
+Per-`x_i` refitted Laplace marginal strategy via constraint injection.
+R-INLA's `strategy = "laplace"`. Definition + helpers in
+`inference/full_laplace.jl`; this declaration lives in `abstract.jl`
+alongside [`Gaussian`](@ref) and [`SimplifiedLaplace`](@ref) so that
+method tables in `inference/marginals.jl` and `inference/inla.jl` can
+dispatch on `::FullLaplace` at load time.
+
+See [`AbstractMarginalStrategy`](@ref) and ADR-026.
+"""
+struct FullLaplace <: AbstractMarginalStrategy end
+
+"""
     _resolve_marginal_strategy(s) -> AbstractMarginalStrategy
 
 Backwards-compatibility shim accepting either an
-[`AbstractMarginalStrategy`](@ref) instance (returned as-is) or a
-symbol from the legacy whitelist (`:gaussian`, `:simplified_laplace`).
-Mirrors `_resolve_scheme(::Symbol, ::Int)` for the integration-scheme
-keyword.
+[`AbstractMarginalStrategy`](@ref) instance (returned as-is) or a symbol
+from the legacy whitelist (`:gaussian`, `:simplified_laplace`,
+`:full_laplace`). Mirrors `_resolve_scheme(::Symbol, ::Int)` for the
+integration-scheme keyword.
 
 Throws `ArgumentError` for unknown symbols.
 """
@@ -87,7 +105,8 @@ _resolve_marginal_strategy(s::AbstractMarginalStrategy) = s
 function _resolve_marginal_strategy(s::Symbol)
     s === :gaussian && return Gaussian()
     s === :simplified_laplace && return SimplifiedLaplace()
+    s === :full_laplace && return FullLaplace()
     throw(ArgumentError("unknown marginal strategy :$s; " *
-                        "use Gaussian(), SimplifiedLaplace(), " *
-                        "or :gaussian / :simplified_laplace"))
+                        "use Gaussian(), SimplifiedLaplace(), FullLaplace(), " *
+                        "or :gaussian / :simplified_laplace / :full_laplace"))
 end

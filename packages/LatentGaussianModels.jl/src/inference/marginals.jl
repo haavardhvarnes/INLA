@@ -11,9 +11,11 @@
 #   `x_i` under the Laplace at `θ_k` and `H₃(s) = s³ - 3s` is the third
 #   Hermite polynomial. This corresponds to Rue-Martino-Chopin (2009) §4.2
 #   with the Gaussian marginal augmented by the leading skew term.
-#
-# Phase L will add `FullLaplace` (R-INLA's `strategy = "laplace"`) as a
-# third subtype.
+# - `FullLaplace()` — per-`x_i` refitted Laplace via constraint injection.
+#   At each output grid point `a`, runs `laplace_mode_fixed_xi` with the
+#   augmented constraint `e_i^T x = a` and reads the constrained
+#   log-marginal; mixes across θ. R-INLA's `strategy = "laplace"`. See
+#   `inference/full_laplace.jl`.
 #
 # For `θ_j | y` the first-level output is a Gaussian at (θ̂_j, Σθ[j,j]).
 # A numerically integrated density on the design points is a future
@@ -44,6 +46,12 @@ instance, or one of the legacy symbols `:gaussian` /
   assembled from `∇³_η_log_density` and the Laplace precision at
   `θ_k`; for a Gaussian likelihood this collapses to the Gaussian
   strategy. Requires `model` and `y` to be supplied.
+- `FullLaplace()` / `:full_laplace` — at each grid point `a` in `xs`,
+  refit the joint Newton mode under the augmented constraint
+  `e_i^T x = a` (via [`laplace_mode_fixed_xi`](@ref)) and read the
+  constrained Laplace log-marginal. Per-θ density is the renormalised
+  ratio `exp(log p̂(y | θ_k, x_i = a) - log p̂(y | θ_k))`; the mixture
+  is again renormalised on the grid. Requires `model` and `y`.
 
 If `grid` is supplied it is used verbatim; otherwise a grid of `grid_size`
 equally spaced points spanning `±span · √posterior_var` about the posterior
@@ -59,13 +67,19 @@ function posterior_marginal_x(res::INLAResult, i::Integer;
     1 ≤ i ≤ length(res.x_mean) ||
         throw(ArgumentError("posterior_marginal_x: index $i out of bounds (1:$(length(res.x_mean)))"))
     s = _resolve_marginal_strategy(strategy)
-    if s isa SimplifiedLaplace && (model === nothing || y === nothing)
-        throw(ArgumentError("strategy = SimplifiedLaplace() requires keyword arguments `model` and `y`"))
+    if (s isa SimplifiedLaplace || s isa FullLaplace) &&
+       (model === nothing || y === nothing)
+        throw(ArgumentError("strategy = $(typeof(s).name.name)() requires " *
+                            "keyword arguments `model` and `y`"))
     end
 
     μ = res.x_mean[i]
     σ = sqrt(max(res.x_var[i], 0.0))
     xs = grid === nothing ? _default_grid(μ, σ, grid_size, span) : collect(Float64, grid)
+
+    if s isa FullLaplace
+        return (x=xs, pdf=_full_laplace_pdf(res, i, model::LatentGaussianModel, y, xs))
+    end
 
     # Per-θ conditional mean and variance (constraint-corrected).
     m_k = [lp.mode[i] for lp in res.laplaces]

@@ -103,6 +103,7 @@ include("inference/empirical_bayes.jl")
 include("inference/integration.jl")
 include("inference/simplified_laplace_correction.jl")
 include("inference/inla.jl")
+include("inference/full_laplace.jl")
 include("inference/marginals.jl")
 include("inference/accessors.jl")
 include("inference/diagnostics.jl")
@@ -171,10 +172,10 @@ export joint_precision, joint_prior_mean
 export joint_log_density, joint_∇_η_log_density, joint_∇²_η_log_density,
        joint_∇³_η_log_density, joint_pointwise_log_density, joint_pointwise_cdf
 export AbstractInferenceStrategy, AbstractInferenceResult
-export AbstractMarginalStrategy, Gaussian, SimplifiedLaplace
+export AbstractMarginalStrategy, Gaussian, SimplifiedLaplace, FullLaplace
 export AbstractIntegrationScheme, Grid, GaussHermite, CCD,
        compute_skewness_corrections
-export Laplace, LaplaceResult, laplace_mode
+export Laplace, LaplaceResult, laplace_mode, laplace_mode_fixed_xi
 export EmpiricalBayes, EmpiricalBayesResult
 export INLA, INLAResult
 export fit, empirical_bayes, laplace, inla, refine_hyperposterior
