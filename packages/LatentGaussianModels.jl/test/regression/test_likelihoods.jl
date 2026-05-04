@@ -1,6 +1,7 @@
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
                             BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
                             BetaLikelihood, BetaBinomialLikelihood,
+                            StudentTLikelihood,
                             IdentityLink, LogLink, LogitLink,
                             log_density, ∇_η_log_density, ∇²_η_log_density,
                             ∇³_η_log_density, log_hyperprior, nhyperparameters,
@@ -292,5 +293,70 @@ end
         σ = sqrt(2.0)
         expected = -0.5 * log(2π) - log(σ) - 0.5 * (0.3 / σ)^2
         @test log_hyperprior(ℓ, θ) ≈ expected
+    end
+end
+
+@testset "StudentTLikelihood — IdentityLink" begin
+    rng = Random.Xoshiro(5)
+    y = randn(rng, 10) .+ 0.3
+    η = randn(rng, 10) .* 0.4
+
+    @testset "closed-form derivatives" begin
+        ℓ = StudentTLikelihood()
+        @test nhyperparameters(ℓ) == 2
+        for (θ_τ, θ_ν) in ((0.0, 1.5), (-0.5, 2.5), (0.7, 3.0))
+            θ = [θ_τ, θ_ν]
+            τ = exp(θ_τ)
+            ν = exp(θ_ν) + 2
+
+            lp = log_density(ℓ, y, η, θ)
+            @test isfinite(lp)
+            @test sum(pointwise_log_density(ℓ, y, η, θ)) ≈ lp
+
+            g = ∇_η_log_density(ℓ, y, η, θ)
+            g_fd = fd_grad(h -> log_density(ℓ, y, h, θ), η)
+            @test g≈g_fd atol=1.0e-4
+
+            # Closed-form vs analytic restatement of the score.
+            r = y .- η
+            @test g ≈ (ν + 1) .* τ .* r ./ (ν .+ τ .* r .^ 2)
+
+            H = ∇²_η_log_density(ℓ, y, η, θ)
+            H_fd = fd_grad(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
+            @test H≈H_fd atol=1.0e-4
+
+            denom = ν .+ τ .* r .^ 2
+            @test H ≈ (ν + 1) .* τ .* (τ .* r .^ 2 .- ν) ./ denom .^ 2
+
+            T = ∇³_η_log_density(ℓ, y, η, θ)
+            T_fd = fd_grad(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
+            @test T≈T_fd atol=1.0e-3
+        end
+    end
+
+    @testset "Gaussian limit (ν → ∞)" begin
+        # As ν → ∞ the Student-t collapses to N(η, 1/τ); gradients
+        # converge to τ · (y − η) and Hessian to −τ.
+        ℓ = StudentTLikelihood()
+        θ = [0.0, log(1.0e6 - 2)]   # τ = 1, ν = 1e6
+        g = ∇_η_log_density(ℓ, y, η, θ)
+        @test g≈(y .- η) atol=1.0e-3
+        H = ∇²_η_log_density(ℓ, y, η, θ)
+        @test all(abs.(H .+ 1) .< 1.0e-3)
+    end
+
+    @testset "non-IdentityLink rejected" begin
+        @test_throws ArgumentError StudentTLikelihood(link=LogLink())
+        @test_throws ArgumentError StudentTLikelihood(link=LogitLink())
+    end
+
+    @testset "log_hyperprior wires both blocks" begin
+        ℓ = StudentTLikelihood()
+        θ = [0.4, 1.8]
+        # τ-block: GammaPrecision(1, 1e-4) → log(1e-4) - 0 + 0.4 - 1e-4·exp(0.4)
+        # ν-block: Gaussian(2.5, 1) → -½ log(2π) - log(1) - ½(1.8 - 2.5)²
+        expected_τ = log(1.0e-4) + 0.4 - 1.0e-4 * exp(0.4)
+        expected_ν = -0.5 * log(2π) - 0.5 * (1.8 - 2.5)^2
+        @test log_hyperprior(ℓ, θ) ≈ expected_τ + expected_ν
     end
 end
