@@ -1,5 +1,6 @@
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
                             BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
+                            BetaLikelihood,
                             IdentityLink, LogLink, LogitLink,
                             log_density, ∇_η_log_density, ∇²_η_log_density,
                             ∇³_η_log_density, log_hyperprior, nhyperparameters,
@@ -185,6 +186,55 @@ end
         ℓ = GammaLikelihood()
         θ = [0.5]
         expected = log(5.0e-5) + 0.5 - 5.0e-5 * exp(0.5)
+        @test log_hyperprior(ℓ, θ) ≈ expected
+    end
+end
+
+@testset "BetaLikelihood — LogitLink" begin
+    rng = Random.Xoshiro(4)
+    y = [0.10, 0.45, 0.80, 0.30, 0.65, 0.95, 0.20, 0.55]
+    η = [-1.5, 0.0, 1.2, -0.4, 0.8, 1.7, -1.0, 0.2]
+
+    @testset "closed-form derivatives" begin
+        ℓ = BetaLikelihood()
+        @test nhyperparameters(ℓ) == 1
+        for θ_val in (-0.3, 0.0, 1.5)
+            θ = [θ_val]
+
+            lp = log_density(ℓ, y, η, θ)
+            @test isfinite(lp)
+            @test sum(pointwise_log_density(ℓ, y, η, θ)) ≈ lp
+
+            g = ∇_η_log_density(ℓ, y, η, θ)
+            g_fd = fd_grad(h -> log_density(ℓ, y, h, θ), η)
+            @test g≈g_fd atol=1.0e-4
+
+            H = ∇²_η_log_density(ℓ, y, η, θ)
+            H_fd = fd_grad(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
+            @test H≈H_fd atol=1.0e-4
+
+            T = ∇³_η_log_density(ℓ, y, η, θ)
+            T_fd = fd_grad(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
+            @test T≈T_fd atol=1.0e-3
+        end
+    end
+
+    @testset "boundary y ∈ {0, 1} yields -Inf" begin
+        ℓ = BetaLikelihood()
+        @test log_density(ℓ, [0.0], [0.0], [0.0]) == -Inf
+        @test log_density(ℓ, [1.0], [0.0], [0.0]) == -Inf
+    end
+
+    @testset "non-LogitLink rejected" begin
+        @test_throws ArgumentError BetaLikelihood(link=LogLink())
+        @test_throws ArgumentError BetaLikelihood(link=IdentityLink())
+    end
+
+    @testset "log_hyperprior wired to GammaPrecision(1, 0.01)" begin
+        ℓ = BetaLikelihood()
+        θ = [0.5]
+        # GammaPrecision(a=1, b=0.01) → a log b - logΓ(a) + a θ - b·exp(θ)
+        expected = log(0.01) - 0.0 + 0.5 - 0.01 * exp(0.5)
         @test log_hyperprior(ℓ, θ) ≈ expected
     end
 end
