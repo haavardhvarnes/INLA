@@ -135,6 +135,9 @@ using GMRFs
     @testset "UserComponent — Phase L PR-2 (rgeneric)" begin
         include("regression/test_user_component.jl")
     end
+    @testset "FullLaplace — Phase L PR-3" begin
+        include("regression/test_full_laplace.jl")
+    end
     @testset "LogDensityProblems conformance" begin
         include("regression/test_log_density.jl")
     end
