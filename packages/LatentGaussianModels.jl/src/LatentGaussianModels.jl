@@ -50,6 +50,7 @@ include("likelihoods/betabinomial.jl")
 include("likelihoods/studentt.jl")
 include("likelihoods/skewnormal.jl")
 include("likelihoods/gev.jl")
+include("likelihoods/pom.jl")
 include("likelihoods/survival/_censoring.jl")
 include("likelihoods/survival/exponential.jl")
 include("likelihoods/survival/coxph.jl")
@@ -111,6 +112,7 @@ export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
        BetaLikelihood, BetaBinomialLikelihood,
        StudentTLikelihood, SkewNormalLikelihood, GEVLikelihood,
+       POMLikelihood,
        ExponentialLikelihood, WeibullLikelihood, LognormalSurvLikelihood,
        GammaSurvLikelihood, WeibullCureLikelihood,
        ZeroInflatedPoissonLikelihood0, ZeroInflatedPoissonLikelihood1,

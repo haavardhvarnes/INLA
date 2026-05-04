@@ -2,10 +2,12 @@ using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
                             BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
                             BetaLikelihood, BetaBinomialLikelihood,
                             StudentTLikelihood, SkewNormalLikelihood, GEVLikelihood,
+                            POMLikelihood,
                             IdentityLink, LogLink, LogitLink,
                             log_density, ∇_η_log_density, ∇²_η_log_density,
                             ∇³_η_log_density, log_hyperprior, nhyperparameters,
                             pointwise_log_density
+import SpecialFunctions
 
 # Finite-difference sanity check on ∇_η and ∇²_η.
 function fd_grad(f, η, h=1.0e-6)
@@ -534,5 +536,187 @@ end
         expected_τ = log(5.0e-5) + 0.4 - 5.0e-5 * exp(0.4)
         expected_ξ = -0.5 * log(2π) - log(2.0) - 0.5 * (-0.5 / 2.0)^2
         @test log_hyperprior(ℓ, θ) ≈ expected_τ + expected_ξ
+    end
+end
+
+@testset "POMLikelihood — LogitLink" begin
+    rng = Random.Xoshiro(11)
+
+    # Sample y_i ∈ {1, …, K} via the cumulative-logit cut-point
+    # construction. With α the K−1 cut points and η_i the latent,
+    # y_i = 1 + sum_k 1{α_k − η_i < logit(U_i)} for U_i ~ Uniform(0,1).
+    function _pom_sample(rng, η, α)
+        n = length(η)
+        K = length(α) + 1
+        y = Vector{Int}(undef, n)
+        for i in 1:n
+            u = rand(rng)
+            t = log(u / (1 - u))
+            k = K
+            for j in 1:(K - 1)
+                if α[j] - η[i] >= t
+                    k = j
+                    break
+                end
+            end
+            y[i] = k
+        end
+        return y
+    end
+
+    @testset "closed-form derivatives (K = 4)" begin
+        K = 4
+        n = 24
+        η = randn(rng, n) .* 0.4
+        ℓ = POMLikelihood(K)
+        @test nhyperparameters(ℓ) == K - 1
+
+        # Three (θ_1, log Δ_2, log Δ_3) interior points, with cut
+        # points α covering both negative and positive ranges.
+        for θ in ([-1.0, log(0.7), log(1.3)],
+                  [0.2, log(1.1), log(0.9)],
+                  [-0.5, log(0.5), log(2.0)])
+            α = [θ[1], θ[1] + exp(θ[2]), θ[1] + exp(θ[2]) + exp(θ[3])]
+            # Ensure all four classes are populated by drawing twice as
+            # many samples and trimming, then forcing extreme classes
+            # if absent.
+            y = _pom_sample(rng, η, α)
+            for k in 1:K
+                if !any(==(k), y)
+                    y[k] = k
+                end
+            end
+
+            lp = log_density(ℓ, y, η, θ)
+            @test isfinite(lp)
+            @test sum(pointwise_log_density(ℓ, y, η, θ)) ≈ lp
+
+            g = ∇_η_log_density(ℓ, y, η, θ)
+            g_fd = fd_grad(h -> log_density(ℓ, y, h, θ), η)
+            @test g≈g_fd atol=1.0e-5
+
+            H = ∇²_η_log_density(ℓ, y, η, θ)
+            H_fd = fd_grad(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
+            @test H≈H_fd atol=1.0e-5
+
+            # Log-concavity of cumulative logit: H ≤ 0 elementwise.
+            @test all(H .<= 0)
+
+            # ∇³ via finite-difference fallback.
+            T = ∇³_η_log_density(ℓ, y, η, θ)
+            T_fd = fd_grad(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
+            @test T≈T_fd atol=1.0e-3
+        end
+    end
+
+    @testset "binary special case (K = 2)" begin
+        # K = 2 reduces to a logistic regression with cut point α_1.
+        n = 20
+        η = randn(rng, n) .* 0.5
+        ℓ = POMLikelihood(2)
+        @test nhyperparameters(ℓ) == 1
+
+        θ = [0.3]
+        α1 = θ[1]
+        # Sample y ∈ {1, 2} via the cumulative-logit construction.
+        y = [(rand(rng) < 1 / (1 + exp(η[i] - α1)) ? 1 : 2) for i in 1:n]
+
+        # log p(y_i = 1) = log F(α_1 − η_i) = −log1p(exp(η_i − α_1))
+        # log p(y_i = 2) = log(1 − F(α_1 − η_i)) = −log1p(exp(α_1 − η_i))
+        lp_direct = sum(y[i] == 1 ?
+                        -log1p(exp(η[i] - α1)) :
+                        -log1p(exp(α1 - η[i])) for i in 1:n)
+        @test log_density(ℓ, y, η, θ) ≈ lp_direct
+
+        # Boundary-only case: every y at class 1 reduces to logistic
+        # regression with intercept α_1 and slope -1 on η.
+        y1 = ones(Int, n)
+        g1 = ∇_η_log_density(ℓ, y1, η, θ)
+        # ∂η log F(α − η) = -f(α − η)/F(α − η) = -(1 − F(α − η))
+        @test g1 ≈ [-(1 - 1 / (1 + exp(η[i] - α1))) for i in 1:n]
+    end
+
+    @testset "boundary classes match limiting forms" begin
+        # When y is uniformly the lowest class, the gradient is the
+        # logistic-CDF tail derivative; when uniformly the highest, the
+        # complementary form. This is the closed-form check on the
+        # branches in `∇_η_log_density`.
+        K = 3
+        n = 8
+        η = collect(range(-1.0, 1.0, length=n))
+        ℓ = POMLikelihood(K)
+        θ = [-0.2, log(0.8)]
+        α = [θ[1], θ[1] + exp(θ[2])]
+
+        y_low = ones(Int, n)
+        g_low = ∇_η_log_density(ℓ, y_low, η, θ)
+        g_low_direct = [-(1 - 1 / (1 + exp(η[i] - α[1]))) for i in 1:n]
+        @test g_low ≈ g_low_direct
+
+        y_high = fill(K, n)
+        g_high = ∇_η_log_density(ℓ, y_high, η, θ)
+        g_high_direct = [1 / (1 + exp(η[i] - α[end])) for i in 1:n]
+        @test g_high ≈ g_high_direct
+    end
+
+    @testset "out-of-range y rejected" begin
+        ℓ = POMLikelihood(3)
+        η = zeros(4)
+        θ = [0.0, 0.0]
+        @test_throws ArgumentError log_density(ℓ, [0, 1, 2, 3], η, θ)
+        @test_throws ArgumentError log_density(ℓ, [1, 2, 3, 4], η, θ)
+    end
+
+    @testset "non-LogitLink rejected" begin
+        @test_throws ArgumentError POMLikelihood(3, link=IdentityLink())
+        @test_throws ArgumentError POMLikelihood(3, link=LogLink())
+    end
+
+    @testset "constructor validation" begin
+        @test_throws ArgumentError POMLikelihood(1)
+        @test_throws ArgumentError POMLikelihood(0)
+        @test_throws ArgumentError POMLikelihood(-2)
+    end
+
+    @testset "log_hyperprior — Dirichlet on cut-point class probabilities" begin
+        # R-INLA's pom prior is Dirichlet(γ, …, γ) on the implied
+        # class probabilities π_k(α) = F(α_k) − F(α_{k−1}) at η = 0,
+        # pushed back to θ via α and the chain π = π(α(θ)).
+        K = 4
+        γ = 3.0
+        ℓ = POMLikelihood(K; dirichlet_concentration=γ)
+        θ = [0.4, log(0.7), log(1.3)]
+
+        # Cut points: α[1] = θ[1], α[k] = α[k−1] + exp(θ[k]).
+        α = [θ[1], θ[1] + exp(θ[2]), θ[1] + exp(θ[2]) + exp(θ[3])]
+        # F(α_k) at η = 0.
+        sig(t) = 1 / (1 + exp(-t))
+        g = sig.(α)
+        # π_k = F(α_k) − F(α_{k−1}); π_K = 1 − F(α_{K−1}).
+        π = [g[1], g[2] - g[1], g[3] - g[2], 1 - g[3]]
+        # f(α_k) = F(α_k) (1 − F(α_k)) is the logistic pdf.
+        log_jac_α = sum(log(gk * (1 - gk)) for gk in g)
+        log_jac_θ = θ[2] + θ[3]
+        log_dir = SpecialFunctions.loggamma(K * γ) -
+                  K * SpecialFunctions.loggamma(γ) +
+                  (γ - 1) * sum(log.(π))
+        expected = log_dir + log_jac_α + log_jac_θ
+        @test log_hyperprior(ℓ, θ) ≈ expected
+
+        # Symmetric cut points (α = (-Δ, 0, Δ)) → π = (p, ½−p, ½−p, p)
+        # with p = F(−Δ); double-check the formula at a tidy value.
+        Δ = 1.0
+        θ_sym = [-Δ, log(Δ), log(Δ)]
+        α_sym = [-Δ, 0.0, Δ]
+        g_sym = sig.(α_sym)
+        π_sym = [g_sym[1], g_sym[2] - g_sym[1],
+            g_sym[3] - g_sym[2], 1 - g_sym[3]]
+        log_jac_α_sym = sum(log(gk * (1 - gk)) for gk in g_sym)
+        log_jac_θ_sym = θ_sym[2] + θ_sym[3]
+        log_dir_sym = SpecialFunctions.loggamma(K * γ) -
+                      K * SpecialFunctions.loggamma(γ) +
+                      (γ - 1) * sum(log.(π_sym))
+        @test log_hyperprior(ℓ, θ_sym) ≈
+              log_dir_sym + log_jac_α_sym + log_jac_θ_sym
     end
 end

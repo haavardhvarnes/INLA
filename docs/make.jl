@@ -38,7 +38,8 @@ makedocs(
             "Spatial — Meuse SPDE" => "vignettes/meuse-spde.md",
             "Survival — Cox PH and Weibull" => "vignettes/coxph-weibull-survival.md",
             "Joint — longitudinal + survival" => "vignettes/joint-longitudinal-survival.md",
-            "Measurement error — `MEB` and `MEC`" => "vignettes/measurement-error-regression.md"
+            "Measurement error — `MEB` and `MEC`" => "vignettes/measurement-error-regression.md",
+            "Ordinal — proportional-odds (POM)" => "vignettes/ordinal-pom.md"
         ],
         "Benchmarks" => [
             "Quality vs R-INLA" => "benchmarks/quality.md"
