@@ -32,6 +32,7 @@ makedocs(
     pages=[
         "Home" => "index.md",
         "Getting started" => "getting-started.md",
+        "Extending" => "extending.md",
         "Vignettes" => [
             "Areal — Scotland BYM2" => "vignettes/scotland-bym2.md",
             "Temporal — Tokyo rainfall" => "vignettes/tokyo-rainfall.md",
@@ -40,7 +41,8 @@ makedocs(
             "Joint — longitudinal + survival" => "vignettes/joint-longitudinal-survival.md",
             "Measurement error — `MEB` and `MEC`" => "vignettes/measurement-error-regression.md",
             "Ordinal — proportional-odds (POM)" => "vignettes/ordinal-pom.md",
-            "Multinomial — independent-Poisson" => "vignettes/multinomial.md"
+            "Multinomial — independent-Poisson" => "vignettes/multinomial.md",
+            "Tutorial — `crw2` as a `UserComponent`" => "vignettes/rgeneric-tutorial.md"
         ],
         "Benchmarks" => [
             "Quality vs R-INLA" => "benchmarks/quality.md"
