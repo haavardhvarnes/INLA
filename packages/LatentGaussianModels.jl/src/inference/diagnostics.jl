@@ -436,6 +436,59 @@ function pit(res::INLAResult, model::LatentGaussianModel, y; kwargs...)
 end
 
 # ---------------------------------------------------------------------
+# PSIS-LOO — Pareto-smoothed importance sampling LOO-CV
+# ---------------------------------------------------------------------
+
+"""
+    psis_loo(rng, res, model, y; n_samples = 1000)
+      -> @NamedTuple{elpd_loo, looic, pointwise_elpd_loo, pointwise_p_loo,
+                     p_loo, pareto_k}
+
+Pareto-smoothed importance sampling estimate of the leave-one-out
+expected log pointwise predictive density (Vehtari, Gelman & Gabry
+2017; Vehtari, Simpson, Gelman, Yao & Gabry 2024).
+
+Returns:
+
+- `elpd_loo` — sum of pointwise LOO elpd (higher is better).
+- `looic     = -2 · elpd_loo` — information-criterion form.
+- `pointwise_elpd_loo` — per-observation elpd_loo, length `n_obs`.
+- `pointwise_p_loo` — per-observation effective parameter contribution.
+- `p_loo` — sum of pointwise effective parameters.
+- `pareto_k` — vector of fitted Pareto shape parameters `k̂_i`. Values
+  above 0.7 indicate the LOO importance ratios for that observation
+  have a heavy tail and the PSIS estimate is unreliable; refit-based
+  LOO is the gold-standard remedy. Values above 0.5 (but below 0.7)
+  are a soft warning.
+
+PSIS-LOO supplements [`cpo`](@ref): both target the per-observation
+predictive distribution but PSIS-LOO is more robust to outliers and
+provides the diagnostic `k̂` for failure detection.
+
+This function requires the **PSIS.jl** weakdep:
+
+```julia
+using PSIS, LatentGaussianModels
+res = inla(model, y)
+loo = psis_loo(rng, res, model, y; n_samples = 2000)
+```
+
+Without PSIS loaded a `MethodError` is raised.
+
+# References
+- Vehtari, A., Gelman, A. & Gabry, J. (2017). Practical Bayesian
+  model evaluation using leave-one-out cross-validation and WAIC.
+  *Statistics and Computing*, 27(5), 1413-1432.
+- Vehtari, A., Simpson, D., Gelman, A., Yao, Y. & Gabry, J. (2024).
+  Pareto smoothed importance sampling. *JMLR*, 25(72), 1-58.
+"""
+function psis_loo end
+
+function psis_loo(res::INLAResult, model::LatentGaussianModel, y; kwargs...)
+    psis_loo(Random.default_rng(), res, model, y; kwargs...)
+end
+
+# ---------------------------------------------------------------------
 # Shared helper: matrix of pointwise log-densities across MC samples.
 # ---------------------------------------------------------------------
 

@@ -24,11 +24,13 @@ Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 HCubature = "19dc6840-f33b-545b-b366-655c7e3ffd49"
 Integrals = "de52edbc-65ea-441a-8357-d3a637375a31"
 MakieCore = "20f20a25-4f0e-4fdf-b5d1-57303727442b"
+PSIS = "ce719bf2-d5d0-4fb9-925d-10a81b42ad04"
 
 [extensions]
 LGMHCubatureExt = "HCubature"
 LGMIntegralsExt = "Integrals"
 LGMMakieExt = "MakieCore"
+LGMPSISExt = "PSIS"
 
 [compat]
 ADTypes = "1"
@@ -44,6 +46,7 @@ LogDensityProblems = "2"
 MakieCore = "0.7, 0.8, 0.9, 0.10"
 Optimization = "3, 4, 5"
 OptimizationOptimJL = "0.3, 0.4"
+PSIS = "0.9, 0.10, 0.11"
 Printf = "1"
 QuadGK = "2"
 Random = "1"
@@ -59,7 +62,8 @@ DifferentiationInterface = "a0c0ee7d-e4b9-4e03-894e-1c5f64a51d63"
 ForwardDiff = "f6369f11-7733-5829-9624-2563aa707210"
 JET = "c3a54625-cd67-489e-a8e7-0a5a0ff4e31b"
 JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
+PSIS = "ce719bf2-d5d0-4fb9-925d-10a81b42ad04"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Aqua", "BenchmarkTools", "DifferentiationInterface", "ForwardDiff", "JET", "JLD2", "Test"]
+test = ["Aqua", "BenchmarkTools", "DifferentiationInterface", "ForwardDiff", "JET", "JLD2", "PSIS", "Test"]
