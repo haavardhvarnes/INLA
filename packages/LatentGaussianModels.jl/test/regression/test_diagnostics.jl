@@ -3,7 +3,9 @@ using LatentGaussianModels: PoissonLikelihood, GaussianLikelihood,
                             Intercept, IID, FixedEffects, LatentGaussianModel, inla,
                             PCPrecision,
                             pointwise_log_density, pointwise_cdf, posterior_samples_η,
-                            dic, waic, cpo, pit, log_density, fixed_effects, hyperparameters
+                            posterior_sample,
+                            dic, waic, cpo, pit, log_density, fixed_effects, hyperparameters,
+                            n_hyperparameters, n_latent
 using Distributions: Normal, Poisson, Binomial
 using Distributions
 using SparseArrays
@@ -59,6 +61,77 @@ end
     # MC standard error ≤ post-sd / sqrt(S); give a loose 4-sigma band.
     post_sd = sqrt.(max.(Diagonal(A * spdiagm(res.x_var) * A').diag, 0.0))
     @test all(abs.(sample_mean .- η_pm) .< 4 .* post_sd ./ sqrt(S) .+ 1.0e-6)
+end
+
+@testset "posterior_sample — joint (x, θ) shape + statistics" begin
+    # Gaussian + Intercept + IID: x_mean / x_var stable. MC means of
+    # the joint draws should agree with `res.x_mean` and `res.θ_mean`
+    # at MC tolerance.
+    rng = Random.Xoshiro(20260504)
+    n = 50
+    y = 0.4 .+ 0.5 .* randn(rng, n)
+    ℓ = GaussianLikelihood()
+    A = sparse([ones(n) Matrix{Float64}(I, n,n)])
+    model = LatentGaussianModel(ℓ, (Intercept(), IID(n)), A)
+    res = inla(model, y; int_strategy=:grid)
+
+    S = 1000
+    draws = posterior_sample(rng, res, model; n_samples=S)
+    n_x = n_latent(model)
+    n_θ = n_hyperparameters(model)
+
+    @test size(draws.x) == (n_x, S)
+    @test size(draws.θ) == (n_θ, S)
+
+    # MC mean of x against res.x_mean. Per-axis 4-sigma band.
+    sample_x_mean = vec(mean(draws.x; dims=2))
+    post_x_sd = sqrt.(max.(res.x_var, 1.0e-12))
+    @test all(abs.(sample_x_mean .- res.x_mean) .< 4 .* post_x_sd ./ sqrt(S) .+ 1.0e-6)
+
+    # θ MC mean should be close to res.θ_mean (small grid dispersion;
+    # θ is drawn from a discrete design, not a continuous Gaussian, so
+    # MC standard error is variance of the mixture).
+    sample_θ_mean = vec(mean(draws.θ; dims=2))
+    @test all(isapprox.(sample_θ_mean, res.θ_mean; atol=0.2))
+end
+
+@testset "posterior_sample — n_hyperparameters == 0 fast path" begin
+    # Poisson + FixedEffects has dim(θ) = 0 (Poisson has no
+    # hyperparameter, FixedEffects has no component hyperparameter),
+    # so `fit` takes the dim(θ)=0 fast path and returns a single
+    # design point. `posterior_sample` should produce a 0-row θ
+    # matrix.
+    rng = Random.Xoshiro(7)
+    n = 80
+    X = [ones(n)  randn(rng, n)]
+    β_true = [0.3, -0.5]
+    y = [rand(rng, Poisson(exp(X[i, :] ⋅ β_true))) for i in 1:n]
+
+    ℓ = PoissonLikelihood()
+    fe = FixedEffects(2)
+    A = sparse(X)
+    model = LatentGaussianModel(ℓ, (fe,), A)
+    res = inla(model, y)
+    @test n_hyperparameters(model) == 0
+    @test length(res.θ_points) == 1
+
+    S = 500
+    draws = posterior_sample(rng, res, model; n_samples=S)
+    @test size(draws.x) == (n_latent(model), S)
+    @test size(draws.θ) == (0, S)
+    sample_x_mean = vec(mean(draws.x; dims=2))
+    @test all(isapprox.(sample_x_mean, res.x_mean; atol=0.1))
+end
+
+@testset "posterior_sample — n_samples validation" begin
+    rng = Random.Xoshiro(0)
+    n = 30
+    y = randn(rng, n)
+    ℓ = GaussianLikelihood()
+    A = sparse(ones(n, 1))
+    model = LatentGaussianModel(ℓ, (Intercept(),), A)
+    res = inla(model, y; int_strategy=:grid)
+    @test_throws ArgumentError posterior_sample(rng, res, model; n_samples=0)
 end
 
 @testset "DIC — Gaussian identity closed form" begin
