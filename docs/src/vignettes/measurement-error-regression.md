@@ -238,5 +238,4 @@ and
 [`test/regression/test_mec.jl`](https://github.com/HaavardHvarnes/INLA.jl/blob/main/packages/LatentGaussianModels.jl/test/regression/test_mec.jl)
 cover the closed-form math behind both components, including the
 conjugate-Gaussian prior-mean formula for `MEC`. R-INLA oracles for
-both flavours are tracked separately under Phase I-B in
-[`plans/phase-i-and-onwards-mighty-emerson.md`](../../../plans/phase-i-and-onwards-mighty-emerson.md).
+both flavours are tracked separately as post-v0.1 work.

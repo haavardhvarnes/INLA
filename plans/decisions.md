@@ -1973,8 +1973,6 @@ this if a real use case appears.
 - ADR-006 — PC priors as the default prior class.
 - ADR-021 — recent component ADR; this ADR follows the same shape.
 - `plans/replan-2026-04-28.md` Phase I — original IID2D / IID3D scope.
-- `plans/phase-i-and-onwards-mighty-emerson.md` §Phase I-A — the
-  prereq this ADR closes.
 - Simpson, D., Rue, H., Riebler, A., Martins, T. G., & Sørbye, S. H.
   (2017). *Penalising model component complexity: a principled,
   practical approach to constructing priors.* — general PC-prior

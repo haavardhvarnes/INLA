@@ -229,5 +229,4 @@ of this pattern; the oracle test
 asserts agreement with R-INLA on the same dataset (fixed effects,
 hyperparameters, random-effect posteriors). The marginal log-likelihood
 inherits the polynomial-form Laplace gap from the standalone Weibull
-arm — closure tracked separately, see Phase Q in
-[`plans/phase-i-and-onwards-mighty-emerson.md`](../../../plans/phase-i-and-onwards-mighty-emerson.md).
+arm — closure tracked separately as post-v0.1 work.

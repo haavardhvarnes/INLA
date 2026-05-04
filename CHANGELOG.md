@@ -127,7 +127,7 @@ are unchanged at v0.1.1.
 
 ### Changed
 
-- **Phase F.5 calibration excavation** ([`plans/phase-i-and-onwards-mighty-emerson.md`](plans/phase-i-and-onwards-mighty-emerson.md)).
+- **Phase F.5 calibration excavation.**
   Survival oracle headers
   ([`weibullsurv`](packages/LatentGaussianModels.jl/test/oracle/test_synthetic_weibull_survival.jl),
   [`lognormalsurv`](packages/LatentGaussianModels.jl/test/oracle/test_synthetic_lognormal_survival.jl),
@@ -251,7 +251,7 @@ Julia 1.12+ requirement.
 
 - **Marginal log-likelihood gap on `weibullsurv`, `lognormalsurv`,
   `gammasurv`, and `coxph` oracles.** Phase F.5 excavation
-  ([2026-05-02](plans/phase-i-and-onwards-mighty-emerson.md)) traced
+  (2026-05-02) traced
   this to a polynomial-form Laplace approximation in R-INLA's
   `GMRFLib` that differs from Julia's textbook formula at three
   points: the cubic contribution to the centered polynomial
