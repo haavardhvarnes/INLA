@@ -1,6 +1,6 @@
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
                             BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
-                            BetaLikelihood,
+                            BetaLikelihood, BetaBinomialLikelihood,
                             IdentityLink, LogLink, LogitLink,
                             log_density, ∇_η_log_density, ∇²_η_log_density,
                             ∇³_η_log_density, log_hyperprior, nhyperparameters,
@@ -235,6 +235,62 @@ end
         θ = [0.5]
         # GammaPrecision(a=1, b=0.01) → a log b - logΓ(a) + a θ - b·exp(θ)
         expected = log(0.01) - 0.0 + 0.5 - 0.01 * exp(0.5)
+        @test log_hyperprior(ℓ, θ) ≈ expected
+    end
+end
+
+@testset "BetaBinomialLikelihood — LogitLink" begin
+    n_trials = [10, 20, 5, 15, 8, 12, 25, 6]
+    y = [3, 14, 1, 9, 5, 4, 18, 2]
+    η = [-0.5, 0.6, -1.2, 0.8, 0.2, -0.4, 0.9, -1.0]
+
+    @testset "closed-form derivatives" begin
+        ℓ = BetaBinomialLikelihood(n_trials)
+        @test nhyperparameters(ℓ) == 1
+        for θ_val in (-1.5, 0.0, 1.5)
+            θ = [θ_val]
+
+            lp = log_density(ℓ, y, η, θ)
+            @test isfinite(lp)
+            @test sum(pointwise_log_density(ℓ, y, η, θ)) ≈ lp
+
+            g = ∇_η_log_density(ℓ, y, η, θ)
+            g_fd = fd_grad(h -> log_density(ℓ, y, h, θ), η)
+            @test g≈g_fd atol=1.0e-4
+
+            H = ∇²_η_log_density(ℓ, y, η, θ)
+            H_fd = fd_grad(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
+            @test H≈H_fd atol=1.0e-4
+
+            T = ∇³_η_log_density(ℓ, y, η, θ)
+            T_fd = fd_grad(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
+            @test T≈T_fd atol=1.0e-3
+        end
+    end
+
+    @testset "Binomial limit (ρ → 0, s → ∞)" begin
+        # As ρ → 0 (θ → +∞, s → ∞) the BetaBinomial collapses to Binomial.
+        # Pick a moderately large s; gradient magnitudes will agree.
+        ℓ_bb = BetaBinomialLikelihood(n_trials)
+        ℓ_b = BinomialLikelihood(n_trials)
+        θ_small_ρ = [-log(1.0e6)]   # s = 1e6
+        @test ∇_η_log_density(ℓ_bb, y, η, θ_small_ρ)≈
+        ∇_η_log_density(ℓ_b, y, η, Float64[]) atol=1.0e-3
+        @test ∇²_η_log_density(ℓ_bb, y, η, θ_small_ρ)≈
+        ∇²_η_log_density(ℓ_b, y, η, Float64[]) atol=1.0e-3
+    end
+
+    @testset "non-LogitLink rejected" begin
+        @test_throws ArgumentError BetaBinomialLikelihood(n_trials, link=LogLink())
+        @test_throws ArgumentError BetaBinomialLikelihood(n_trials, link=IdentityLink())
+    end
+
+    @testset "log_hyperprior wired to GaussianPrior(0, √2)" begin
+        ℓ = BetaBinomialLikelihood(n_trials)
+        θ = [0.3]
+        # Gaussian(0, √2): -½ log(2π) - log(√2) - ½ (0.3/√2)²
+        σ = sqrt(2.0)
+        expected = -0.5 * log(2π) - log(σ) - 0.5 * (0.3 / σ)^2
         @test log_hyperprior(ℓ, θ) ≈ expected
     end
 end

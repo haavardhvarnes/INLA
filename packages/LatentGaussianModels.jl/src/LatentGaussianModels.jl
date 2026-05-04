@@ -46,6 +46,7 @@ include("likelihoods/binomial.jl")
 include("likelihoods/negbinomial.jl")
 include("likelihoods/gamma.jl")
 include("likelihoods/beta.jl")
+include("likelihoods/betabinomial.jl")
 include("likelihoods/survival/_censoring.jl")
 include("likelihoods/survival/exponential.jl")
 include("likelihoods/survival/coxph.jl")
@@ -105,7 +106,7 @@ export inverse_link, ∂inverse_link, ∂²inverse_link
 # Likelihoods
 export AbstractLikelihood, GaussianLikelihood, PoissonLikelihood,
        BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
-       BetaLikelihood,
+       BetaLikelihood, BetaBinomialLikelihood,
        ExponentialLikelihood, WeibullLikelihood, LognormalSurvLikelihood,
        GammaSurvLikelihood, WeibullCureLikelihood,
        ZeroInflatedPoissonLikelihood0, ZeroInflatedPoissonLikelihood1,
