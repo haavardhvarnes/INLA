@@ -1,7 +1,7 @@
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
                             BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
                             BetaLikelihood, BetaBinomialLikelihood,
-                            StudentTLikelihood, SkewNormalLikelihood,
+                            StudentTLikelihood, SkewNormalLikelihood, GEVLikelihood,
                             IdentityLink, LogLink, LogitLink,
                             log_density, ∇_η_log_density, ∇²_η_log_density,
                             ∇³_η_log_density, log_hyperprior, nhyperparameters,
@@ -421,5 +421,118 @@ end
         expected_τ = log(5.0e-5) + 0.6 - 5.0e-5 * exp(0.6)
         expected_γ = -0.5 * log(2π) - 0.5 * (-0.3)^2
         @test log_hyperprior(ℓ, θ) ≈ expected_τ + expected_γ
+    end
+end
+
+@testset "GEVLikelihood — IdentityLink" begin
+    rng = Random.Xoshiro(42)
+    n = 16
+    η = randn(rng, n) .* 0.3
+
+    # Sample y inside the support 1 + ξ z > 0 by inverting the GEV CDF.
+    function _gev_sample(rng, η, τ, ξ)
+        n = length(η)
+        σ = 1 / sqrt(τ)
+        U = rand(rng, n)
+        if abs(ξ) < 1.0e-8
+            return η .- σ .* log.(-log.(U))
+        else
+            return η .+ (σ / ξ) .* ((-log.(U)) .^ (-ξ) .- 1)
+        end
+    end
+
+    @testset "closed-form derivatives" begin
+        ℓ = GEVLikelihood()
+        @test nhyperparameters(ℓ) == 2
+        # Mix of (log τ, ξ/xi_scale) — moderate ξ in both signs.
+        for (θ_τ, θ_ξ) in ((1.0, 0.0), (1.5, 1.0), (0.7, -1.5))
+            τ = exp(θ_τ)
+            ξ = 0.1 * θ_ξ
+            y = _gev_sample(rng, η, τ, ξ)
+            θ = [θ_τ, θ_ξ]
+
+            lp = log_density(ℓ, y, η, θ)
+            @test isfinite(lp)
+            @test sum(pointwise_log_density(ℓ, y, η, θ)) ≈ lp
+
+            g = ∇_η_log_density(ℓ, y, η, θ)
+            g_fd = fd_grad(h -> log_density(ℓ, y, h, θ), η)
+            @test g≈g_fd atol=1.0e-4
+
+            H = ∇²_η_log_density(ℓ, y, η, θ)
+            H_fd = fd_grad(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
+            @test H≈H_fd atol=1.0e-4
+
+            # ∇³ via finite-difference fallback.
+            T = ∇³_η_log_density(ℓ, y, η, θ)
+            T_fd = fd_grad(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
+            @test T≈T_fd atol=1.0e-3
+        end
+    end
+
+    @testset "Gumbel limit (ξ → 0)" begin
+        # Below |ξ| < _GEV_XI_EPS the implementation switches to the
+        # closed-form Gumbel branch. Check it agrees with the direct
+        # Gumbel formula at ξ = 0 *exactly* (not just within FD).
+        ℓ = GEVLikelihood()
+        τ = exp(1.2)
+        y = _gev_sample(rng, η, τ, 0.0)
+        θ = [1.2, 0.0]
+        z = sqrt(τ) .* (y .- η)
+        lp_direct = sum(0.5 * log(τ) .- z .- exp.(-z))
+        @test log_density(ℓ, y, η, θ) ≈ lp_direct
+
+        g_direct = sqrt(τ) .* (1 .- exp.(-z))
+        @test ∇_η_log_density(ℓ, y, η, θ) ≈ g_direct
+        H_direct = -τ .* exp.(-z)
+        @test ∇²_η_log_density(ℓ, y, η, θ) ≈ H_direct
+    end
+
+    @testset "weights scale per-observation precision" begin
+        # weights[i] = s_i acts as a multiplier on τ inside √(τ s).
+        ℓ_w = GEVLikelihood(weights=fill(2.0, n))
+        ℓ_τ2 = GEVLikelihood()
+        τ = exp(1.0); ξ = 0.05
+        y = _gev_sample(rng, η, τ * 2.0, ξ)
+        θ = [1.0, ξ / 0.1]
+        θ_doubled = [1.0 + log(2.0), ξ / 0.1]
+        # log-density depends on (τ s); equivalently, multiply τ by 2.
+        # Up to the per-obs ½ log s constant absorbed identically:
+        #   ½ log(τ · 2) = ½ log(τ) + ½ log 2  (matches ½ log(τ s) with s=2).
+        lp_w = log_density(ℓ_w, y, η, [1.0, ξ / 0.1])
+        lp_d = log_density(ℓ_τ2, y, η, θ_doubled)
+        @test lp_w ≈ lp_d
+    end
+
+    @testset "support boundary returns -Inf" begin
+        ℓ = GEVLikelihood()
+        # Strong negative ξ with y far above η pushes 1 + ξ z ≤ 0 for some i.
+        bad_y = η .+ 100.0  # huge positive shift
+        θ = [0.0, -2.0]    # ξ = -0.2
+        @test log_density(ℓ, bad_y, η, θ) == -Inf
+    end
+
+    @testset "non-IdentityLink rejected" begin
+        @test_throws ArgumentError GEVLikelihood(link=LogLink())
+        @test_throws ArgumentError GEVLikelihood(link=LogitLink())
+    end
+
+    @testset "constructor validation" begin
+        @test_throws ArgumentError GEVLikelihood(xi_scale=0.0)
+        @test_throws ArgumentError GEVLikelihood(xi_scale=-0.1)
+        @test_throws ArgumentError GEVLikelihood(weights=[1.0, -1.0, 2.0])
+    end
+
+    @testset "log_hyperprior wires both blocks" begin
+        ℓ = GEVLikelihood()
+        θ = [0.4, -0.5]
+        # τ-block: GammaPrecision(1, 5e-5) at θ[1]=0.4
+        # ξ-block: GaussianPrior(μ=0, σ=2.0) at θ[2]=-0.5 →
+        #   −½ log(2π) − log(2.0) − ½ (−0.5/2.0)²
+        # (σ=2.0 on internal θ[2] = R-INLA's gaussian(0, prec=25) on
+        # user-scale ξ via prec_internal = 25·xi_scale²)
+        expected_τ = log(5.0e-5) + 0.4 - 5.0e-5 * exp(0.4)
+        expected_ξ = -0.5 * log(2π) - log(2.0) - 0.5 * (-0.5 / 2.0)^2
+        @test log_hyperprior(ℓ, θ) ≈ expected_τ + expected_ξ
     end
 end
