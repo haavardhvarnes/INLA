@@ -149,6 +149,7 @@ using GMRFs
         include("oracle/test_synthetic_studentt.jl")
         include("oracle/test_synthetic_skewnormal.jl")
         include("oracle/test_synthetic_gev.jl")
+        include("oracle/test_synthetic_pom.jl")
     end
     @testset "Quality" begin
         include("quality/test_aqua.jl")
