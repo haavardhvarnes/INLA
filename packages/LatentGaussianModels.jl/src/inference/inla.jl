@@ -1,6 +1,6 @@
 """
     INLA(; int_strategy = :auto, laplace = Laplace(),
-          latent_strategy = :gaussian,
+          latent_strategy = Gaussian(),
           skewness_correction = false,
           θ0 = nothing, optim_options = NamedTuple())
 
@@ -30,13 +30,16 @@ Controls the per-θ approximation of the latent posterior summary
 (`x_mean`, `x_var`) — this is R-INLA's `control.inla\$strategy`,
 distinct from the θ-integration scheme above.
 
-- `:gaussian` (default) — use the Newton mode `x̂(θ)` and the constraint-
-  corrected Laplace marginal variance. Bit-for-bit unchanged from prior
-  releases.
-- `:simplified_laplace` — apply the Rue-Martino mean-shift correction
-  `Δx(θ) = ½ H⁻¹ Aᵀ (h³ ⊙ σ²_η)` per integration point before
-  accumulating `x_mean` / `x_var`. Reduces to `:gaussian` exactly when
-  the likelihood third derivative `∇³_η log p` is zero.
+Accepts either an `AbstractMarginalStrategy` instance or the legacy
+symbols (`:gaussian`, `:simplified_laplace`). See [ADR-026].
+
+- `Gaussian()` / `:gaussian` (default) — use the Newton mode `x̂(θ)` and
+  the constraint-corrected Laplace marginal variance. Bit-for-bit
+  unchanged from prior releases.
+- `SimplifiedLaplace()` / `:simplified_laplace` — apply the Rue-Martino
+  mean-shift correction `Δx(θ) = ½ H⁻¹ Aᵀ (h³ ⊙ σ²_η)` per integration
+  point before accumulating `x_mean` / `x_var`. Reduces to `Gaussian`
+  exactly when the likelihood third derivative `∇³_η log p` is zero.
 
 The mean-shift correction is independent of the density-shape skew
 correction in `posterior_marginal_x(strategy = :simplified_laplace)`:
@@ -67,10 +70,10 @@ those a future PR can wire equivalent corrections. Default `false`
 matches R-INLA's `control.inla\$skew.corr.positive = 1.0,
 skew.corr.negative = 1.0` (off by default).
 """
-struct INLA{I, S <: Laplace} <: AbstractInferenceStrategy
+struct INLA{I, S <: Laplace, M <: AbstractMarginalStrategy} <: AbstractInferenceStrategy
     int_strategy::I
     laplace::S
-    latent_strategy::Symbol
+    latent_strategy::M
     skewness_correction::Bool
     θ0::Union{Nothing, Vector{Float64}}
     optim_options::NamedTuple
@@ -78,15 +81,13 @@ end
 
 function INLA(; int_strategy=:auto,
         laplace::Laplace=Laplace(),
-        latent_strategy::Symbol=:gaussian,
+        latent_strategy::Union{Symbol, AbstractMarginalStrategy}=Gaussian(),
         skewness_correction::Bool=false,
         θ0::Union{Nothing, AbstractVector{<:Real}}=nothing,
         optim_options::NamedTuple=NamedTuple())
-    latent_strategy in (:gaussian, :simplified_laplace) ||
-        throw(ArgumentError("unknown latent_strategy :$latent_strategy; " *
-                            "use :gaussian or :simplified_laplace"))
-    return INLA{typeof(int_strategy), typeof(laplace)}(
-        int_strategy, laplace, latent_strategy, skewness_correction,
+    ls = _resolve_marginal_strategy(latent_strategy)
+    return INLA{typeof(int_strategy), typeof(laplace), typeof(ls)}(
+        int_strategy, laplace, ls, skewness_correction,
         θ0 === nothing ? nothing : collect(Float64, θ0),
         optim_options
     )
@@ -241,7 +242,8 @@ end
 function _inla_integrate(m::LatentGaussianModel, y,
         θ̂::Vector{Float64}, Σθ::Matrix{Float64},
         scheme::AbstractIntegrationScheme,
-        laplace::Laplace, latent_strategy::Symbol, opt_result)
+        laplace::Laplace, latent_strategy::AbstractMarginalStrategy,
+        opt_result)
     points, log_base_weights = integration_nodes(scheme, θ̂, Σθ)
 
     # Laplace at each point + Gaussian-q log density at each point.
@@ -308,15 +310,14 @@ function _inla_integrate(m::LatentGaussianModel, y,
     n_x = m.n_x
     x_mean = zeros(Float64, n_x)
     x_m2 = zeros(Float64, n_x)                 # E[x²] - cond_var(x|θ)
-    do_sla = latent_strategy === :simplified_laplace
     for k in eachindex(points)
         lp = laplaces[k]
-        # Per-θ mean: Newton mode by default; with `:simplified_laplace`,
+        # Per-θ mean: Newton mode by default; with `SimplifiedLaplace`,
         # apply the Rue-Martino mean shift before accumulating. The
         # underlying `LaplaceResult.mode` stays untouched so downstream
         # code (Hermite skew expansion, sampling, log-marginal) keeps
         # operating around the Newton fixed point.
-        mode_k = do_sla ? lp.mode .+ _sla_mean_shift(lp, m, y) : lp.mode
+        mode_k = lp.mode .+ _integration_mean_shift(latent_strategy, lp, m, y)
         x_mean .+= w[k] .* mode_k
         # E[x²] at θ_k: mode² + conditional variance (diag of posterior
         # precision inverse, with constraint correction if present).
@@ -354,8 +355,7 @@ function _fit_inla_no_hyperparameters(m::LatentGaussianModel, y, strategy::INLA)
     Σθ = zeros(Float64, 0, 0)
     lp = laplace_mode(m, y, θ̂; strategy=strategy.laplace)
 
-    do_sla = strategy.latent_strategy === :simplified_laplace
-    mode = do_sla ? lp.mode .+ _sla_mean_shift(lp, m, y) : lp.mode
+    mode = lp.mode .+ _integration_mean_shift(strategy.latent_strategy, lp, m, y)
     cond_var = _constrained_marginal_variances(lp.precision, lp.constraint)
     x_mean = mode
     x_var = cond_var
@@ -363,6 +363,17 @@ function _fit_inla_no_hyperparameters(m::LatentGaussianModel, y, strategy::INLA)
     return INLAResult(θ̂, Σθ, [θ̂], [1.0], [lp],
         x_mean, x_var, θ̂, lp.log_marginal, nothing)
 end
+
+# Integration-stage hook. Defined per-strategy here so future strategies
+# (FullLaplace in PR-3) can plug in without further routing changes.
+# `Gaussian` returns a zero shift; `SimplifiedLaplace` returns the
+# Rue-Martino correction. The caller is responsible for the broadcast
+# add against `lp.mode`.
+_integration_mean_shift(::Gaussian, lp::LaplaceResult,
+    m::LatentGaussianModel, y) = zero(lp.mode)
+
+_integration_mean_shift(::SimplifiedLaplace, lp::LaplaceResult,
+    m::LatentGaussianModel, y) = _sla_mean_shift(lp, m, y)
 
 # ---------------------------------------------------------------------
 # refine_hyperposterior — R-INLA `inla.hyperpar` equivalent
@@ -373,7 +384,7 @@ end
                           n_grid = 15, span = 4.0,
                           skewness_correction = true,
                           laplace = Laplace(),
-                          latent_strategy = :gaussian)
+                          latent_strategy = Gaussian())
       -> INLAResult
 
 Re-evaluate the INLA posterior on a denser hyperparameter grid given an
@@ -403,15 +414,13 @@ function refine_hyperposterior(res::INLAResult,
         span::Real=4.0,
         skewness_correction::Bool=true,
         laplace::Laplace=Laplace(),
-        latent_strategy::Symbol=:gaussian)
+        latent_strategy::Union{Symbol, AbstractMarginalStrategy}=Gaussian())
     n_hyperparameters(model) > 0 ||
         throw(ArgumentError("refine_hyperposterior: model has 0 " *
                             "hyperparameters; nothing to refine"))
     n_grid ≥ 1 || throw(ArgumentError("n_grid must be ≥ 1"))
     span > 0 || throw(ArgumentError("span must be > 0"))
-    latent_strategy in (:gaussian, :simplified_laplace) ||
-        throw(ArgumentError("unknown latent_strategy :$latent_strategy; " *
-                            "use :gaussian or :simplified_laplace"))
+    ls = _resolve_marginal_strategy(latent_strategy)
 
     θ̂ = res.θ̂
     Σθ = res.Σθ
@@ -425,7 +434,7 @@ function refine_hyperposterior(res::INLAResult,
     end
 
     return _inla_integrate(model, y, θ̂, Σθ, scheme, laplace,
-        latent_strategy, res.optim_result)
+        ls, res.optim_result)
 end
 
 # ---------------------------------------------------------------------

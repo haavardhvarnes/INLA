@@ -1,6 +1,7 @@
 # Rue-Martino simplified-Laplace mean-shift correction for the latent
 # posterior at fixed θ. Used by `fit(::LatentGaussianModel, y, ::INLA)`
-# when `latent_strategy = :simplified_laplace`. Independent of the
+# when `latent_strategy = SimplifiedLaplace()` (or the legacy
+# `:simplified_laplace` symbol per ADR-026). Independent of the
 # Hermite density-shape correction in `_latent_skewness` (marginals.jl):
 # this corrects the *summary* `INLAResult.x_mean` / `x_var`; that one
 # corrects the per-coordinate density of `p(x_i | y)`.
@@ -28,8 +29,8 @@ where:
   correction applied when the model carries hard linear constraints.
 
 Returns a zero vector when `h³ ≡ 0` (Gaussian-likelihood collapse) so
-that `latent_strategy = :simplified_laplace` reduces exactly to the
-`:gaussian` path on quadratic-in-η likelihoods.
+that `latent_strategy = SimplifiedLaplace()` reduces exactly to the
+`Gaussian()` path on quadratic-in-η likelihoods.
 
 Cost per call: one multi-RHS sparse triangular solve (`H⁻¹ Aᵀ`,
 `n_x × n_obs`) plus one vector solve. With `FactorCache` reuse this is

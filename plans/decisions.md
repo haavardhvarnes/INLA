@@ -2563,6 +2563,173 @@ ergonomic alternative, not a replacement.
 
 ---
 
+## ADR-026: Marginal strategies via `AbstractMarginalStrategy` type dispatch
+
+Status: Accepted
+Date: 2026-05-04
+
+### Context
+
+Phase L opens the third R-INLA marginal strategy: `FullLaplace` (R-INLA's
+`strategy = "laplace"`), the per-`x_i` refitted Laplace that closes the
+sharply-non-Gaussian-latent gap on fixtures like Brunei.
+
+The two existing strategies — `:gaussian` and `:simplified_laplace` —
+are dispatched via symbol whitelist in two locations:
+
+- The integration-stage selector in
+  `INLA(; latent_strategy=:gaussian|:simplified_laplace)`
+  ([`packages/LatentGaussianModels.jl/src/inference/inla.jl`](../packages/LatentGaussianModels.jl/src/inference/inla.jl))
+  — controls whether `_inla_integrate` applies the Rue-Martino mean shift
+  to `x_mean` / `x_var`.
+- The per-coordinate density selector in
+  `posterior_marginal_x(res, i; strategy=:gaussian|:simplified_laplace)`
+  ([`packages/LatentGaussianModels.jl/src/inference/marginals.jl`](../packages/LatentGaussianModels.jl/src/inference/marginals.jl))
+  — controls whether the density mixture is augmented by the Edgeworth
+  first-order skew correction.
+
+Both surfaces use the same two symbol values to mirror R-INLA's
+`control.inla$strategy`, which is one user-facing knob. ADR-016 already
+documents that the two facets — integration-stage mean shift and
+per-coordinate density skew — are *independently* triggered by the
+single user setting because they happen at different points in the
+pipeline.
+
+`FullLaplace` is fundamentally different in shape from the other two:
+
+- It is parameterised. The reference-grid construction takes a span and
+  point count per coordinate; `:gaussian` and `:simplified_laplace`
+  carry no per-call configuration.
+- It re-runs the inner Newton with one coordinate fixed as a datum, via
+  a constraint injection on top of the existing
+  `LinearConstraint`-aware Laplace pipeline. That requires per-strategy
+  state and configuration that does not fit a flat enum.
+- It is expensive enough that users may want to tune knobs (rank-1
+  factor reuse, grid adaptation) without changing strategy.
+
+A symbol whitelist cannot extend cleanly to a parameterised strategy.
+The replan ([§Phase L line 350](../plans/replan-2026-04-28.md)) frames
+Phase L as the implicit quality gate on the marginal-strategy
+abstraction; introducing the type hierarchy now is the cleanest place
+to validate that the abstraction holds.
+
+### Decision
+
+Promote the symbol whitelist to a multiple-dispatch type hierarchy.
+
+```julia
+abstract type AbstractMarginalStrategy end
+
+struct Gaussian          <: AbstractMarginalStrategy end
+struct SimplifiedLaplace <: AbstractMarginalStrategy end
+struct FullLaplace       <: AbstractMarginalStrategy   # PR-3
+    n_grid::Int
+    span::Float64
+end
+```
+
+The strategy is the same object passed to both surfaces:
+
+```julia
+INLA(; latent_strategy = SimplifiedLaplace())                 # integration
+posterior_marginal_x(res, i; strategy = FullLaplace())        # per-x_i density
+refine_hyperposterior(res, model, y;
+                      latent_strategy = SimplifiedLaplace())  # re-integrate
+```
+
+A symbol shim preserves backwards compatibility:
+
+```julia
+_resolve_marginal_strategy(s::AbstractMarginalStrategy) = s
+function _resolve_marginal_strategy(s::Symbol)
+    s === :gaussian          && return Gaussian()
+    s === :simplified_laplace && return SimplifiedLaplace()
+    throw(ArgumentError("unknown marginal strategy :$s; " *
+                        "use Gaussian(), SimplifiedLaplace(), FullLaplace(), " *
+                        "or :gaussian / :simplified_laplace"))
+end
+```
+
+The shim mirrors `_resolve_scheme(::Symbol, ::Int)` for
+`AbstractIntegrationScheme` ([`inla.jl:95-102`](../packages/LatentGaussianModels.jl/src/inference/inla.jl)),
+which is the established pattern for "type-or-symbol" keyword handling
+in the package.
+
+The dispatch contract a new strategy must implement is single-method:
+
+```julia
+# integration-stage hook (PR-1 dispatches `_inla_integrate` on this)
+_apply_mean_shift(::AbstractMarginalStrategy, lp, model, y) -> Vector{Float64}
+
+# per-coordinate density hook (PR-1 dispatches `posterior_marginal_x` on this)
+_density_mixture!(::AbstractMarginalStrategy, pdf, xs, m_k, σ_k, w_k, …)
+```
+
+`Gaussian` returns a zero shift / Gaussian mixture; `SimplifiedLaplace`
+returns the Rue-Martino shift / Edgeworth-corrected mixture;
+`FullLaplace` (PR-3) returns the appropriate refit-derived quantities.
+
+### Consequences
+
+**Pros.**
+
+- `FullLaplace` plugs in as a third subtype with its own configuration
+  fields, no further plumbing needed.
+- The two facets of `SimplifiedLaplace` (mean shift in integration;
+  Edgeworth in marginals) are dispatched on the same type but via
+  *different methods*, preserving their semantic independence (per
+  ADR-016) at the implementation level. Users who wanted the mean
+  shift but not the density skew (or vice versa) currently have no
+  way to ask; that's a follow-up — the new type is the right place
+  to express it (e.g. `SimplifiedLaplace(; mean_shift=true,
+  density_skew=true)`).
+- `_resolve_marginal_strategy` keeps the symbol API alive indefinitely;
+  no deprecation churn.
+- The new type lives next to `AbstractIntegrationScheme`, not subsumed
+  into it: the two are orthogonal axes (θ-quadrature vs latent-density
+  shape). A user can pair any `AbstractIntegrationScheme` with any
+  `AbstractMarginalStrategy`.
+
+**Cons.**
+
+- One more public abstract type (`AbstractMarginalStrategy`) and three
+  exported concrete types. Documented in
+  [`packages/LatentGaussianModels.jl/CLAUDE.md`](../packages/LatentGaussianModels.jl/CLAUDE.md)
+  alongside the existing strategy types.
+- The `INLA{I, S <: Laplace}` field type becomes
+  `latent_strategy::M where M <: AbstractMarginalStrategy`; downstream
+  code that destructures `strategy.latent_strategy === :simplified_laplace`
+  must rewrite to `strategy.latent_strategy isa SimplifiedLaplace` (or
+  use the `_apply_mean_shift` hook). All in-tree code is rewritten in
+  PR-1.
+
+**Acceptance criteria for PR-1.**
+
+- All 28 oracle fixtures in
+  [`packages/LatentGaussianModels.jl/test/oracle/`](../packages/LatentGaussianModels.jl/test/oracle/)
+  pass bit-for-bit unchanged.
+- New regression test:
+  `INLA(latent_strategy=:simplified_laplace)` and
+  `INLA(latent_strategy=SimplifiedLaplace())` produce byte-identical
+  `INLAResult` objects on the Pennsylvania BYM2 oracle.
+- Same equivalence asserted for `posterior_marginal_x(...; strategy=:simplified_laplace)`
+  vs `strategy=SimplifiedLaplace()`.
+- Unknown-symbol path still throws `ArgumentError` (the shim's
+  fallthrough preserves the existing user-error message).
+
+### References
+
+- ADR-016 — Simplified-Laplace mean-shift correction; introduces the
+  facet-independence note this ADR's `_resolve_marginal_strategy`
+  preserves.
+- [`plans/replan-2026-04-28.md`](../plans/replan-2026-04-28.md) §Phase L,
+  line 350 — frames Phase L as the abstraction-quality gate.
+- `_resolve_scheme(::Symbol, ::Int)` at
+  [`packages/LatentGaussianModels.jl/src/inference/inla.jl:95-102`](../packages/LatentGaussianModels.jl/src/inference/inla.jl)
+  — pattern this ADR generalises.
+
+---
+
 ## ADR template for future entries
 
 ```

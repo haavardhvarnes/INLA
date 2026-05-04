@@ -1,15 +1,19 @@
 # Posterior marginal densities for latent coordinates and hyperparameters.
 #
-# For `x_i | y` two strategies are available (R-INLA terminology):
+# For `x_i | y` the strategies live under `AbstractMarginalStrategy` (see
+# ADR-026):
 #
-# - `:gaussian` — mixture of per-θ Gaussians with
+# - `Gaussian()` — mixture of per-θ Gaussians with
 #   `(mean = mode_i(θ_k), var = diag(H(θ_k)⁻¹)_i)`, weighted by `w_k`.
-# - `:simplified_laplace` — same mixture, but each Gaussian component is
+# - `SimplifiedLaplace()` — same mixture, but each Gaussian component is
 #   multiplied by an Edgeworth first-order skewness correction
 #   `(1 + γ/6 · H₃(s))` where `γ = κ_3/σ³` is the posterior skewness of
 #   `x_i` under the Laplace at `θ_k` and `H₃(s) = s³ - 3s` is the third
 #   Hermite polynomial. This corresponds to Rue-Martino-Chopin (2009) §4.2
 #   with the Gaussian marginal augmented by the leading skew term.
+#
+# Phase L will add `FullLaplace` (R-INLA's `strategy = "laplace"`) as a
+# third subtype.
 #
 # For `θ_j | y` the first-level output is a Gaussian at (θ̂_j, Σθ[j,j]).
 # A numerically integrated density on the design points is a future
@@ -18,7 +22,7 @@
 
 """
     posterior_marginal_x(res::INLAResult, i::Int;
-                         strategy = :gaussian,
+                         strategy = Gaussian(),
                          model = nothing, y = nothing,
                          grid_size = 75, span = 5.0,
                          grid = nothing) -> @NamedTuple{x::Vector, pdf::Vector}
@@ -29,11 +33,13 @@ Returns a named tuple `(x, pdf)`. The density is the θ-mixture
 
     p(x_i | y) ≈ Σ_k w_k · π_k(x_i)
 
-where `π_k` depends on `strategy`:
+where `π_k` depends on `strategy` (an `AbstractMarginalStrategy`
+instance, or one of the legacy symbols `:gaussian` /
+`:simplified_laplace` — see ADR-026):
 
-- `:gaussian` (default) — `π_k = φ(x_i; mode_k[i], var_k[i])`.
-- `:simplified_laplace` — `π_k = φ · (1 + γ_k / 6 · H₃(s))` with
-  `s = (x_i - mode_k[i]) / σ_k`, `H₃(s) = s³ - 3s`, and posterior
+- `Gaussian()` / `:gaussian` (default) — `π_k = φ(x_i; mode_k[i], var_k[i])`.
+- `SimplifiedLaplace()` / `:simplified_laplace` — `π_k = φ · (1 + γ_k / 6 · H₃(s))`
+  with `s = (x_i - mode_k[i]) / σ_k`, `H₃(s) = s³ - 3s`, and posterior
   skewness `γ_k = κ_3(x_i|θ_k) / σ_k³`. The third cumulant is
   assembled from `∇³_η_log_density` and the Laplace precision at
   `θ_k`; for a Gaussian likelihood this collapses to the Gaussian
@@ -44,7 +50,7 @@ equally spaced points spanning `±span · √posterior_var` about the posterior
 mean is generated.
 """
 function posterior_marginal_x(res::INLAResult, i::Integer;
-        strategy::Symbol=:gaussian,
+        strategy::Union{Symbol, AbstractMarginalStrategy}=Gaussian(),
         model::Union{Nothing, LatentGaussianModel}=nothing,
         y=nothing,
         grid_size::Integer=75,
@@ -52,10 +58,9 @@ function posterior_marginal_x(res::INLAResult, i::Integer;
         grid::Union{Nothing, AbstractVector{<:Real}}=nothing)
     1 ≤ i ≤ length(res.x_mean) ||
         throw(ArgumentError("posterior_marginal_x: index $i out of bounds (1:$(length(res.x_mean)))"))
-    strategy in (:gaussian, :simplified_laplace) ||
-        throw(ArgumentError("unknown strategy :$strategy; use :gaussian or :simplified_laplace"))
-    if strategy === :simplified_laplace && (model === nothing || y === nothing)
-        throw(ArgumentError("strategy = :simplified_laplace requires keyword arguments `model` and `y`"))
+    s = _resolve_marginal_strategy(strategy)
+    if s isa SimplifiedLaplace && (model === nothing || y === nothing)
+        throw(ArgumentError("strategy = SimplifiedLaplace() requires keyword arguments `model` and `y`"))
     end
 
     μ = res.x_mean[i]
@@ -67,11 +72,12 @@ function posterior_marginal_x(res::INLAResult, i::Integer;
     v_k = [_constrained_marginal_variances(lp.precision, lp.constraint)[i]
            for lp in res.laplaces]
 
-    # Precompute per-θ skewness if requested.
-    γ_k = strategy === :simplified_laplace ?
-          [_latent_skewness(res.laplaces[k], model, y, i, v_k[k])
-           for k in eachindex(res.laplaces)] :
-          zeros(Float64, length(res.laplaces))
+    # Precompute per-θ skewness if requested. `_density_skewness` returns
+    # zero for any strategy that does not need skew correction; the inner
+    # loop branches on `γ == 0` so the Gaussian path is bit-for-bit
+    # equivalent regardless of which strategy is requested.
+    γ_k = [_density_skewness(s, res.laplaces[k], model, y, i, v_k[k])
+           for k in eachindex(res.laplaces)]
 
     pdf = zeros(Float64, length(xs))
     @inbounds for k in eachindex(res.laplaces)
@@ -80,17 +86,17 @@ function posterior_marginal_x(res::INLAResult, i::Integer;
         σk = sqrt(max(v_k[k], 0.0))
         σk == 0 && continue
         γ = γ_k[k]
-        if strategy === :gaussian || γ == 0
+        if γ == 0
             for (j, x) in pairs(xs)
                 pdf[j] += w * _normal_pdf(x, m_k[k], σk)
             end
         else
             for (j, x) in pairs(xs)
-                s = (x - m_k[k]) / σk
+                t = (x - m_k[k]) / σk
                 # Edgeworth first-order skewness correction.
-                # H_3(s) = s^3 - 3s.  ∫ φ(s) H_3(s) ds = 0 ⇒ density
+                # H_3(t) = t^3 - 3t.  ∫ φ(t) H_3(t) dt = 0 ⇒ density
                 # integrates to 1 without renormalisation.
-                c = 1 + γ / 6 * (s^3 - 3 * s)
+                c = 1 + γ / 6 * (t^3 - 3 * t)
                 # Floor to zero — Edgeworth densities can go slightly
                 # negative in the deep tails when |γ| is large. Clamping
                 # preserves non-negativity without destroying mass.
@@ -100,6 +106,20 @@ function posterior_marginal_x(res::INLAResult, i::Integer;
         end
     end
     return (x=xs, pdf=pdf)
+end
+
+# Per-coordinate density-skew hook. `Gaussian` returns 0 (collapses to
+# the unweighted Gaussian mixture). `SimplifiedLaplace` returns the
+# Edgeworth coefficient assembled from `∇³_η_log_density`.
+_density_skewness(::Gaussian, lp::LaplaceResult, model, y, i, var_i) = 0.0
+
+function _density_skewness(::SimplifiedLaplace,
+        lp::LaplaceResult,
+        model::LatentGaussianModel,
+        y,
+        i::Integer,
+        var_i::Real)
+    return _latent_skewness(lp, model, y, i, var_i)
 end
 
 """
