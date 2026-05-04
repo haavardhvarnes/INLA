@@ -18,7 +18,7 @@ CONVERT    := $(JULIA) --project=$(CURDIR) $(CURDIR)/convert_to_jld2.jl
 # Each entry: <category>/<name> => (R script, destination JLD2 path)
 
 GMRFS_FIXTURES := qinv_rw2
-LGM_FIXTURES   := scotland_bym2 pennsylvania_bym2 synthetic_nbinomial synthetic_gamma scotland_bym synthetic_disconnected_besag synthetic_generic0 synthetic_generic1 synthetic_seasonal synthetic_leroux synthetic_exponential_survival synthetic_weibull_survival synthetic_lognormal_survival synthetic_gamma_survival synthetic_coxph synthetic_joint_gauss_pois synthetic_zip1 synthetic_baghfalaki synthetic_iid2d synthetic_replicate_ar1 synthetic_beta synthetic_betabinomial
+LGM_FIXTURES   := scotland_bym2 pennsylvania_bym2 synthetic_nbinomial synthetic_gamma scotland_bym synthetic_disconnected_besag synthetic_generic0 synthetic_generic1 synthetic_seasonal synthetic_leroux synthetic_exponential_survival synthetic_weibull_survival synthetic_lognormal_survival synthetic_gamma_survival synthetic_coxph synthetic_joint_gauss_pois synthetic_zip1 synthetic_baghfalaki synthetic_iid2d synthetic_replicate_ar1 synthetic_beta synthetic_betabinomial synthetic_studentt
 SPDE_FIXTURES  := fmesher_unit_square fmesher_lshape fmesher_meuse_hull meuse_spde
 
 GMRFS_DEST := $(ROOT)/packages/GMRFs.jl/test/oracle/fixtures
