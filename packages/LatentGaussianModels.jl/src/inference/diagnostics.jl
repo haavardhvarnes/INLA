@@ -139,6 +139,76 @@ function posterior_sample(rng::Random.AbstractRNG,
 end
 
 # ---------------------------------------------------------------------
+# Posterior predictive at a new observation mapping
+# ---------------------------------------------------------------------
+
+"""
+    posterior_predictive(rng, res, model, mapping; n_samples = 1000)
+      -> @NamedTuple{x::Matrix{Float64}, θ::Matrix{Float64}, η::Matrix{Float64}}
+
+Posterior predictive samples of the linear predictor `η_new = A_new x`
+at a new observation mapping. `mapping` may be either an
+[`AbstractObservationMapping`](@ref) (e.g. [`LinearProjector`](@ref),
+[`IdentityMapping`](@ref), [`StackedMapping`](@ref)) or an
+`AbstractMatrix` `A_new` — matrices are wrapped in `LinearProjector`
+automatically, mirroring `LatentGaussianModel`'s convenience
+constructor.
+
+The function returns the joint draws `(x, θ)` from
+[`posterior_sample`](@ref) plus `η::Matrix{Float64}` of size
+`nrows(mapping) × n_samples`. Each column is `η_s = mapping * x_s`.
+
+`η` is the foundation for downstream predictive inference: applying
+the likelihood's inverse link gives `μ` posterior samples, and
+sampling `y_new ∼ p(y | η, θ)` per likelihood gives full posterior
+predictive `y` samples. The latter is left to per-likelihood
+sampling code (Phase K follow-up); this function ships the
+likelihood-agnostic part.
+
+`mapping` must satisfy `ncols(mapping) == n_latent(model)`.
+
+# Example
+
+```julia
+res = inla(model, y)
+# Predict at new covariate rows X_new (rows match the original design):
+draws = posterior_predictive(rng, res, model, X_new; n_samples = 500)
+μ_new = inverse_link.(link(model.likelihood), draws.η)
+```
+"""
+function posterior_predictive(rng::Random.AbstractRNG,
+        res::INLAResult,
+        model::LatentGaussianModel,
+        mapping::AbstractObservationMapping;
+        n_samples::Integer=1000)
+    n_samples ≥ 1 || throw(ArgumentError("n_samples must be ≥ 1"))
+    ncols(mapping) == model.n_x ||
+        throw(DimensionMismatch("mapping has ncols=$(ncols(mapping)); " *
+                                "model has n_x=$(model.n_x)"))
+
+    draws = posterior_sample(rng, res, model; n_samples=n_samples)
+    n_new = nrows(mapping)
+    η = Matrix{Float64}(undef, n_new, n_samples)
+
+    x_buf = Vector{Float64}(undef, model.n_x)
+    η_buf = Vector{Float64}(undef, n_new)
+    for s in 1:n_samples
+        @views copyto!(x_buf, draws.x[:, s])
+        apply!(η_buf, mapping, x_buf)
+        @views η[:, s] .= η_buf
+    end
+    return (x=draws.x, θ=draws.θ, η=η)
+end
+
+function posterior_predictive(rng::Random.AbstractRNG,
+        res::INLAResult,
+        model::LatentGaussianModel,
+        A::AbstractMatrix;
+        kwargs...)
+    return posterior_predictive(rng, res, model, LinearProjector(A); kwargs...)
+end
+
+# ---------------------------------------------------------------------
 # Deviance Information Criterion (closed-form moment approximation)
 # ---------------------------------------------------------------------
 

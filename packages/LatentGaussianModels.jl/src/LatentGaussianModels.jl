@@ -178,7 +178,8 @@ export fit, empirical_bayes, laplace, inla, refine_hyperposterior
 export posterior_marginal_x, posterior_marginal_θ
 export fixed_effects, random_effects, hyperparameters
 export log_marginal_likelihood, component_range
-export posterior_samples_η, posterior_sample, dic, waic, cpo, pit
+export posterior_samples_η, posterior_sample, posterior_predictive,
+       dic, waic, cpo, pit
 export inla_summary
 export INLALogDensity, sample_conditional
 
