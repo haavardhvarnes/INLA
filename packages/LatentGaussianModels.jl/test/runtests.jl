@@ -132,6 +132,9 @@ using GMRFs
     @testset "AbstractMarginalStrategy — Phase L PR-1 dispatch" begin
         include("regression/test_marginal_strategy_dispatch.jl")
     end
+    @testset "UserComponent — Phase L PR-2 (rgeneric)" begin
+        include("regression/test_user_component.jl")
+    end
     @testset "LogDensityProblems conformance" begin
         include("regression/test_log_density.jl")
     end
