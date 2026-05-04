@@ -1,7 +1,7 @@
 using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
                             BinomialLikelihood, NegativeBinomialLikelihood, GammaLikelihood,
                             BetaLikelihood, BetaBinomialLikelihood,
-                            StudentTLikelihood,
+                            StudentTLikelihood, SkewNormalLikelihood,
                             IdentityLink, LogLink, LogitLink,
                             log_density, ∇_η_log_density, ∇²_η_log_density,
                             ∇³_η_log_density, log_hyperprior, nhyperparameters,
@@ -358,5 +358,68 @@ end
         expected_τ = log(1.0e-4) + 0.4 - 1.0e-4 * exp(0.4)
         expected_ν = -0.5 * log(2π) - 0.5 * (1.8 - 2.5)^2
         @test log_hyperprior(ℓ, θ) ≈ expected_τ + expected_ν
+    end
+end
+
+@testset "SkewNormalLikelihood — IdentityLink" begin
+    rng = Random.Xoshiro(7)
+    y = randn(rng, 12) .+ 0.2
+    η = randn(rng, 12) .* 0.3
+
+    @testset "closed-form derivatives" begin
+        ℓ = SkewNormalLikelihood()
+        @test nhyperparameters(ℓ) == 2
+        for (θ_τ, θ_γ) in ((0.0, 0.0), (0.5, 0.7), (-0.4, -1.2))
+            θ = [θ_τ, θ_γ]
+
+            lp = log_density(ℓ, y, η, θ)
+            @test isfinite(lp)
+            @test sum(pointwise_log_density(ℓ, y, η, θ)) ≈ lp
+
+            g = ∇_η_log_density(ℓ, y, η, θ)
+            g_fd = fd_grad(h -> log_density(ℓ, y, h, θ), η)
+            @test g≈g_fd atol=1.0e-4
+
+            H = ∇²_η_log_density(ℓ, y, η, θ)
+            H_fd = fd_grad(h -> sum(∇_η_log_density(ℓ, y, h, θ)), η)
+            @test H≈H_fd atol=1.0e-4
+
+            T = ∇³_η_log_density(ℓ, y, η, θ)
+            T_fd = fd_grad(h -> sum(∇²_η_log_density(ℓ, y, h, θ)), η)
+            @test T≈T_fd atol=1.0e-3
+        end
+    end
+
+    @testset "Gaussian limit (γ → 0)" begin
+        # At θ[2] = 0, γ = 0 and the skew-normal collapses to N(η, 1/τ).
+        ℓ = SkewNormalLikelihood()
+        for θ_τ in (-0.5, 0.0, 0.7)
+            τ = exp(θ_τ)
+            θ = [θ_τ, 0.0]
+            lp_sn = log_density(ℓ, y, η, θ)
+            n = length(y)
+            lp_gauss = -n / 2 * log(2π) + n / 2 * θ_τ - 0.5 * τ * sum((y .- η) .^ 2)
+            @test lp_sn ≈ lp_gauss
+
+            g = ∇_η_log_density(ℓ, y, η, θ)
+            @test g ≈ τ .* (y .- η)
+            H = ∇²_η_log_density(ℓ, y, η, θ)
+            @test all(abs.(H .+ τ) .< 1.0e-12)
+        end
+    end
+
+    @testset "non-IdentityLink rejected" begin
+        @test_throws ArgumentError SkewNormalLikelihood(link=LogLink())
+        @test_throws ArgumentError SkewNormalLikelihood(link=LogitLink())
+    end
+
+    @testset "log_hyperprior wires both blocks" begin
+        ℓ = SkewNormalLikelihood()
+        θ = [0.6, -0.3]
+        # τ-block: GammaPrecision(1, 5e-5) → log(5e-5) - 0 + 0.6 - 5e-5·exp(0.6)
+        # γ-block: GaussianPrior(0, 1) → -½ log(2π) - 0 - ½(-0.3)²
+        expected_τ = log(5.0e-5) + 0.6 - 5.0e-5 * exp(0.6)
+        expected_γ = -0.5 * log(2π) - 0.5 * (-0.3)^2
+        @test log_hyperprior(ℓ, θ) ≈ expected_τ + expected_γ
     end
 end
