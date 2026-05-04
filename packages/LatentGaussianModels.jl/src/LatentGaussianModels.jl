@@ -169,7 +169,8 @@ export joint_precision, joint_prior_mean
 export joint_log_density, joint_∇_η_log_density, joint_∇²_η_log_density,
        joint_∇³_η_log_density, joint_pointwise_log_density, joint_pointwise_cdf
 export AbstractInferenceStrategy, AbstractInferenceResult
-export AbstractIntegrationScheme, Grid, GaussHermite, CCD
+export AbstractIntegrationScheme, Grid, GaussHermite, CCD,
+       compute_skewness_corrections
 export Laplace, LaplaceResult, laplace_mode
 export EmpiricalBayes, EmpiricalBayesResult
 export INLA, INLAResult

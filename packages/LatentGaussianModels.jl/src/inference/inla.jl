@@ -1,6 +1,7 @@
 """
     INLA(; int_strategy = :auto, laplace = Laplace(),
           latent_strategy = :gaussian,
+          skewness_correction = false,
           θ0 = nothing, optim_options = NamedTuple())
 
 Integrated Nested Laplace Approximation for a `LatentGaussianModel`.
@@ -45,11 +46,32 @@ toggled independently — see ADR-016.
 
 R-INLA's full `simplified.laplace` also includes a variance correction;
 that piece is deferred to v0.3 (see ADR-006 amendment).
+
+### `skewness_correction`
+
+Opt-in asymmetric per-axis stretches for the `Grid` quadrature design
+(Rue-Martino-Chopin 2009 §6.5). When `true`, after `θ̂` and `Σ` are
+in hand the pipeline probes `log π̂(θ|y)` at `θ̂ ± Σ^{1/2} e_k` along
+each eigen-axis `k` and rebuilds the `Grid` scheme with per-axis
+`stdev_corr_pos` / `stdev_corr_neg` factors that align the design
+points with the actual log-posterior shape — useful when the
+hyperparameter posterior is heavy-tailed on one side (e.g. log-precision
+posteriors with sharp upper-curvature walls and slow decay below).
+
+Quadrature weights stay as standard-normal weights — the asymmetric
+placement only relocates points; the IS reweight in step (3) absorbs
+the proposal mismatch.
+
+The flag has no effect for non-`Grid` schemes (CCD / GaussHermite); for
+those a future PR can wire equivalent corrections. Default `false`
+matches R-INLA's `control.inla\$skew.corr.positive = 1.0,
+skew.corr.negative = 1.0` (off by default).
 """
 struct INLA{I, S <: Laplace} <: AbstractInferenceStrategy
     int_strategy::I
     laplace::S
     latent_strategy::Symbol
+    skewness_correction::Bool
     θ0::Union{Nothing, Vector{Float64}}
     optim_options::NamedTuple
 end
@@ -57,13 +79,14 @@ end
 function INLA(; int_strategy=:auto,
         laplace::Laplace=Laplace(),
         latent_strategy::Symbol=:gaussian,
+        skewness_correction::Bool=false,
         θ0::Union{Nothing, AbstractVector{<:Real}}=nothing,
         optim_options::NamedTuple=NamedTuple())
     latent_strategy in (:gaussian, :simplified_laplace) ||
         throw(ArgumentError("unknown latent_strategy :$latent_strategy; " *
                             "use :gaussian or :simplified_laplace"))
     return INLA{typeof(int_strategy), typeof(laplace)}(
-        int_strategy, laplace, latent_strategy,
+        int_strategy, laplace, latent_strategy, skewness_correction,
         θ0 === nothing ? nothing : collect(Float64, θ0),
         optim_options
     )
@@ -192,6 +215,19 @@ function fit(m::LatentGaussianModel, y, strategy::INLA)
     Σθ = _safe_inverse_hessian(H)
 
     scheme = _resolve_scheme(strategy.int_strategy, length(θ̂))
+    if strategy.skewness_correction && scheme isa Grid && length(θ̂) ≥ 1
+        # Rebuild the Grid scheme with asymmetric stretches estimated
+        # from a few extra `log π̂` probes around θ̂. Keeps the same
+        # `n_per_dim` / `span` so the design count is unchanged; the
+        # IS reweight in the loop below absorbs the proposal mismatch.
+        # `_neg_log_posterior_θ` returns `-(log_marginal + log_hyperprior)`,
+        # so its negation is `log π̂(θ|y)` up to a θ-independent
+        # constant — fine for the skewness ratios.
+        f = _neg_log_posterior_θ(m, y, strategy.laplace)
+        log_post = θ -> -f(θ, nothing)
+        pos, neg = compute_skewness_corrections(log_post, θ̂, Σθ)
+        scheme = Grid(scheme.n_per_dim, scheme.span, pos, neg)
+    end
     points, log_base_weights = integration_nodes(scheme, θ̂, Σθ)
 
     # Laplace at each point + Gaussian-q log density at each point.
