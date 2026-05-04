@@ -33,6 +33,20 @@ end
     @test isfinite(log_hyperprior(c, [0.0]))
 end
 
+@testset "IID component — fix_τ toggle (ADR-024 multinomial nuisance)" begin
+    c = IID(4; τ_init=-10.0, fix_τ=true)
+    @test length(c) == 4
+    @test nhyperparameters(c) == 0
+    @test initial_hyperparameters(c) == Float64[]
+    Q = precision_matrix(c, Float64[])
+    @test Matrix(Q) ≈ exp(-10.0) * I(4)
+    @test log_hyperprior(c, Float64[]) == 0.0
+    # Free + fixed branches must agree at the same τ
+    cf = IID(4; τ_init=log(2.0), fix_τ=false)
+    @test Matrix(precision_matrix(cf, [log(2.0)])) ≈
+          Matrix(precision_matrix(IID(4; τ_init=log(2.0), fix_τ=true), Float64[]))
+end
+
 @testset "RW1 component" begin
     c = RW1(6)
     @test length(c) == 6

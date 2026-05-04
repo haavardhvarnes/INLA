@@ -54,6 +54,9 @@ using GMRFs
     @testset "Group — Phase I-C PR-3b" begin
         include("regression/test_group.jl")
     end
+    @testset "Multinomial helpers — Phase J PR-7" begin
+        include("regression/test_multinomial.jl")
+    end
     @testset "BYM" begin
         include("regression/test_bym.jl")
     end
@@ -150,6 +153,7 @@ using GMRFs
         include("oracle/test_synthetic_skewnormal.jl")
         include("oracle/test_synthetic_gev.jl")
         include("oracle/test_synthetic_pom.jl")
+        include("oracle/test_synthetic_multinomial.jl")
     end
     @testset "Quality" begin
         include("quality/test_aqua.jl")
