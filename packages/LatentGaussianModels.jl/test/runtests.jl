@@ -120,6 +120,9 @@ using GMRFs
     @testset "PSIS-LOO — Phase K PR-5" begin
         include("regression/test_psis_loo.jl")
     end
+    @testset "posterior_predictive_y — Phase K PR-6" begin
+        include("regression/test_posterior_predictive_y.jl")
+    end
     @testset "Simplified Laplace — skew correction" begin
         include("regression/test_simplified_laplace.jl")
     end
