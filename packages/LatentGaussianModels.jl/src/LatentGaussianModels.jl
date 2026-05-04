@@ -179,7 +179,8 @@ export posterior_marginal_x, posterior_marginal_θ
 export fixed_effects, random_effects, hyperparameters
 export log_marginal_likelihood, component_range
 export posterior_samples_η, posterior_sample, posterior_predictive,
-       posterior_predictive_y, sample_y, dic, waic, cpo, pit, psis_loo
+       posterior_predictive_y, sample_y, pp_check,
+       dic, waic, cpo, pit, psis_loo
 export inla_summary
 export INLALogDensity, sample_conditional
 

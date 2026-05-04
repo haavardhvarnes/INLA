@@ -288,6 +288,53 @@ function posterior_predictive_y(res::INLAResult, model::LatentGaussianModel;
     return posterior_predictive_y(Random.default_rng(), res, model; kwargs...)
 end
 
+"""
+    pp_check(rng, res, model, y_obs; n_samples = 400)
+      -> @NamedTuple{y::AbstractVector, y_rep::Matrix{Float64}}
+
+Posterior-predictive-check data: the observed response `y_obs` paired
+with `n_samples` replicate response vectors `y_rep` drawn under the
+fitted model. Convenience wrapper over [`posterior_predictive_y`](@ref)
+that drops the `(x, θ, η)` joint draws and keeps just the data needed
+for pp-check overlays.
+
+`n_samples` defaults to `400` — enough for stable density estimates,
+small enough that overlaying every column of `y_rep` is reasonable.
+
+# Plotting (Makie)
+
+```julia
+using GLMakie, LatentGaussianModels
+ck = pp_check(rng, res, model, y_obs; n_samples = 400)
+
+fig = Figure(); ax = Axis(fig[1, 1])
+for j in axes(ck.y_rep, 2)[1:50]                         # 50 replicates
+    density!(ax, ck.y_rep[:, j]; color = (:gray, 0.4))
+end
+density!(ax, ck.y; color = :black, linewidth = 3)
+fig
+```
+
+The y-axis covers `min(y_rep)` to `max(y_rep)` automatically; a clear
+visual gap between the observed and replicated densities indicates
+mis-specification (location, scale, or shape).
+"""
+function pp_check(rng::Random.AbstractRNG,
+        res::INLAResult,
+        model::LatentGaussianModel,
+        y_obs;
+        n_samples::Integer=400)
+    length(y_obs) == n_observations(model) ||
+        throw(DimensionMismatch("y_obs has length $(length(y_obs)); " *
+                                "model has $(n_observations(model)) observation rows"))
+    draws = posterior_predictive_y(rng, res, model; n_samples=n_samples)
+    return (y=y_obs, y_rep=draws.y_rep)
+end
+
+function pp_check(res::INLAResult, model::LatentGaussianModel, y_obs; kwargs...)
+    return pp_check(Random.default_rng(), res, model, y_obs; kwargs...)
+end
+
 # ---------------------------------------------------------------------
 # Deviance Information Criterion (closed-form moment approximation)
 # ---------------------------------------------------------------------

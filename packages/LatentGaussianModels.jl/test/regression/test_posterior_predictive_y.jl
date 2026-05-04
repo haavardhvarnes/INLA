@@ -4,7 +4,7 @@ using LatentGaussianModels: GaussianLikelihood, PoissonLikelihood,
                             GammaLikelihood,
                             Intercept, IID, FixedEffects,
                             LatentGaussianModel, inla, posterior_predictive_y,
-                            sample_y, n_latent
+                            pp_check, sample_y, n_latent
 using Distributions: Poisson, Binomial, NegativeBinomial, Gamma
 using SparseArrays
 using LinearAlgebra: I
@@ -146,4 +146,26 @@ end
     rng = Random.Xoshiro(0)
     ℓ = ExponentialLikelihood()
     @test_throws ArgumentError sample_y(rng, ℓ, [0.0, 0.5], Float64[])
+end
+
+@testset "pp_check — wraps posterior_predictive_y" begin
+    rng = Random.Xoshiro(20260504)
+    n = 30
+    y = 0.4 .+ 0.5 .* randn(rng, n)
+    ℓ = GaussianLikelihood()
+    A = sparse([ones(n) Matrix{Float64}(I, n, n)])
+    model = LatentGaussianModel(ℓ, (Intercept(), IID(n)), A)
+    res = inla(model, y; int_strategy=:grid)
+
+    ck = pp_check(rng, res, model, y; n_samples=200)
+    @test ck.y === y
+    @test size(ck.y_rep) == (n, 200)
+    @test eltype(ck.y_rep) == Float64
+
+    # Default-rng convenience method.
+    ck2 = pp_check(res, model, y; n_samples=50)
+    @test size(ck2.y_rep) == (n, 50)
+
+    # Length mismatch raises.
+    @test_throws DimensionMismatch pp_check(rng, res, model, y[1:5]; n_samples=10)
 end
